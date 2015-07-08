@@ -1,20 +1,54 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio 2013
-VisualStudioVersion = 12.0.30501.0
+VisualStudioVersion = 12.0.31101.0
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "CodexParser", "Tutorial1\CodexParser.fsproj", "{59928041-4879-46B1-9B89-EB2E0237AA2A}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Acceptance|Any CPU = Acceptance|Any CPU
+		Acceptance|Mixed Platforms = Acceptance|Mixed Platforms
+		Acceptance|x86 = Acceptance|x86
 		Debug|Any CPU = Debug|Any CPU
+		Debug|Mixed Platforms = Debug|Mixed Platforms
+		Debug|x86 = Debug|x86
+		Development|Any CPU = Development|Any CPU
+		Development|Mixed Platforms = Development|Mixed Platforms
+		Development|x86 = Development|x86
+		Production|Any CPU = Production|Any CPU
+		Production|Mixed Platforms = Production|Mixed Platforms
+		Production|x86 = Production|x86
 		Release|Any CPU = Release|Any CPU
+		Release|Mixed Platforms = Release|Mixed Platforms
+		Release|x86 = Release|x86
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{59928041-4879-46B1-9B89-EB2E0237AA2A}.Acceptance|Any CPU.ActiveCfg = Release|Any CPU
+		{59928041-4879-46B1-9B89-EB2E0237AA2A}.Acceptance|Any CPU.Build.0 = Release|Any CPU
+		{59928041-4879-46B1-9B89-EB2E0237AA2A}.Acceptance|Mixed Platforms.ActiveCfg = Release|Any CPU
+		{59928041-4879-46B1-9B89-EB2E0237AA2A}.Acceptance|Mixed Platforms.Build.0 = Release|Any CPU
+		{59928041-4879-46B1-9B89-EB2E0237AA2A}.Acceptance|x86.ActiveCfg = Release|Any CPU
 		{59928041-4879-46B1-9B89-EB2E0237AA2A}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{59928041-4879-46B1-9B89-EB2E0237AA2A}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{59928041-4879-46B1-9B89-EB2E0237AA2A}.Debug|Mixed Platforms.ActiveCfg = Debug|Any CPU
+		{59928041-4879-46B1-9B89-EB2E0237AA2A}.Debug|Mixed Platforms.Build.0 = Debug|Any CPU
+		{59928041-4879-46B1-9B89-EB2E0237AA2A}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{59928041-4879-46B1-9B89-EB2E0237AA2A}.Development|Any CPU.ActiveCfg = Debug|Any CPU
+		{59928041-4879-46B1-9B89-EB2E0237AA2A}.Development|Any CPU.Build.0 = Debug|Any CPU
+		{59928041-4879-46B1-9B89-EB2E0237AA2A}.Development|Mixed Platforms.ActiveCfg = Debug|Any CPU
+		{59928041-4879-46B1-9B89-EB2E0237AA2A}.Development|Mixed Platforms.Build.0 = Debug|Any CPU
+		{59928041-4879-46B1-9B89-EB2E0237AA2A}.Development|x86.ActiveCfg = Debug|Any CPU
+		{59928041-4879-46B1-9B89-EB2E0237AA2A}.Production|Any CPU.ActiveCfg = Release|Any CPU
+		{59928041-4879-46B1-9B89-EB2E0237AA2A}.Production|Any CPU.Build.0 = Release|Any CPU
+		{59928041-4879-46B1-9B89-EB2E0237AA2A}.Production|Mixed Platforms.ActiveCfg = Release|Any CPU
+		{59928041-4879-46B1-9B89-EB2E0237AA2A}.Production|Mixed Platforms.Build.0 = Release|Any CPU
+		{59928041-4879-46B1-9B89-EB2E0237AA2A}.Production|x86.ActiveCfg = Release|Any CPU
 		{59928041-4879-46B1-9B89-EB2E0237AA2A}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{59928041-4879-46B1-9B89-EB2E0237AA2A}.Release|Any CPU.Build.0 = Release|Any CPU
+		{59928041-4879-46B1-9B89-EB2E0237AA2A}.Release|Mixed Platforms.ActiveCfg = Release|Any CPU
+		{59928041-4879-46B1-9B89-EB2E0237AA2A}.Release|Mixed Platforms.Build.0 = Release|Any CPU
+		{59928041-4879-46B1-9B89-EB2E0237AA2A}.Release|x86.ActiveCfg = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
