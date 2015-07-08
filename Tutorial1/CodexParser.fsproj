@@ -8,11 +8,11 @@
     <ProjectGuid>59928041-4879-46b1-9b89-eb2e0237aa2a</ProjectGuid>
     <OutputType>Exe</OutputType>
     <RootNamespace>Tutorial1</RootNamespace>
-    <AssemblyName>Tutorial1</AssemblyName>
+    <AssemblyName>CodexParser</AssemblyName>
     <TargetFrameworkVersion>v4.5</TargetFrameworkVersion>
     <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
     <TargetFSharpCoreVersion>4.3.1.0</TargetFSharpCoreVersion>
-    <Name>Tutorial1</Name>
+    <Name>CodexParser</Name>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
     <DebugSymbols>true</DebugSymbols>
@@ -54,7 +54,8 @@
   </Choose>
   <Import Project="$(FSharpTargetsPath)" />
   <ItemGroup>
-    <Compile Include="Tutorial.fsx" />
+    <None Include="CodexParserMain.fsx" />
+    <Compile Include="TyranidTypes.fsx" />
     <None Include="packages.config" />
     <None Include="app.config" />
     <None Include="Script1.fsx" />
@@ -110,6 +111,9 @@
     <None Include="Tesseract-OCR\classifier_tester.exe" />
     <None Include="Tesseract-OCR\ambiguous_words.exe" />
     <Compile Include="HtmlAgilityPack.FSharp.fs" />
+    <Compile Include="ProvidedTypes.fsi" />
+    <Compile Include="ProvidedTypes.fs" />
+    <Compile Include="DebugProvidedTypes.fs" />
   </ItemGroup>
   <ItemGroup>
     <Reference Include="FSharp.Data">

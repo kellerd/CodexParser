@@ -1,7 +1,5 @@
-﻿#if INTERACTIVE
-#r "../packages/HtmlAgilityPack.1.4.9/lib/Net45/HtmlAgilityPack.dll"
-#endif
-module HtmlAgilityPack.FSharp
+﻿
+module HtmlAgilityPackFSharp 
 open HtmlAgilityPack
 type HtmlNode with
 
@@ -90,10 +88,26 @@ let inline hasId value node =
 let inline hasClass value node =
     hasAttr "class" value node
 
+let inline notHasClass value node =
+    hasAttr "class" value node |> not
+
+let rec nextSiblings (node : HtmlNode) = 
+    seq {
+        if node.NextSibling <> null then 
+            yield node.NextSibling
+            yield! nextSiblings(node.NextSibling)
+    }
+
 let inline hasText value (node : HtmlNode) =
     node.InnerText = value
 
-let createDoc html =
+let createDoc html = 
     let doc = new HtmlDocument()
     doc.LoadHtml html
     doc.DocumentNode
+
+
+let extractImageOrText (node:HtmlNode) =
+    match node with
+        | sib when sib.Name = "div" -> sib |> descendants "img" |> Seq.head |> attr "src"
+        | _ -> node.InnerText
