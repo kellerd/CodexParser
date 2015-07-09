@@ -1,4 +1,4 @@
-#nowarn "40"
+﻿#nowarn "40"
 #nowarn "52"
 // Based on code for the F# 3.0 Developer Preview release of September 2011,
 // Copyright (c) Microsoft Corporation 2005-2012.
@@ -269,14 +269,14 @@ module internal Misc =
                 
                 // init t generates the equivalent of <@ ref Unchecked.defaultof<t> @>
                 let init (t:Type) =
-                    let (Quotations.Patterns.Call(None, r, [_])) = <@ ref 1 @>
-                    let (Quotations.Patterns.Call(None, d, [])) = <@ Unchecked.defaultof<_> @>
+                    let r = match <@ ref 1 @> with Quotations.Patterns.Call(None, r, [_]) -> r | _ -> failwith "Extracting MethodInfo from <@ 1 @> failed"
+                    let d = match <@ Unchecked.defaultof<_> @> with Quotations.Patterns.Call(None, d, []) -> d | _ -> failwith "Extracting MethodInfo from <@ Unchecked.defaultof<_> @> failed"
                     Quotations.Expr.Call(r.GetGenericMethodDefinition().MakeGenericMethod(t), [Quotations.Expr.Call(d.GetGenericMethodDefinition().MakeGenericMethod(t),[])])
 
                 // deref v generates the equivalent of <@ !v @>
                 // (so v's type must be ref<something>)
                 let deref (v:Quotations.Var) = 
-                    let (Quotations.Patterns.Call(None, m, [_])) = <@ !(ref 1) @>
+                    let m = match <@ !(ref 1) @> with Quotations.Patterns.Call(None, m, [_]) -> m | _ -> failwith "Extracting MethodInfo from <@ !(ref 1) @> failed"
                     let tyArgs = v.Type.GetGenericArguments()
                     Quotations.Expr.Call(m.GetGenericMethodDefinition().MakeGenericMethod(tyArgs), [Quotations.Expr.Var v])
 
@@ -296,7 +296,7 @@ module internal Misc =
 
                 // given an old variable v and an expression e, returns a quotation like <@ v' := e @> using the corresponding new variable v' of ref type
                 let setRef (v:Quotations.Var) e = 
-                    let (Quotations.Patterns.Call(None, m, [_;_])) = <@ (ref 1) := 2 @>
+                    let m = match <@ (ref 1) := 2 @> with Quotations.Patterns.Call(None, m, [_;_]) -> m | _ -> failwith "Extracting MethodInfo from <@ (ref 1) := 2 @> failed"
                     Quotations.Expr.Call(m.GetGenericMethodDefinition().MakeGenericMethod(v.Type), [Quotations.Expr.Var varDict.[v]; e])
 
                 // Something like 
@@ -1232,6 +1232,11 @@ module GlobalProvidedAssemblyElementsTable =
 
 type ProvidedTypeDefinition(container:TypeContainer,className : string, baseType  : Type option) as this =
     inherit Type()
+
+    do match container, !ProvidedTypeDefinition.Logger with
+       | TypeContainer.Namespace _, Some logger -> logger (sprintf "Creating ProvidedTypeDefinition %s [%d]" className (System.Runtime.CompilerServices.RuntimeHelpers.GetHashCode this))
+       | _ -> ()
+
     // state
     let mutable attributes   = 
         TypeAttributes.Public ||| 
@@ -1538,6 +1543,8 @@ type ProvidedTypeDefinition(container:TypeContainer,className : string, baseType
               |> Array.map ProvidedTypeDefinition.EraseType
             genericTypeDefinition.MakeGenericType(genericArguments)
         | t -> t
+
+    static member Logger : (string -> unit) option ref = ref None
 
     // The binding attributes are always set to DeclaredOnly ||| Static ||| Instance ||| Public when GetMembers is called directly by the F# compiler
     // However, it's possible for the framework to generate other sets of flags in some corner cases (e.g. via use of `enum` with a provided type as the target)

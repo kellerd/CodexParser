@@ -106,8 +106,11 @@ let createDoc html =
     doc.LoadHtml html
     doc.DocumentNode
 
+type ImageOrText =
+    | Image of string
+    | Text of string
 
 let extractImageOrText (node:HtmlNode) =
     match node with
-        | sib when sib.Name = "div" -> sib |> descendants "img" |> Seq.head |> attr "src"
-        | _ -> node.InnerText
+        | sib when sib.Name = "div" -> sib |> descendants "img" |> Seq.head |> attr "src" |> Image
+        | _ -> node.InnerText |> Text
