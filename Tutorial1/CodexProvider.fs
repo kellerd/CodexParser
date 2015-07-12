@@ -52,13 +52,29 @@ type public CheckedCodexProvider() as this =
             
 
             let rules = [filepath] |> LoadEpubPages |> Seq.collect ParseSixthEditionGlossary
+            //let rule = rules |> Seq.head
             for rule in rules do
-                let prop = ProvidedProperty(
-                                propertyName = rule.Name, 
-                                propertyType = typeof<Rule>, 
-                                GetterCode = fun args -> <@@ rule @@>)
+                let prop = ProvidedTypeDefinition(rule.Name,baseType = Some baseTy)
+                rule.Description |> List.iteri (fun ind item -> 
+                    prop.AddMember(ProvidedProperty(propertyName = "Description" + ind.ToString(), 
+                                    propertyType = typeof<string>, 
+                                    GetterCode = fun args -> <@@ item :> string @@>))
+                )
+                let Descs = rule.Description
+                prop.AddMember(ProvidedProperty(propertyName = "Description", 
+                                    propertyType = typeof<string list>, 
+                                    GetterCode = fun args -> <@@ Descs @@>))
+                let ctor = ProvidedConstructor([] 
+                        ,InvokeCode = fun args -> <@@ () @@>
+                        )
+
+                // Add documentation to the constructor
+                ctor.AddXmlDoc "Initializes a codex parse"
                 prop.AddXmlDoc(sprintf @"Gets the rule ""%s"" for this codex " rule.Name)
+                prop.AddMember ctor
                 ty.AddMember prop
+
+                    
 //            // Provide strongly typed version of Codex.IsMatch static method
 //            let isMatch = ProvidedMethod(
 //                            methodName = "IsMatch", 
@@ -74,9 +90,8 @@ type public CheckedCodexProvider() as this =
 //            // Provided type for matches
 //            // Again, erase to obj even though the representation will always be a Match
 //            let matchTy = ProvidedTypeDefinition(
-//                            "MatchType", 
-//                            baseType = Some baseTy, 
-//                            HideObjectMethods = true)
+//                            rule.Name, 
+//                            baseType = Some baseTy)
 //
 //            // Nest the match type within parameterized Codex type
 //            ty.AddMember matchTy
@@ -103,15 +118,15 @@ type public CheckedCodexProvider() as this =
 //            ty.AddMember matchMeth
 //            
             // Declare a constructor
-            let ctor = ProvidedConstructor(
-                        parameters = [] 
-                        ,InvokeCode = fun args -> <@@ () @@>
-                        )
-
-            // Add documentation to the constructor
-            ctor.AddXmlDoc "Initializes a codex parse"
-
-            ty.AddMember ctor
+//            let ctor = ProvidedConstructor(
+//                        parameters = [] 
+//                        ,InvokeCode = fun args -> <@@ () @@>
+//                        )
+//
+//            // Add documentation to the constructor
+//            ctor.AddXmlDoc "Initializes a codex parse"
+//
+//            ty.AddMember ctor
 //            
             ty
           | _ -> failwith "unexpected parameter values")) 

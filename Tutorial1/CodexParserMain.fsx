@@ -30,8 +30,7 @@ let rules = TyranidGloassary |> List.map (fun i -> i |> PadForEpub |> TyranidsLo
 
 open CodexParser.CodexTypeProvider
 type T = CodexTyped<path="""C:\CodexTyranids\text\part0084.html""">
-let reg = T() 
-let aciddesc = reg.``Acid blood``
-
-//let result = T.IsMatch("425-123-2345")
-//let r = reg.Match("425-123-2345").AreaCode.Value
+let r = T.``Acid blood``()
+let d = r.Description
+for f in d do
+    printf "%s" f
