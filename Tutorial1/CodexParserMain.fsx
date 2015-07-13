@@ -7,6 +7,7 @@ open HtmlAgilityPack
 open HtmlAgilityPackFSharp
 open System.IO
 open CodexParser.ParseGlossary
+open System
 let TyranidsLoadFile (paddedNumber:string) = 
      """C:\CodexTyranids\text\part""" + paddedNumber + ".html" 
 
@@ -24,13 +25,12 @@ let TyranidStats = [83]
 let TyranidGloassary = [84]
 
 let PadForEpub pageNumber = pageNumber.ToString().PadLeft(4, '0')
-
-
-let rules = TyranidGloassary |> List.map (fun i -> i |> PadForEpub |> TyranidsLoadFile ) |> LoadEpubPages |> Seq.map ParseSixthEditionGlossary |> Seq.collect(fun x -> x) |> Seq.toArray
-
+let x () = 
+    (fun _ -> 5)
+let rules = TyranidGloassary |> List.map (fun i -> i |> PadForEpub |> TyranidsLoadFile ) |> LoadEpubPages |> Seq.collect ParseSixthEditionGlossary |> Seq.toArray
 open CodexParser.CodexTypeProvider
 type T = CodexTyped<path="""C:\CodexTyranids\text\part0084.html""">
-let r = T.``Acid blood``()
+let r = T.``Move Through Cover``()
 let d = r.Description
 for f in d do
     printf "%s" f

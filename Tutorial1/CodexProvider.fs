@@ -48,29 +48,27 @@ type public CheckedCodexProvider() as this =
                         typeName, 
                         baseType = Some baseTy)
 //
-            ty.AddXmlDoc "Rules defined in the file '%s'"
+            ty.AddXmlDocDelayed (fun _ -> "Rules defined in the file '%s'")
             
 
             let rules = [filepath] |> LoadEpubPages |> Seq.collect ParseSixthEditionGlossary
             //let rule = rules |> Seq.head
             for rule in rules do
                 let prop = ProvidedTypeDefinition(rule.Name,baseType = Some baseTy)
-                rule.Description |> List.iteri (fun ind item -> 
-                    prop.AddMember(ProvidedProperty(propertyName = "Description" + ind.ToString(), 
-                                    propertyType = typeof<string>, 
-                                    GetterCode = fun args -> <@@ item :> string @@>))
-                )
                 let Descs = rule.Description
                 prop.AddMember(ProvidedProperty(propertyName = "Description", 
                                     propertyType = typeof<string list>, 
                                     GetterCode = fun args -> <@@ Descs @@>))
+                prop.AddMember (ProvidedProperty(propertyName = "Execute", 
+                                        propertyType=typeof<unit->int>,
+                                        GetterCode = fun args -> <@@ (%%args.[0]) @@>))
                 let ctor = ProvidedConstructor([] 
                         ,InvokeCode = fun args -> <@@ () @@>
                         )
 
                 // Add documentation to the constructor
-                ctor.AddXmlDoc "Initializes a codex parse"
-                prop.AddXmlDoc(sprintf @"Gets the rule ""%s"" for this codex " rule.Name)
+                ctor.AddXmlDocDelayed (fun _ -> "Initializes a codex parse")
+                prop.AddXmlDocDelayed (fun _ -> (sprintf @"Gets the rule ""%s"" for this codex " rule.Name))
                 prop.AddMember ctor
                 ty.AddMember prop
 

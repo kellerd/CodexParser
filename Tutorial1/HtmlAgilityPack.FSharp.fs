@@ -112,5 +112,5 @@ module HtmlAgilityPackFSharp
 
     let extractImageOrText (node:HtmlNode) =
         match node with
-            | sib when sib.Name = "div" -> sib |> descendants "img" |> Seq.head |> attr "src" |> Image
-            | _ -> node.InnerText |> Text
+            | sib when sib.Name = "div" -> sib |> descendants "img" |> Seq.head |> attr "src"
+            | _ -> node.InnerText
