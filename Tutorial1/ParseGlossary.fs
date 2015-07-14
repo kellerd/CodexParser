@@ -5,7 +5,7 @@ open System.IO
 open System
 
 module ParseGlossary =
-    type Rule = {Name : string; Description : string list}
+    type Rule = {Name : string; Descriptions : string list}
     let NullOrWhiteSpaceToOption a = 
         if String.IsNullOrWhiteSpace a then None else Some a
     let ParseSixthEditionGlossary doc = 
@@ -17,7 +17,7 @@ module ParseGlossary =
         |> Seq.filter (hasClass "x3-Left")
         |> Seq.map (fun node -> 
             {Name= node.InnerText;
-            Description = node 
+            Descriptions = node 
                 |> nextSiblings 
                 |> Seq.takeWhile (notHasClass "x3-Left") 
                 |> Seq.choose (fun x -> (extractImageOrText x) |> NullOrWhiteSpaceToOption )

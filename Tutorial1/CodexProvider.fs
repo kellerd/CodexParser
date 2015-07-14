@@ -36,96 +36,37 @@ type public CheckedCodexProvider() as this =
 
           match parameterValues with 
           | [| :? string as filepath |] -> 
-//            // Create an instance of the regular expression. 
-//            //
-//            // This will fail with System.ArgumentException if the regular expression is invalid. 
-//            // The exception will excape the type provider and be reported in client code.
-//            let r = System.Text.RegularExpressions.Regex(pattern)            
-
+//          
             let ty = ProvidedTypeDefinition(
                         thisAssembly, 
                         rootNamespace, 
                         typeName, 
                         baseType = Some baseTy)
-//
-            ty.AddXmlDocDelayed (fun _ -> "Rules defined in the file '%s'")
-            
 
             let rules = [filepath] |> LoadEpubPages |> Seq.collect ParseSixthEditionGlossary
             //let rule = rules |> Seq.head
             for rule in rules do
                 let prop = ProvidedTypeDefinition(rule.Name,baseType = Some baseTy)
-                let Descs = rule.Description
+                let Descs = rule.Descriptions
                 prop.AddMember(ProvidedProperty(propertyName = "Description", 
                                     propertyType = typeof<string list>, 
                                     GetterCode = fun args -> <@@ Descs @@>))
-                prop.AddMember (ProvidedProperty(propertyName = "Execute", 
-                                        propertyType=typeof<unit->int>,
-                                        GetterCode = fun args -> <@@ (%%args.[0]) @@>))
-                let ctor = ProvidedConstructor([] 
-                        ,InvokeCode = fun args -> <@@ () @@>
-                        )
+
+                let ctor = ProvidedConstructor([], InvokeCode = fun args -> <@@ (fun _ -> None) :> obj @@>)
+                prop.AddMember(ctor)
+                let ctor2 = ProvidedConstructor([ProvidedParameter("Execute", typeof<unit->float option>)], InvokeCode = fun args -> <@@ (%%(args.[0]):unit->float option) :> obj @@>)
+                prop.AddMember(ctor2)
+
+                let innerState = ProvidedProperty("Execute", typeof<unit->float option>,
+                                    GetterCode = fun args -> <@@ (%%(args.[0]) :> obj) :?> unit->float option @@>)
+                prop.AddMember(innerState)
+
+
 
                 // Add documentation to the constructor
-                ctor.AddXmlDocDelayed (fun _ -> "Initializes a codex parse")
-                prop.AddXmlDocDelayed (fun _ -> (sprintf @"Gets the rule ""%s"" for this codex " rule.Name))
-                prop.AddMember ctor
+                //prop.AddMember ctor
                 ty.AddMember prop
 
-                    
-//            // Provide strongly typed version of Codex.IsMatch static method
-//            let isMatch = ProvidedMethod(
-//                            methodName = "IsMatch", 
-//                            parameters = [ProvidedParameter("input", typeof<string>)], 
-//                            returnType = typeof<bool>, 
-//                            IsStaticMethod = true,
-//                            InvokeCode = fun args -> <@@ Regex.IsMatch(%%args.[0], pattern) @@>) 
-//
-//            isMatch.AddXmlDoc "Indicates whether the regular expression finds a match in the specified input string"
-//
-//            ty.AddMember isMatch
-//
-//            // Provided type for matches
-//            // Again, erase to obj even though the representation will always be a Match
-//            let matchTy = ProvidedTypeDefinition(
-//                            rule.Name, 
-//                            baseType = Some baseTy)
-//
-//            // Nest the match type within parameterized Codex type
-//            ty.AddMember matchTy
-//        
-//            // Add group properties to match type
-//            for group in r.GetGroupNames() do
-//                // ignore the group named 0, which represents all input
-//                if group <> "0" then
-//                    let prop = ProvidedProperty(
-//                                propertyName = group, 
-//                                propertyType = typeof<Group>, 
-//                                GetterCode = fun args -> <@@ ((%%args.[0]:obj) :?> Match).Groups.[group] @@>)
-//                    prop.AddXmlDoc(sprintf @"Gets the ""%s"" group from this match" group)
-//                    matchTy.AddMember(prop)
-//
-//            // Provide strongly typed version of Codex.Match instance method
-//            let matchMeth = ProvidedMethod(
-//                                methodName = "Match", 
-//                                parameters = [ProvidedParameter("input", typeof<string>)], 
-//                                returnType = matchTy, 
-//                                InvokeCode = fun args -> <@@ ((%%args.[0]:obj) :?> Regex).Match(%%args.[1]) :> obj @@>)
-//            matchMeth.AddXmlDoc "Searches the specified input string for the first occurence of this regular expression"
-//            
-//            ty.AddMember matchMeth
-//            
-            // Declare a constructor
-//            let ctor = ProvidedConstructor(
-//                        parameters = [] 
-//                        ,InvokeCode = fun args -> <@@ () @@>
-//                        )
-//
-//            // Add documentation to the constructor
-//            ctor.AddXmlDoc "Initializes a codex parse"
-//
-//            ty.AddMember ctor
-//            
             ty
           | _ -> failwith "unexpected parameter values")) 
 
