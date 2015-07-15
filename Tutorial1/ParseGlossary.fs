@@ -5,14 +5,22 @@ open System.IO
 open System
 
 module ParseGlossary =
+    
+
     type Rule(name : string, descriptions : string list) = 
         member this.Name = name
         member this.Descriptions = descriptions 
-    type ExecutedRule<'a>(name : string, descriptions : string list, Execute: 'a option) = 
-        inherit Rule(name,descriptions) 
-        member this.Execute = Execute
-        new(name : string, descriptions : string list) =
-            ExecutedRule(name, descriptions, None)
+    type Rules(rules : seq<string*Rule>) = 
+        member this.Rules = dict rules
+
+//    type ExecutedRule<'a>(name : string, descriptions : string list, Execute: 'a option) = 
+//        inherit Rule(name,descriptions) 
+//        member this.Execute = Execute
+//        new(name : string, descriptions : string list) =
+//            ExecutedRule(name, descriptions, None)
+//
+    type ExecutedRule<'a> = {rule : Rule; Execute: 'a option}
+
     let NullOrWhiteSpaceToOption a = 
         if String.IsNullOrWhiteSpace a then None else Some a
     let ParseSixthEditionGlossary doc = 

@@ -35,6 +35,9 @@ let y = T.``Adaptive Biology``(fun () -> 8.5 * (System.DateTime.Now.Ticks |> Con
 let z = T.Assault(fun (a, b) -> a * b)
 let a = T.``Bio-plasmic cannon``(fun a b -> a + b)
 
+
+let b = {rule=T.``Acid blood``(); Execute = Some (fun () -> 8.5 * (System.DateTime.Now.Ticks |> Convert.ToDouble))}
+
 do match z.Execute with
     | Some a -> (3,3) |> (a :?> (int*int->int)) |> printfn "the valid value is %d"
     | None -> printfn "No values"

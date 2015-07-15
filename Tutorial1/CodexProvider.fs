@@ -24,7 +24,7 @@ type public CheckedCodexProvider() as this =
     // Get the assembly and namespace used to house the provided types
     let thisAssembly = Assembly.GetExecutingAssembly()
     let rootNamespace = "CodexParser.CodexTypeProvider"
-    let baseTy = typeof<obj>
+    let baseTy = typeof<Rules>
     let staticParams = [ProvidedStaticParameter("path", typeof<string>)]
     
 
@@ -43,15 +43,16 @@ type public CheckedCodexProvider() as this =
                         typeName, 
                         baseType = Some baseTy)
 
-            let rules = [filepath] |> LoadEpubPages |> Seq.collect ParseSixthEditionGlossary
-            for (name, descriptions) in rules do
-                let prop = ProvidedTypeDefinition(name,baseType = Some typeof<ExecutedRule<obj>>)
-                let ctor = ProvidedConstructor([], InvokeCode = fun args -> <@@ ExecutedRule<unit>(name,descriptions) @@>)
+            let rules = [filepath] |> LoadEpubPages |> Seq.collect ParseSixthEditionGlossary |> Seq.map (fun (name, descriptions) -> (name, Rule(name, descriptions)))
+            for name, rule in rules do
+                let prop = ProvidedTypeDefinition(rule.Name,baseType = Some typeof<obj>)
+                prop.AddMember(ProvidedProperty(name, typeof<string>))
+                let ctor = ProvidedConstructor([], InvokeCode = fun args -> <@@ (name) :> obj @@>)
                 prop.AddMember(ctor)
-                let ctor2 = ProvidedConstructor([ProvidedParameter("Execute", typeof<obj>)], InvokeCode = fun args -> <@@ ExecutedRule(name,descriptions, Some %%args.[0]) @@>)
-                prop.AddMember(ctor2)
+                
                 ty.AddMember prop
-
+            ty.AddMember(ProvidedProperty("Rules", typeof<System.Collections.Generic.Dictionary<string,Rule>>))
+            let ctor = ProvidedConstructor([], InvokeCode = fun args -> <@@ Rules(rules) @@>)
             ty
           | _ -> failwith "unexpected parameter values")) 
 
