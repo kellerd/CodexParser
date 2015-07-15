@@ -52,7 +52,7 @@ type public CheckedCodexProvider() as this =
                                     propertyType = typeof<string list>, 
                                     GetterCode = fun args -> <@@ Descs @@>))
 
-                let ctor = ProvidedConstructor([], InvokeCode = fun args -> <@@ (fun _ -> None) :> obj @@>)
+                let ctor = ProvidedConstructor([], InvokeCode = fun args -> <@@ obj() @@>)
                 prop.AddMember(ctor)
                 let ctor2 = ProvidedConstructor([ProvidedParameter("Execute", typeof<unit->float option>)], InvokeCode = fun args -> <@@ (%%(args.[0]):unit->float option) :> obj @@>)
                 prop.AddMember(ctor2)

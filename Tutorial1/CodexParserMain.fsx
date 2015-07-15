@@ -25,12 +25,10 @@ let TyranidStats = [83]
 let TyranidGloassary = [84]
 
 let PadForEpub pageNumber = pageNumber.ToString().PadLeft(4, '0')
-let x () = 
-    (fun _ -> 5)
 let rules = TyranidGloassary |> List.map (fun i -> i |> PadForEpub |> TyranidsLoadFile ) |> LoadEpubPages |> Seq.collect ParseSixthEditionGlossary |> Seq.toArray
 open CodexParser.CodexTypeProvider
-type T = CodexTyped<path="""C:\CodexTyranids\text\part0084.html""">
-let r = T.``Move Through Cover``(fun _ -> Some 8.5)
+type T = CodexTyped<"""C:\CodexTyranids\text\part0084.html""">
+let r = T.``Move Through Cover``(fun _ -> Some (8.5 * (System.DateTime.Now.Ticks |> Convert.ToDouble)))
 let r2 = T.``Acid maw``()
 do match r.Execute() with
     | Some x -> printfn "the valid value is %f" x
