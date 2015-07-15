@@ -36,23 +36,23 @@ let z = T.Assault(fun (a, b) -> a * b)
 let a = T.``Bio-plasmic cannon``(fun a b -> a + b)
 
 do match z.Execute with
-    | Some a -> (3,3) |> a |> printfn "the valid value is %d"
+    | Some a -> (3,3) |> (a :?> (int*int->int)) |> printfn "the valid value is %d"
     | None -> printfn "No values"
     
 do match z.Execute with
-    | Some a -> a(3, 3)|> printfn "the valid value is %d"
+    | Some a -> (a :?> (int*int->int))(3, 3)|> printfn "the valid value is %d"
     | None -> printfn "No values"
     
 do match y.Execute with
-    | Some a -> a() |> printfn "the valid value is %f"
+    | Some a -> (a :?> (unit->float))() |> printfn "the valid value is %f"
     | None -> printfn "No values"
     
 do match a.Execute with
-    | Some a -> a 3 3 |> printfn "the valid value is %d"
+    | Some a -> (a :?> (int->int->int)) 3 3 |> printfn "the valid value is %d"
     | None -> printfn "No values"
 
-do match (u :> ExecutedRule<unit>).Execute with
-    | Some a -> a |> ignore
+do match u.Execute with
+    | Some a -> a :?> unit |> ignore
     | None -> printfn "No values"
 
 //let r = T.``Move Through Cover``(fun _ -> Some (8.5 * (System.DateTime.Now.Ticks |> Convert.ToDouble)))
