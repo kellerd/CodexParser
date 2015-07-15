@@ -5,7 +5,14 @@ open System.IO
 open System
 
 module ParseGlossary =
-    type Rule = {Name : string; Descriptions : string list}
+    type Rule(name : string, descriptions : string list) = 
+        member this.Name = name
+        member this.Descriptions = descriptions 
+    type ExecutedRule<'a>(name : string, descriptions : string list, Execute: 'a option) = 
+        inherit Rule(name,descriptions) 
+        member this.Execute = Execute
+        new(name : string, descriptions : string list) =
+            ExecutedRule(name, descriptions, None)
     let NullOrWhiteSpaceToOption a = 
         if String.IsNullOrWhiteSpace a then None else Some a
     let ParseSixthEditionGlossary doc = 
@@ -16,13 +23,13 @@ module ParseGlossary =
         |> Seq.collect (fun n -> n.ChildNodes)
         |> Seq.filter (hasClass "x3-Left")
         |> Seq.map (fun node -> 
-            {Name= node.InnerText;
-            Descriptions = node 
+            (node.InnerText,
+             node 
                 |> nextSiblings 
                 |> Seq.takeWhile (notHasClass "x3-Left") 
                 |> Seq.choose (fun x -> (extractImageOrText x) |> NullOrWhiteSpaceToOption )
                 |> Seq.toList
-            }
+            )
         )
     let LoadEpubPages path = 
         let asyncFileReader (path:string) = async {

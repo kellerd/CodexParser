@@ -44,27 +44,12 @@ type public CheckedCodexProvider() as this =
                         baseType = Some baseTy)
 
             let rules = [filepath] |> LoadEpubPages |> Seq.collect ParseSixthEditionGlossary
-            //let rule = rules |> Seq.head
-            for rule in rules do
-                let prop = ProvidedTypeDefinition(rule.Name,baseType = Some baseTy)
-                let Descs = rule.Descriptions
-                prop.AddMember(ProvidedProperty(propertyName = "Description", 
-                                    propertyType = typeof<string list>, 
-                                    GetterCode = fun args -> <@@ Descs @@>))
-
-                let ctor = ProvidedConstructor([], InvokeCode = fun args -> <@@ obj() @@>)
+            for (name, descriptions) in rules do
+                let prop = ProvidedTypeDefinition(name,baseType = Some typeof<ExecutedRule<obj>>)
+                let ctor = ProvidedConstructor([], InvokeCode = fun args -> <@@ ExecutedRule<unit>(name,descriptions) @@>)
                 prop.AddMember(ctor)
-                let ctor2 = ProvidedConstructor([ProvidedParameter("Execute", typeof<unit->float option>)], InvokeCode = fun args -> <@@ (%%(args.[0]):unit->float option) :> obj @@>)
+                let ctor2 = ProvidedConstructor([ProvidedParameter("Execute", typeof<obj>)], InvokeCode = fun args -> <@@ ExecutedRule(name,descriptions, Some %%args.[0]) @@>)
                 prop.AddMember(ctor2)
-
-                let innerState = ProvidedProperty("Execute", typeof<unit->float option>,
-                                    GetterCode = fun args -> <@@ (%%(args.[0]) :> obj) :?> unit->float option @@>)
-                prop.AddMember(innerState)
-
-
-
-                // Add documentation to the constructor
-                //prop.AddMember ctor
                 ty.AddMember prop
 
             ty
