@@ -65,7 +65,7 @@ let runAll =
     |> Seq.map fetchAsync 
     |> Seq.choose findBlankHtml 
     |> Seq.map (fun (x, y) -> (x, System.Text.Encoding.ASCII.GetBytes(y), Di.FullName))
-    |> Seq.map fileWriteWithAsync
 
 for i in runAll do
-    System.Threading.Thread.Sleep(1000*120)
+    System.Threading.Thread.Sleep(1000*60*15)
+    fileWriteWithAsync i
