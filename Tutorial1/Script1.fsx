@@ -24,7 +24,8 @@ let Jsons =
 let FilesAndNames = 
     Set.difference Jpegs Jsons 
     |> Set.map(fun fileName -> fileName + ".jpeg")
-    |> Set.map(fun fileName -> fileName, File.ReadAllBytes(Path.Combine(Di.FullName, fileName)))
+    |> Set.map(fun fileName -> fileName, File.ReadAllBytes(Path.Combine(Di.FullName, fileName))) 
+
 
 //let FirstFileName, FireFileBytes = FilesAndNames |> Array.last
 let Key = File.ReadAllText("C:\\az.txt")
