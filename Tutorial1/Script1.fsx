@@ -61,13 +61,13 @@ let fetchAsync(name, imageContent) =
 
 
 let runAll =
-    FilesAndNames
-    |> Seq.take 1
-    |> Seq.map fetchAsync 
+    FilesAndNames 
+    |> Seq.map (fun x -> 
+    System.Threading.Thread.Sleep(1000*60/20) |> ignore
+    fetchAsync x)
     |> Seq.choose findBlankHtml 
     |> Seq.map (fun (x, y) -> (x, System.Text.Encoding.ASCII.GetBytes(y), Di.FullName))
 
 
-for i in runAll do
+for i in  runAll do
     fileWriteWithAsync i
-    System.Threading.Thread.Sleep(1000*60/20)
