@@ -1,9 +1,9 @@
 ﻿namespace Monad
-
+#if INTERACTIVE
+#r @"C:\Users\Dan\Source\Repos\CodexParser\packages\FSPowerPack.Core.Community.2.0.0.0\Lib\Net40\FSharp.PowerPack.dll"
+#endif
 module Distribution =
-    type 'a Outcome = {
-    Value: 'a
-    Probability : BigRational  }
+    type 'a Outcome = { Value: 'a; Probability : BigRational  }
 
     type 'a Distribution = 'a Outcome seq
 
@@ -36,21 +36,26 @@ module Distribution =
     let probability (dist:'a Distribution) = 
         dist |> Seq.map (fun o -> o.Probability)  |> Seq.sum
 
+    let average (dist: 'a Distribution) =
+        dist |> Seq.map (fun o -> o.Probability * BigRational.FromInt(o.Value) ) |> Seq.sum
+
     let filter predicate (dist:'a Distribution) =
         dist |> Seq.filter (fun o -> predicate o.Value)
 
-    let fairDice sides = toUniformDistribution [1..sides]
-
-    type CoinSide = | Heads | Tails
-
-    let fairCoin = toUniformDistribution [Heads; Tails]
-
-    let fairCoinAndDice = distribution {
-        let! d = fairDice 6
-        let! c = fairCoin
-        return d,c }
-
-    fairCoinAndDice
-      |> filter (fun (d,c) -> c = Heads && d > 3)
-      |> probability
-      |> printfn "P(Heads and dice > 3) = %A" // "1/4N"
+    let D sides = toUniformDistribution [1..sides]
+    let D6 = D 6
+    let HitDice = [D6; D6; D6; D6] |> List.map (fun x -> x |> average)|> List.sum;
+//
+//    type CoinSide = | Heads | Tails
+//
+//    let fairCoin = toUniformDistribution [Heads; Tails]
+//
+//    let fairCoinAndDice = distribution {
+//        let! d = fairDice 6
+//        let! c = fairCoin
+//        return d,c }
+//
+//    fairCoinAndDice
+//      |> filter (fun (d,c) -> c = Heads && d > 3)
+//      |> probability
+//      |> printfn "P(Heads and dice > 3) = %A" // "1/4N"
