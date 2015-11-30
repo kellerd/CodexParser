@@ -8,11 +8,11 @@ module WarhammerDomain =
     type Tree<'a> = | Leaf of 'a | Branch of Tree<'a> list
     type Model = { Name: string; Rules : Tree<Rule> }
     type PlayerInfo = Model list
-    type Players = Player1 of PlayerInfo | Player2
+    type Player = Player1 of PlayerInfo | Player2 of PlayerInfo
 
     type BoardInfo = {
         Board : Model list
-        Players : Players list 
+        Players : Player list 
         }
 
     type MoveCapability = 
