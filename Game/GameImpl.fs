@@ -1,4 +1,13 @@
 ﻿namespace GameImpl
+module WarhammerImpl
+    open Domain.WarhammerDomain
+    
+    type BoardInfo = {
+        Board : Model list
+        Player : Player list 
+        }
+
+
 module TickTacToeImpl = 
     open Domain.TickTacToeDomain
     /// private implementation of game state

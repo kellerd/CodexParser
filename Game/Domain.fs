@@ -1,18 +1,68 @@
 ﻿namespace Domain
 
 module WarhammerDomain =
+    open Monad.Distribution
     open FSharpx
     open FSharpx.State
 
     type Rule = { Name : string; Desc : string list }
-    type Tree<'a> = | Leaf of 'a | Branch of Tree<'a> list
-    type Model = { Name: string; Rules : Tree<Rule> }
-    type PlayerInfo = Model list
-    type Player = Player1 of PlayerInfo | Player2 of PlayerInfo
+    type Tree<'a> = | EmptyTree | Branch of 'a * Tree<'a> list
+    type Player = Player1 | Player2
+    type Probability = decimal 
+    type Characteristic = int
+
+    type BallisticSkill = Characteristic
+    type Strength = Characteristic
+    type Toughness = Characteristic
+    type Saves = Characteristic
+    type ArmorPen = Characteristic
+    type InvSaves = Characteristic
+
+    type WeaponType = Heavy | RapidFire | Assault 
+    type Weapon = {
+      weaponName         : string;
+      weaponType         : WeaponType;
+      weaponAttacks      : int;
+      weaponStrength     : int;
+      weaponArmorPen     : ArmorPen;
+      weaponRange        : int;
+      weaponIsTwinLinked : bool
+    } 
+
+    type Result = {
+      resultWounds       : decimal Distribution;
+      resultHits         : decimal Distribution;
+      resultSaves        : decimal Distribution;
+      resultKills        : decimal Distribution
+    }
+
+
+    type Model = {
+      modelWeapons      : Weapon list;
+      modelName         : string;
+      weaponSkill       : int;
+      ballisticSkill    : BallisticSkill;
+      strength          : Strength;
+      toughness         : Toughness;
+      willpower         : int;
+      intelligence      : int;
+      armory            : int;
+      leadership        : int;
+      saves             : Saves;
+      invSaves          : InvSaves
+    } 
+
+    type Unit = {
+      unitModels  : Model list;
+      unitName    : string
+    }
+    
+    type Move = unit->int * Rule
+    type Run = unit->decimal Distribution * Rule
 
     type BoardInfo = {
         Board : Model list
-        Players : Player list 
+        Player : Player list 
         }
 
     type MoveCapability = 
@@ -35,7 +85,7 @@ module WarhammerDomain =
         | Player2ToMove of BoardInfo * NextMoveInfo list 
         | GameWon of BoardInfo * Player 
         | GameTied of BoardInfo 
-
+    
     // Only the newGame function is exported from the implementation
     // all other functions come from the results of the previous move
     type WarhammerAPI  = 
