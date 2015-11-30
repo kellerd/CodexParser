@@ -36,15 +36,14 @@ module Distribution =
     let probability (dist:'a Distribution) = 
         dist |> Seq.map (fun o -> o.Probability)  |> Seq.sum
 
-    let average (dist: 'a Distribution) =
-        dist |> Seq.map (fun o -> o.Probability * BigRational.FromInt(o.Value) ) |> Seq.sum
+    let average toBigRational (dist: 'a Distribution) =
+        dist |> Seq.map (fun o -> o.Probability * toBigRational(o.Value) ) |> Seq.sum
 
     let filter predicate (dist:'a Distribution) =
         dist |> Seq.filter (fun o -> predicate o.Value)
 
     let D sides = toUniformDistribution [1..sides]
     let D6 = D 6
-    let HitDice = [D6; D6; D6; D6] |> List.map (fun x -> x |> average)|> List.sum;
 //
 //    type CoinSide = | Heads | Tails
 //

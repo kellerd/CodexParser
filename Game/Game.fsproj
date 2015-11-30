@@ -57,13 +57,14 @@
     <Compile Include="AssemblyInfo.fs" />
     <None Include="App.config" />
     <Compile Include="Monad.fs" />
-    <Compile Include="Domain.fs" />
     <Compile Include="GameImpl.fs" />
     <Compile Include="ConsoleUi.fs" />
     <Compile Include="Logging.fs" />
     <Compile Include="ConsoleApplication.fs" />
     <Compile Include="Program.fs" />
     <Content Include="packages.config" />
+    <Compile Include="Domain.fs" />
+    <Compile Include="Rules.fsi" />
   </ItemGroup>
   <ItemGroup>
     <Reference Include="FSharp.Control.AsyncSeq">
