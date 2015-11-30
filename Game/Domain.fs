@@ -1,7 +1,7 @@
 ﻿namespace Domain
 
 module WarhammerDomain =
-    open Monad.Distribution
+    open Distribution.Distribution
     open FSharpx
     open FSharpx.State
 
