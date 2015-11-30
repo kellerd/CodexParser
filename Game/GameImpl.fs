@@ -1,5 +1,5 @@
 ﻿namespace GameImpl
-module WarhammerImpl
+module WarhammerImpl = 
     open Domain.WarhammerDomain
     
     type BoardInfo = {
