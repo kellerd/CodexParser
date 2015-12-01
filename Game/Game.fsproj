@@ -59,7 +59,6 @@
     <Compile Include="Distribution.fs" />
     <Compile Include="Probability.fs" />
     <Compile Include="Domain.fs" />
-    <Compile Include="Rules.fsi" />
     <Compile Include="Rules.fs" />
     <Compile Include="GameImpl.fs" />
     <Compile Include="ConsoleUi.fs" />
