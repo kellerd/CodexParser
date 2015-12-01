@@ -16,6 +16,7 @@ module WarhammerDomain =
     type Toughness = Characteristic
     type Saves = Characteristic
     type ArmorPen = Characteristic
+    type Attacks = Characteristic
     type InvSaves = Characteristic
 
     type WeaponType = Heavy | RapidFire | Assault 
@@ -29,12 +30,8 @@ module WarhammerDomain =
       weaponIsTwinLinked : bool
     } 
 
-    type Result = {
-      resultWounds       : decimal Distribution;
-      resultHits         : decimal Distribution;
-      resultSaves        : decimal Distribution;
-      resultKills        : decimal Distribution
-    }
+
+    
 
 
     type Model = {
@@ -93,6 +90,18 @@ module WarhammerDomain =
         newGame : MoveCapability
         }
 
+    let D sides = toUniformDistribution [1..sides]
+    let D6 = D 6
+    let FourD6 =  [D6; D6; D6; D6;]
+    let trans = traverseDistributionA (fun x -> x |> Seq.map(fun y -> {y with Value = 2 * y.Value})) FourD6 
+    let seqss = sequenceDistributionA FourD6 
+
+    printf "%A" FourD6 |> ignore
+    printf "%A" trans |> ignore
+    printf "%A" seqss |> ignore
+    let HitDice = FourD6 |> List.map average |> List.sum
+
+
 module TickTacToeDomain =
     type HorizPosition = Left | HCenter | Right
     type VertPosition = Top | VCenter | Bottom
@@ -143,5 +152,4 @@ module TickTacToeDomain =
         {
         newGame : MoveCapability
         }
-
 

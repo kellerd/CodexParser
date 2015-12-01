@@ -2,30 +2,77 @@
 
 module WarhammerRules =
     open Domain.WarhammerDomain
-    open Distribution.Distribution
-    open Distribution.Probability
 
-    type 'T Rule = {Calculation: ('T Distribution list -> 'T Distribution); 
-                    Check:('T->bool)} with
-                    member this.Average f = 
-                        this.Calculation >> average f
-                    member this.Probability = this.Calculation >> filter this.Check >> probability
+    type DiceRoll = DiceRoll of int
 
+    type AttemptToShoot = AttemptToShoot of BallisticSkill
+    type ShootingHitResult = ShootingHitResult of float
+    type AttemptToWound = AttemptToWound of ShootingHitResult * Strength * Toughness
+    type ShootingWoundResult = ShootingWoundResult of float
+    type AttemptToKill = AttemptToKill of ShootingWoundResult * Saves * ArmorPen
+    type ShootingUnsavedResult = ShootingUnsavedResult of float
 
-
-    let SumOfValues = sequenceDistributionA >> map Seq.sum
+    let Check d6 dPlus =
+        let (DiceRoll die) = d6()
+        printfn "Die: %A" die |> ignore
+        if die >= dPlus then 1. else 0.
     
-    //LD >= Result
-    let MortalCheck ld = 
-        ld |> (>=)     
+    let d6 = 
+        let rnd = System.Random()
+        fun () -> DiceRoll (rnd.Next(1,7))
     
-    let RunePriest = 
-        let ld = 10
-        let Moral = {Calculation=SumOfValues; Check=MortalCheck ld}
-        [Moral]
+    let SvsT s t d6check =
+        printfn "S-T:%A" (s - t) |> ignore
+        match s - t with 
+        | 0 -> d6check 4
+        | 1 -> d6check 3
+        | -1 -> d6check 5
+        | -2 -> d6check 6
+        | -3 -> d6check 6
+        | x when x > 0 -> d6check 2
+        | _ -> d6check 0
+
+
+    let getHits shot d6Check =
+         let (AttemptToShoot (bs)) = shot
+         ShootingHitResult(d6Check (System.Math.Max(7 - bs, 2)))
     
-    printfn "%A" ([D6; D6] |> RunePriest.Head.Probability) |> ignore
-    printfn "%A" ([D6; D6] |> RunePriest.Head.Average (float)) |> ignore
+    let getWounds a d6Check  =
+         let (AttemptToWound (h, str,tough)) = a
+         let (ShootingHitResult(hits)) = h
+         ShootingWoundResult(hits * SvsT str tough d6Check)
+
+    let getUnsavedWounds wounds d6Check  =
+         let (AttemptToWound (h, str,tough)) = a
+         let (ShootingHitResult(hits)) = h
+         ShootingWoundResult(hits * SvsT str tough d6Check)
+         
+//    let a = Attack(4, 4)
+    let h = getHits (AttemptToShoot(4)) (Check d6) 
+    let w = getWounds (AttemptToWound(h, 4, 4)) (Check d6)
+    let w = getSaves (AttemptToKill(w, 2 , 4)) (Check d6)
+
+//    
+//
+//
+//
+//
+//    type 'T Rule = {Calculation: ('T Distribution.Distribution list -> 'T Distribution.Distribution); 
+//                    Check:('T->bool)}
+//    
+//    let sumOfTwo = Distribution.sequenceDistributionA >> Distribution.map Seq.sum
+//
+//    //LD >= Result
+//    let MortalCheck ld = 
+//        ld |> (>=)     
+//    
+//    let RunePriest = 
+//        let ld = 10
+//        let Moral = {Calculation=sumOfTwo; Check=MortalCheck ld}
+//        [Moral]
+//    
+//    printfn "%A" ([D6; D6] |> RunePriest.Head.Calculation |> Distribution.filter RunePriest.Head.Check |> Distribution.probability) |> ignore
+//    printfn "%A" ([D6; D6] |> RunePriest.Head.Calculation |> Distribution.average ) |> ignore
 
         
 //
