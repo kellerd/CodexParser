@@ -2,7 +2,6 @@
 
 module WarhammerDomain =
     open Distribution.Distribution
-    open FSharpx
     open FSharpx.State
 
     type Rule = { Name : string; Desc : string list }
@@ -10,7 +9,8 @@ module WarhammerDomain =
     type Player = Player1 | Player2
     type Probability = decimal 
     type Characteristic = int
-
+    
+    type WeaponSkill = Characteristic
     type BallisticSkill = Characteristic
     type Strength = Characteristic
     type Toughness = Characteristic
@@ -30,23 +30,12 @@ module WarhammerDomain =
       weaponIsTwinLinked : bool
     } 
 
-
-    
-
-
     type Model = {
-      modelWeapons      : Weapon list;
-      modelName         : string;
-      weaponSkill       : int;
-      ballisticSkill    : BallisticSkill;
-      strength          : Strength;
-      toughness         : Toughness;
-      willpower         : int;
-      intelligence      : int;
-      armory            : int;
-      leadership        : int;
-      saves             : Saves;
-      invSaves          : InvSaves
+      WeaponSkill       : WeaponSkill;
+      BallisticSkill    : BallisticSkill;
+      Strength          : Strength;
+      Toughness         : Toughness;
+      Saves             : Saves;
     } 
 
     type Unit = {
