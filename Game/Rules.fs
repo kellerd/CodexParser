@@ -2,20 +2,28 @@
 
 module WarhammerRules =
     open Domain.WarhammerDomain
+    type Result<'TSuccess,'TFailure> = 
+        | Success of 'TSuccess
+        | Failure of 'TFailure
 
     type DiceRoll = DiceRoll of int
-
     type AttemptToShoot = AttemptToShoot of BallisticSkill
-    type ShootingHitResult = ShootingHitResult of float
-    type AttemptToWound = AttemptToWound of ShootingHitResult * Strength * Toughness
-    type ShootingWoundResult = ShootingWoundResult of float
-    type AttemptToKill = AttemptToKill of ShootingWoundResult * Saves * ArmorPen
-    type ShootingUnsavedResult = ShootingUnsavedResult of float
+    type ShootingHitResult = ShootingHitResult of Result<int,int>
+    type AttemptToWound = AttemptToWound of Strength * Toughness
+    type ShootingWoundResult = ShootingWoundResult of Result<int,int>
+    type AttemptToKill = AttemptToKill of Saves * ArmorPen
+    type ShootingUnsavedResult = ShootingUnsavedResult of Result<int,int>
+
+    
+    type AttemptToAssault = AttemptToAssault of WeaponSkill * WeaponSkill
+    type AssaultingHitResult = AssaultingHitResult of Result<int,int>
+    type AssaultingWoundResult = AssaultingWoundResult of Result<int,int>
+    type AssaultingUnsavedResult = AssaultingUnsavedResult of Result<int,int>
 
     let Check d6 dPlus =
         let (DiceRoll die) = d6()
         printfn "Die: %A" die |> ignore
-        if die >= dPlus then 1. else 0.
+        if die >= dPlus then Success die else Failure die 
     
     let d6 = 
         let rnd = System.Random()
@@ -31,26 +39,64 @@ module WarhammerRules =
         | -3 -> d6check 6
         | x when x > 0 -> d6check 2
         | _ -> d6check 0
+    let SvvsPen sv pen d6check =
+        match pen - sv with
+        | x when x > 0 -> d6check sv
+        | _ -> d6check 2
 
-
-    let getHits shot d6Check =
-         let (AttemptToShoot (bs)) = shot
-         ShootingHitResult(d6Check (System.Math.Max(7 - bs, 2)))
+// Try one
+    let d6Check = (Check d6)
+    let getHits shoot =
+         let (AttemptToShoot (bs)) = shoot
+         ShootingHitResult(d6Check (System.Math.Max(7 - bs, 2))) //Redo calculation
     
-    let getWounds a d6Check  =
-         let (AttemptToWound (h, str,tough)) = a
-         let (ShootingHitResult(hits)) = h
-         ShootingWoundResult(hits * SvsT str tough d6Check)
+    let getWounds attempts =
+         let (AttemptToWound ( str,tough)) = attempts
+         ShootingWoundResult(SvsT str tough d6Check) //Redo calculation
 
-    let getUnsavedWounds wounds d6Check  =
-         let (AttemptToWound (h, str,tough)) = a
-         let (ShootingHitResult(hits)) = h
-         ShootingWoundResult(hits * SvsT str tough d6Check)
-         
-//    let a = Attack(4, 4)
-    let h = getHits (AttemptToShoot(4)) (Check d6) 
-    let w = getWounds (AttemptToWound(h, 4, 4)) (Check d6)
-    let w = getSaves (AttemptToKill(w, 2 , 4)) (Check d6)
+    let getUnsavedWounds attempts =
+         let (AttemptToKill (saves,pen)) = attempts
+         ShootingUnsavedResult(SvvsPen saves pen d6Check) //Redo calculation
+
+    let getHitsAssault assault =
+         let (AttemptToAssault (ws, wsOpponent)) = assault
+         let check = match ws,wsOpponent with
+                        | x,y when x > y -> d6Check 3
+                        | x,y when y > x * 2 -> d6Check 5
+                        | _ -> d6Check 4
+         AssaultingHitResult(check) //Redo calculation
+    
+    let getWoundsAssault attempts  =
+         let (AttemptToWound ( str,tough)) = attempts
+         AssaultingWoundResult(SvsT str tough d6Check) //Redo calculation
+
+    let getUnsavedAssault attempts =
+         let (AttemptToKill (saves,pen)) = attempts
+         AssaultingUnsavedResult(SvvsPen saves pen d6Check) //Redo calculation
+
+ //Try 2
+    
+    //One to two normal track, to two x two special track
+    let bind switchFunction twoTrackInput = 
+        match twoTrackInput with
+        | Success s -> switchFunction s
+        | Failure f -> Failure f
+    
+    let (>>=) twoTrackInput switchFunction = 
+        bind switchFunction twoTrackInput 
+    
+
+    let Assault = 
+        let getWounds' = bind getWounds
+        let getUnsavedWounds' = bind getUnsavedWounds
+        let getHits' = bind getHits
+        getHits >> getWounds' >> getUnsavedWounds
+
+
+
+
+
+
 
 //    
 //
