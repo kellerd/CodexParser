@@ -29,51 +29,38 @@ module WarhammerRules =
         let rnd = System.Random()
         fun () -> DiceRoll (rnd.Next(1,7))
     
-    let SvsT s t d6check =
-        printfn "S-T:%A" (s - t) |> ignore
-        match s - t with 
-        | 0 -> d6check 4
-        | 1 -> d6check 3
-        | -1 -> d6check 5
-        | -2 -> d6check 6
-        | -3 -> d6check 6
-        | x when x > 0 -> d6check 2
-        | _ -> d6check 0
-    let SvvsPen sv pen d6check =
-        match pen - sv with
-        | x when x > 0 -> d6check sv
-        | _ -> d6check 2
-
 // Try one
     let d6Check = (Check d6)
-    let getHits shoot =
-         let (AttemptToShoot (bs)) = shoot
-         ShootingHitResult(d6Check (System.Math.Max(7 - bs, 2))) //Redo calculation
+    let getHitsShooting bs =
+         d6Check (System.Math.Max(7 - bs, 2)) //Redo calculation
     
-    let getWounds attempts =
-         let (AttemptToWound ( str,tough)) = attempts
-         ShootingWoundResult(SvsT str tough d6Check) //Redo calculation
+    let getWounds str tough =
+         match str - tough with 
+            | 0 -> d6Check 4
+            | 1 -> d6Check 3
+            | -1 -> d6Check 5
+            | -2 -> d6Check 6
+            | -3 -> d6Check 6
+            | x when x > 0 -> d6Check 2
+            | _ -> d6Check 0
 
-    let getUnsavedWounds attempts =
-         let (AttemptToKill (saves,pen)) = attempts
-         ShootingUnsavedResult(SvvsPen saves pen d6Check) //Redo calculation
+    let getUnsavedWounds saves pen =
+        match pen - saves with
+        | x when x > 0 -> d6Check saves
+        | _ -> d6Check 2
 
-    let getHitsAssault assault =
-         let (AttemptToAssault (ws, wsOpponent)) = assault
-         let check = match ws,wsOpponent with
-                        | x,y when x > y -> d6Check 3
-                        | x,y when y > x * 2 -> d6Check 5
-                        | _ -> d6Check 4
-         AssaultingHitResult(check) //Redo calculation
+    let getHitsAssault ws wsOpponent =
+         match ws,wsOpponent with
+            | x,y when x > y -> d6Check 3
+            | x,y when y > x * 2 -> d6Check 5
+            | _ -> d6Check 4
+
+ 
     
-    let getWoundsAssault attempts  =
-         let (AttemptToWound ( str,tough)) = attempts
-         AssaultingWoundResult(SvsT str tough d6Check) //Redo calculation
-
-    let getUnsavedAssault attempts =
-         let (AttemptToKill (saves,pen)) = attempts
-         AssaultingUnsavedResult(SvvsPen saves pen d6Check) //Redo calculation
-
+ 
+ 
+ 
+ 
  //Try 2
     
     //One to two normal track, to two x two special track
