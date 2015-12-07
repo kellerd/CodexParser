@@ -18,6 +18,7 @@ module WarhammerDomain =
     type ArmorPen = Characteristic
     type Attacks = Characteristic
     type InvSaves = Characteristic
+    type Wounds = Characteristic
 
     type WeaponType = Heavy | RapidFire | Assault 
     type Weapon = {
@@ -36,6 +37,7 @@ module WarhammerDomain =
       Strength          : Strength;
       Toughness         : Toughness;
       Saves             : Saves;
+      Wounds            : Wounds;
     } 
 
     type Unit = {

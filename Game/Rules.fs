@@ -7,18 +7,11 @@ module WarhammerRules =
         | Failure of 'TFailure
 
     type DiceRoll = DiceRoll of int
-    type AttemptToShoot = AttemptToShoot of BallisticSkill
-    type ShootingHitResult = ShootingHitResult of Result<int,int>
-    type AttemptToWound = AttemptToWound of Strength * Toughness
-    type ShootingWoundResult = ShootingWoundResult of Result<int,int>
-    type AttemptToKill = AttemptToKill of Saves * ArmorPen
-    type ShootingUnsavedResult = ShootingUnsavedResult of Result<int,int>
-
     
-    type AttemptToAssault = AttemptToAssault of WeaponSkill * WeaponSkill
-    type AssaultingHitResult = AssaultingHitResult of Result<int,int>
-    type AssaultingWoundResult = AssaultingWoundResult of Result<int,int>
-    type AssaultingUnsavedResult = AssaultingUnsavedResult of Result<int,int>
+    type AttemptToShoot = AttemptToShoot of Model * Model * Weapon * (int -> Result<int,int>)
+    type DieResult = int
+    type ShootResult = ShootResult of Model * Model * Weapon * DieResult
+    //type AttemptToAssault = AttemptToAssault of Model * Model * Weapon
 
     let Check d6 dPlus =
         let (DiceRoll die) = d6()
@@ -30,11 +23,10 @@ module WarhammerRules =
         fun () -> DiceRoll (rnd.Next(1,7))
     
 // Try one
-    let d6Check = (Check d6)
-    let getHitsShooting bs =
+    let getHitsShooting bs d6Check =
          d6Check (System.Math.Max(7 - bs, 2)) //Redo calculation
     
-    let getWounds str tough =
+    let getWounds str tough d6Check =
          match str - tough with 
             | 0 -> d6Check 4
             | 1 -> d6Check 3
@@ -44,40 +36,97 @@ module WarhammerRules =
             | x when x > 0 -> d6Check 2
             | _ -> d6Check 0
 
-    let getUnsavedWounds saves pen =
+    let getUnsavedWounds saves pen d6Check =
         match pen - saves with
         | x when x > 0 -> d6Check saves
         | _ -> d6Check 2
 
-    let getHitsAssault ws wsOpponent =
+    let getHitsAssault ws wsOpponent d6Check =
          match ws,wsOpponent with
             | x,y when x > y -> d6Check 3
             | x,y when y > x * 2 -> d6Check 5
             | _ -> d6Check 4
 
- 
-    
- 
- 
- 
- 
  //Try 2
-    
-    //One to two normal track, to two x two special track
-    let bind switchFunction twoTrackInput = 
+     // apply either a success function or failure function
+    let either successFunc failureFunc twoTrackInput =
         match twoTrackInput with
-        | Success s -> switchFunction s
-        | Failure f -> Failure f
-    
-    let (>>=) twoTrackInput switchFunction = 
-        bind switchFunction twoTrackInput 
-    
+        | Success s -> successFunc s
+        | Failure f -> failureFunc f
+    let succeed x = 
+        Success x
 
-    let Assault = 
-        let getWounds' = bind getWounds
-        let getUnsavedWounds' = bind getUnsavedWounds
-        let getHits' = bind getHits
-        getHits >> getWounds' >> getUnsavedWounds
+    let fail x = 
+        Failure x
+
+    //One to two normal track, to two x two special track
+    let bind f = 
+        either f fail
+
+    let (>>=) x f = 
+        bind f x
+
+    let (>=>) s1 s2 = 
+        s1 >> bind s2
+
+    let inline flatten (result : Result<Result<_,_>,_>) =
+        result |> bind (fun x -> x)
+
+
+    let inline apply wrappedFunction result = 
+        match wrappedFunction, result with
+            | Success f, Success x -> Success(f x)
+            | Failure f, Success x -> Failure(x)
+            | Success f, Failure x -> Failure(x)
+            | Failure f, Failure x -> Failure(x)   
+    let (<*>) = apply
+
+    /// Lifts a function into a Result container and applies it on the given result.
+    let inline lift f result = apply (succeed f) result
+
+    /// Lifts a function into a Result and applies it on the given result.
+    /// This is the infix operator version of ErrorHandling.lift
+    let inline (<!>) f result = lift f result
+
+    let makeHitAssault assaulter target weapon d6Check = 
+        lift (getHitsAssault assaulter.WeaponSkill target.WeaponSkill d6Check)
+
+
+//    let makeHitAssault shooter,target,weapon,d6Check  =
+//        make (getHitsAssault shooter.WeaponSkill target.WeaponSkill d6Check) attempt
+//
+//    let makeWoundAssault attempt =
+//        let (shooter,target,weapon,d6Check,dieResult) = attempt
+//        make (getWounds weapon.weaponStrength target.Toughness d6Check) (ignoreRight attempt)
+//
+//    let makeUnsavedWoundAssault attempt =
+//        let (shooter,target,weapon,d6Check,dieResult) = attempt
+//        make (getUnsavedWounds weapon.weaponArmorPen target.Saves d6Check) (ignoreRight attempt)
+//
+//    let subtractWound (shooter,target,weapon, d6Check,dieVal)  =
+//        Success (shooter,{target with Wounds = target.Wounds-1})
+//
+//    let doAssault = 
+//        makeHitAssault >=> makeWoundAssault >=> makeUnsavedWoundAssault >=> subtractWound
+
+    let d6Check = (Check d6)
+
+
+    let m1={WeaponSkill=4;BallisticSkill=4;Strength=4;Toughness=4;Wounds=2;Saves=4}
+    let target={WeaponSkill=4;BallisticSkill=4;Strength=4;Wounds=2;Toughness=4;Saves=4}
+    let weap={weaponName="PowerFist";weaponType=Assault;weaponAttacks=1;weaponStrength=5;weaponArmorPen=3;weaponRange=0;weaponIsTwinLinked=false;}
+    let result = makeHitAssault m1 target weap d6Check
+
+//    let attempt=(m1,target,weap,d6Check)
+    let bm1 = succeed m1
+    let makeHitAssault2 = makeHitAssault <*> bm1
+
+//
+//
+//
+
+//    let result = doAssault attempt
+
 
 
 
