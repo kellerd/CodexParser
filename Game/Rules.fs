@@ -47,6 +47,22 @@ module WarhammerRules =
             | x,y when y > x * 2 -> d6Check 5
             | _ -> d6Check 4
 
+//    let makeHitAssault shooter,target,weapon,d6Check  =
+//        make (getHitsAssault shooter.WeaponSkill target.WeaponSkill d6Check) attempt
+//
+//    let makeWoundAssault attempt =
+//        let (shooter,target,weapon,d6Check,dieResult) = attempt
+//        make (getWounds weapon.weaponStrength target.Toughness d6Check) (ignoreRight attempt)
+//
+//    let makeUnsavedWoundAssault attempt =
+//        let (shooter,target,weapon,d6Check,dieResult) = attempt
+//        make (getUnsavedWounds weapon.weaponArmorPen target.Saves d6Check) (ignoreRight attempt)
+//
+//    let subtractWound (shooter,target,weapon, d6Check,dieVal)  =
+//        Success (shooter,{target with Wounds = target.Wounds-1})
+//
+//    let doAssault = 
+//        makeHitAssault >=> makeWoundAssault >=> makeUnsavedWoundAssault >=> subtractWound
  //Try 2
      // apply either a success function or failure function
     let either successFunc failureFunc twoTrackInput =
@@ -87,27 +103,27 @@ module WarhammerRules =
     /// Lifts a function into a Result and applies it on the given result.
     /// This is the infix operator version of ErrorHandling.lift
     let inline (<!>) f result = lift f result
+//
+//    let makeHitAssault assaulter target weapon d6Check = 
+//        lift (getHitsAssault assaulter.WeaponSkill target.WeaponSkill d6Check)
 
-    let makeHitAssault assaulter target weapon d6Check = 
-        lift (getHitsAssault assaulter.WeaponSkill target.WeaponSkill d6Check)
+    type ResultBuilder() =
 
+        member this.Bind(m, f) = 
+            bind f m
 
-//    let makeHitAssault shooter,target,weapon,d6Check  =
-//        make (getHitsAssault shooter.WeaponSkill target.WeaponSkill d6Check) attempt
-//
-//    let makeWoundAssault attempt =
-//        let (shooter,target,weapon,d6Check,dieResult) = attempt
-//        make (getWounds weapon.weaponStrength target.Toughness d6Check) (ignoreRight attempt)
-//
-//    let makeUnsavedWoundAssault attempt =
-//        let (shooter,target,weapon,d6Check,dieResult) = attempt
-//        make (getUnsavedWounds weapon.weaponArmorPen target.Saves d6Check) (ignoreRight attempt)
-//
-//    let subtractWound (shooter,target,weapon, d6Check,dieVal)  =
-//        Success (shooter,{target with Wounds = target.Wounds-1})
-//
-//    let doAssault = 
-//        makeHitAssault >=> makeWoundAssault >=> makeUnsavedWoundAssault >=> subtractWound
+        member this.Return(x) = 
+            Success x
+
+        member this.ReturnFrom(x) = 
+            x
+
+        member this.Zero() = 
+            Failure
+
+    // make an instance of the workflow                
+    let result = new ResultBuilder()
+
 
     let d6Check = (Check d6)
 
@@ -115,24 +131,36 @@ module WarhammerRules =
     let m1={WeaponSkill=4;BallisticSkill=4;Strength=4;Toughness=4;Wounds=2;Saves=4}
     let target={WeaponSkill=4;BallisticSkill=4;Strength=4;Wounds=2;Toughness=4;Saves=4}
     let weap={weaponName="PowerFist";weaponType=Assault;weaponAttacks=1;weaponStrength=5;weaponArmorPen=3;weaponRange=0;weaponIsTwinLinked=false;}
-    let result = makeHitAssault m1 target weap d6Check
-
-//    let attempt=(m1,target,weap,d6Check)
-    let bm1 = succeed m1
-    let makeHitAssault2 = makeHitAssault <*> bm1
-
-//
-//
-//
-
-//    let result = doAssault attempt
 
 
+    //Try 3
 
+    let makeHitAssault2 assaulter target weapon d6Check = result {
+        let! r = getHitsAssault assaulter.WeaponSkill target.WeaponSkill d6Check
+        return r
+    }
 
+    let makeWoundsAssault2 assaulter target weapon d6Check previousResult = result {
+        let! r = getWounds assaulter.Strength target.Toughness d6Check
+        return r
+    }
+    let makeUnsavedWounds assaulter target weapon d6Check previousResult = result {
+        let! r = getUnsavedWounds target.Saves weapon.weaponArmorPen d6Check 
+        return r
+    }
 
+    let x = makeHitAssault2 m1 target weap d6Check
+    let y = makeWoundsAssault2 m1 target weap d6Check x
+    let z = makeUnsavedWounds m1 target weap d6Check y
 
+    let doAssault assaulter target weapon d6Check = result {
+        let! r = makeHitAssault2 assaulter target weapon d6Check
+        let! t = makeWoundsAssault2 assaulter target weapon d6Check r
+        let! s = makeUnsavedWounds assaulter target weapon d6Check t
+        return s
+    }
 
+    let x1 = doAssault m1 target weap d6Check
 
 //    
 //
