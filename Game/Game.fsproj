@@ -60,7 +60,7 @@
     <Compile Include="Probability.fs" />
     <Compile Include="Domain.fs" />
     <Compile Include="Monad.fs" />
-    <None Include="Rules.fsx" />
+    <Compile Include="Rules.fs" />
     <Compile Include="GameImpl.fs" />
     <Compile Include="ConsoleUi.fs" />
     <Compile Include="Logging.fs" />
