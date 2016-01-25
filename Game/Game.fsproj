@@ -59,7 +59,6 @@
     <Compile Include="Distribution.fs" />
     <Compile Include="Probability.fs" />
     <Compile Include="Domain.fs" />
-    <Compile Include="Monad.fs" />
     <Compile Include="Rules.fs" />
     <Compile Include="GameImpl.fs" />
     <Compile Include="ConsoleUi.fs" />
@@ -69,6 +68,10 @@
     <Content Include="packages.config" />
   </ItemGroup>
   <ItemGroup>
+    <Reference Include="Chessie">
+      <HintPath>..\packages\Chessie.0.4.0\lib\net40\Chessie.dll</HintPath>
+      <Private>True</Private>
+    </Reference>
     <Reference Include="FSharp.Control.AsyncSeq">
       <HintPath>..\packages\FSharp.Control.AsyncSeq.1.13\lib\net40\FSharp.Control.AsyncSeq.dll</HintPath>
       <Private>True</Private>
