@@ -1,24 +1,7 @@
 ﻿namespace Rules
+
 //namespace Domain
-//
-////module Try1 =
-////    
-////    let makeHitAssault (shooter,target,weapon,d6Check)  =
-////        make (getHitsAssault shooter.WeaponSkill target.WeaponSkill d6Check) attempt
-////
-////    let makeWoundAssault attempt =
-////        let (shooter,target,weapon,d6Check,dieResult) = attempt
-////        make (getWounds weapon.weaponStrength target.Toughness d6Check) (ignoreRight attempt)
-////
-////    let makeUnsavedWoundAssault attempt =
-////        let (shooter,target,weapon,d6Check,dieResult) = attempt
-////        make (getUnsavedWounds weapon.weaponArmorPen target.Saves d6Check) (ignoreRight attempt)
-////
-////    let subtractWound (shooter,target,weapon, d6Check,dieVal)  =
-////        Success (shooter,{target with Wounds = target.Wounds-1})
-////
-////    let doAssault = 
-////        makeHitAssault >=> makeWoundAssault >=> makeUnsavedWoundAssault >=> subtractWound
+
 //
 //module Try2 =
 //    open Domain.WarhammerDomain
@@ -170,379 +153,96 @@
 //    }
 //
 //    let x1 = doAssault m1 target weap d6Check
-
-//module Try3 =
-//type DiceRoll = seq<int>
-//open System
-//// Aliases for input, etc
-//type Input = DiceRoll   // type alias
-//type ParserLabel = string
-//type ParserError = string
-//
-//
-///// Stores information about the parser position for error messages
-//type ParserPosition = int
-//
-//let nextDie d6s =
-//    (Seq.tryHead d6s, Seq.tail d6s)
-//type Result<'a> =
-//    | Success of 'a
-//    | Failure of ParserLabel * ParserError * 'a option
-//
-///// A Parser structure has a parsing function & label
-//type Parser<'a> = {
-//    parseFn : (Input -> Result<'a * Input>)
-//    label:  ParserLabel 
-//    }
-//
-//
-///// Run the parser on a InputState
-//let run parser input = 
-//    // call inner function with input
-//    parser.parseFn input
-//
-//        
-//let printResult result =
-//    match result with
-//    | Success (value,input) -> 
-//        printfn "%A" value
-//    | Failure (label,error, _) -> 
-//        printfn "%A err: %A" error label
-//
-//
-//// =============================================
-//// Label related
-//// =============================================
-//
-///// get the label from a parser
-//let getLabel parser = 
-//    // get label
-//    parser.label
-//
-///// update the label in the parser
-//let setLabel parser newLabel = 
-//    // change the inner function to use the new label
-//    let newInnerFn input = 
-//        let result = parser.parseFn input
-//        match result with
-//        | Success s ->
-//            // if Success, do nothing
-//            Success s 
-//        | Failure (oldLabel,err,v) -> 
-//            // if Failure, return new label
-//            Failure (newLabel,err,v) 
-//    // return the Parser
-//    {parseFn=newInnerFn; label=newLabel}
-//
-///// infix version of setLabel
-//let ( <?> ) = setLabel
-//
-//
-//// =============================================
-//// Standard combinators
-//// =============================================
-//
-///// Match an input token if the predicate is satisfied
-//let satisfy predicate label =
-//    let innerFn input =
-//        let charOpt, remainingInput = nextDie input 
-//        match charOpt with
-//        | None -> 
-//            let err = "No more input"
-//            let pos = 0
-//            Failure (label,err,None)
-//        | Some first -> 
-//            if predicate first then
-//                Success (first,remainingInput)
-//            else
-//                let err = sprintf "Failed to pass test, got: %A" first
-//                let pos = 1
-//                Failure (label,err,Some (first,remainingInput))
-//    // return the parser
-//    {parseFn=innerFn;label=label}
-//
-///// "bindP" takes a parser-producing function f, and a parser p
-///// and passes the output of p into f, to create a new parser
-//let bindP (f:'a->Parser<'b>) (p:Parser<'a>) : Parser<'b> =
-//    let label = "unknown"
-//    let innerFn input =
-//        let result1 = run p input 
-//        match result1 with
-//        | Failure (label,err,_) -> 
-//             result1
-//        | Success (value1,remainingInput) ->
-//            // apply f to get a new parser
-//            let p2 = f value1
-//            // run parser with remaining input
-//            run p2 remainingInput
-//            
-//    {parseFn=innerFn; label=label}
-//
-///// Infix version of bindP
-//let ( >>= ) p f = bindP f p
-//
-///// Lift a value to a Parser
-//let returnP x = 
-//    let label = sprintf "%A" x
-//    let innerFn input =
-//        // ignore the input and return x
-//        Success (x,input)
-//    // return the inner function
-//    {parseFn=innerFn; label=label}
-//
-///// apply a function to the value inside a parser
-//let mapP f = 
-//    bindP (f >> returnP)
-//
-///// infix version of mapP
-//let ( <!> ) = mapP
-//
-///// "piping" version of mapP
-//let ( |>> ) x f = mapP f x
-//
-///// apply a wrapped function to a wrapped value
-//let applyP fP xP =         
-//    fP >>= (fun f -> 
-//    xP >>= (fun x -> 
-//        returnP (f x) ))
-//
-///// infix version of apply
-//let ( <*> ) = applyP
-//
-///// lift a two parameter function to Parser World
-//let lift2 f xP yP =
-//    returnP f <*> xP <*> yP
-//
-///// Combine two parsers as "A andThen B"
-//let andThen p1 p2 =         
-//    let label = sprintf "%s andThen %s" (getLabel p1) (getLabel p2)
-//    p1 >>= (fun p1Result -> 
-//    p2 >>= (fun p2Result -> 
-//        returnP (p1Result,p2Result) ))
-//    <?> label
-//
-///// Infix version of andThen
-//let ( .>>. ) = andThen
-//
-///// Combine two parsers as "A orElse B"
-//let orElse p1 p2 =
-//    let label = sprintf "%s orElse %s" (getLabel p1) (getLabel p2)
-//    let innerFn input =
-//        // run parser1 with the input
-//        let result1 = run p1 input
-//
-//        // test the result for Failure/Success
-//        match result1 with
-//        | Success result -> 
-//            // if success, return the original result
-//            result1
-//
-//        | Failure _ -> 
-//            // if failed, run parser2 with the input
-//            let result2 = run p2 input
-//
-//            // return parser2's result
-//            result2 
-//
-//    // return the inner function
-//    {parseFn=innerFn; label=label}
-//
-///// Infix version of orElse
-//let ( <|> ) = orElse
-//
-///// Choose any of a list of parsers
-//let choice listOfParsers = 
-//    List.reduce ( <|> ) listOfParsers 
-//
-//let rec sequence parserList =
-//    // define the "cons" function, which is a two parameter function
-//    let cons head tail = head::tail
-//
-//    // lift it to Parser World
-//    let consP = lift2 cons
-//
-//    // process the list of parsers recursively
-//    match parserList with
-//    | [] -> 
-//        returnP []
-//    | head::tail ->
-//        consP head (sequence tail)
-//
-///// (helper) match zero or more occurences of the specified parser
-//let rec parseZeroOrMore parser input =
-//    // run parser with the input
-//    let firstResult = run parser input 
-//    // test the result for Failure/Success
-//    match firstResult with
-//    | Failure (_,_,_) -> 
-//        // if parse fails, return empty list
-//        ([],input)  
-//    | Success (firstValue,inputAfterFirstParse) -> 
-//        // if parse succeeds, call recursively
-//        // to get the subsequent values
-//        let (subsequentValues,remainingInput) = 
-//            parseZeroOrMore parser inputAfterFirstParse
-//        let values = firstValue::subsequentValues
-//        (values,remainingInput)  
-//
-///// matches zero or more occurences of the specified parser
-//let many parser = 
-//    let label = sprintf "many %s" (getLabel parser)
-//    let rec innerFn input =
-//        // parse the input -- wrap in Success as it always succeeds
-//        Success (parseZeroOrMore parser input)
-//    {parseFn=innerFn; label=label}
-//
-///// matches one or more occurences of the specified parser
-//let many1 p =         
-//    let label = sprintf "many1 %s" (getLabel p)
-//
-//    p      >>= (fun head -> 
-//    many p >>= (fun tail -> 
-//        returnP (head::tail) ))
-//    <?> label
-//
-///// Parses an optional occurrence of p and returns an option value.
-//let opt p = 
-//    let label = sprintf "opt %s" (getLabel p)
-//    let some = p |>> Some
-//    let none = returnP None
-//    (some <|> none) <?> label
-//
-///// Keep only the result of the left side parser
-//let (.>>) p1 p2 = 
-//    // create a pair
-//    p1 .>>. p2 
-//    // then only keep the first value
-//    |> mapP (fun (a,b) -> a) 
-//
-///// Keep only the result of the right side parser
-//let (>>.) p1 p2 = 
-//    // create a pair
-//    p1 .>>. p2 
-//    // then only keep the second value
-//    |> mapP (fun (a,b) -> b) 
-//
-///// Keep only the result of the middle parser
-//let between p1 p2 p3 = 
-//    p1 >>. p2 .>> p3 
-//
-///// Parses one or more occurrences of p separated by sep
-//let sepBy1 p sep =
-//    let sepThenP = sep >>. p            
-//    p .>>. many sepThenP 
-//    |>> fun (p,pList) -> p::pList
-//
-///// Parses zero or more occurrences of p separated by sep
-//let sepBy p sep =
-//    sepBy1 p sep <|> returnP []
-//
-//// =============================================
-//// Standard parsers 
-//// =============================================
-//
-//
-//// ------------------------------
-//// char and string parsing
-//// ------------------------------
-//            
-/////// parse a char 
-////let pchar charToMatch = 
-////    // label is just the character
-////    let label = sprintf "%c" charToMatch 
-////
-////    let predicate ch = (ch = charToMatch) 
-////    satisfy predicate label 
-////
-/////// Choose any of a list of characters
-////let anyOf listOfChars = 
-////    let label = sprintf "anyOf %A" listOfChars 
-////    listOfChars
-////    |> List.map pchar // convert into parsers
-////    |> choice
-////    <?> label
-
-
-////Tests 
-//let checkD6 dPlus = fun d6 -> d6 >= dPlus
-//
-//
-//let guardArmor = 
-//    let label = "Guard armor check"
-//    satisfy (checkD6 4) label
-//let termieArmor =
-//    let label = "Term armor check"
-//    satisfy (checkD6 2) label
-//
-//let test parser =
-//    let dicePool = 
-//        let rnd = System.Random()
-//        Seq.initInfinite (fun _ -> rnd.Next(1,7)) |> Seq.cache
-//    run parser dicePool
-//
-//test (termieArmor .>>. guardArmor)
-
 #if INTERACTIVE
-#r "C:\Users\Dan\Source\Repos\CodexParser\packages\FSharpx.Extras.1.10.3\lib\40\FSharpx.Extras.dll"
+    #r @"C:\Users\Dan\Source\Repos\CodexParser\packages\Chessie.0.4.0\lib\net40\Chessie.dll"
+    #r @"C:\Users\Dan\Source\Repos\CodexParser\packages\FSharpx.Extras.1.10.3\lib\40\FSharpx.Extras.dll"
+    #load "Distribution.fs"
+    #load "Domain.fs"
 #endif
-module Try4 =
-    open Monad.Monad
+module RuleEquations = 
+    open Chessie.ErrorHandling
+    open Domain.WarhammerDomain
+
+    let D = 
+        let r = System.Random()
+        let d num = (r.Next(1,num+1))
+        d
+
+    let getWsTable ws wsopponent = 
+        match ws, wsopponent with 
+            | WeaponSkill ws,  WeaponSkill wsopponent when ws > wsopponent -> 3
+            | WeaponSkill ws,  WeaponSkill wsopponent when wsopponent > ws * 2 -> 5
+            | _ -> 4    
+
+    let getHitsShooting bs  = 
+          (System.Math.Max(7 - bs, 2)) //Redo calculation
+    
+    let getWounds str tough  =
+         match str - tough with 
+            | 0 ->  4
+            | 1 ->  3
+            | -1 ->  5
+            | -2 ->  6
+            | -3 ->  6
+            | x when x > 0 ->  2
+            | _ ->  0
+
+    let getUnsavedWounds saves pen  =
+        match pen - saves with
+        | x when x > 0 -> saves
+        | _ ->  2
+
+    let getHitsAssault ws wsOpponent  =
+         match ws,wsOpponent with
+            | x,y when x > y ->  3
+            | x,y when y > x * 2 ->  5
+            | _ ->  4
+
+module Try5 =
+    open RuleEquations
+    open Chessie.ErrorHandling
+    open Chessie.ErrorHandling.Trial
     open Domain.WarhammerDomain
     
-    type Characteristic = int
+    type DiceRoll<'a> = DiceRoll of (unit->'a)
+    type DiceCheck<'a> = DiceCheck of (int->'a)
+    type RollResult<'a> = RollResult of 'a 
+
+    let D6 = 
+        DiceRoll (fun () -> D 6)
+    let D6s =
+        Seq.initInfinite (fun _ -> D6)
+
+    type Rule<'a> = Rule of 'a
+    type Hits = Hits of int
+    let mapList xs = xs |> List.map (fun z -> RollResult z)
+
+    type MakeHit<'a> = WeaponSkill -> WeaponSkill -> DiceRoll<'a> -> Hits*Result<'a,'a>
+
+    let run rule input = 
+        let (Rule innerFn) = rule
+        innerFn input
     
-    type WeaponSkill = Characteristic
-    type BallisticSkill = Characteristic
-    type Strength = Characteristic
-    type Toughness = Characteristic
-    type Saves = Characteristic
-    type ArmorPen = Characteristic
-    type Attacks = Characteristic
-    type InvSaves = Characteristic
-    type Wounds = Characteristic
+    let makeD6 d6s  =
+        let innerFn dPlus =
+           let die = Seq.head d6s |> (fun (DiceRoll d) -> d())
+           if die >= dPlus then ok die else fail die
+        Rule innerFn
 
-    type Model = {
-        Name       : string;
-        WeaponSkill       : WeaponSkill;
-        BallisticSkill    : BallisticSkill;
-        Strength          : Strength;
-        Toughness         : Toughness;
-        Saves             : Saves;
-        Wounds            : Wounds;
-    } 
-
-
-    type GameState = Map<string, Model>
-
-
-    let killModel = update {
-        let! n = get
-        let rm = (fun k -> Map.remove k n)
-        return rm
-    }
-
-    let models:GameState =   [|"Hunter 1", {Name="Hunter 1"; WeaponSkill = 4;BallisticSkill   = 4;Strength         = 4;Toughness        = 4;Saves            = 4;Wounds           = 4;};
-                             "Hunter 2",   {Name="Hunter 2"; WeaponSkill = 4;BallisticSkill   = 4;Strength         = 4;Toughness        = 4;Saves            = 4;Wounds           = 4;}; |] |> Map.ofArray
-
-    let select = update {
-        let! (target:GameState) = read
-        return target.Item("Hunter 1")
-    } 
-
-    let doGame modelToKill = update {
-        let! (x:GameState)  = get
-        let! km = killModel
-        let! r = modelToKill
-        let state = km r.Name
-        do! (set state)
-    } 
-    let doGame2 modelToKill = update {
-        let! (x:GameState) = get
-        let! km = killModel
-        let! r = modelToKill
-        let state = km r
-        do! (set state)
-    } 
-    let result =  setRun models (doGame <| update { return  readRun models select })
-    let result2 =  setRun models (doGame2 <| update { return update.Map ((fun a -> a.Name),select) |>  readRun models  })
-    let x = update.Map ((fun a -> a.Name),select) |> readRun models 
+    let makeHit D6 = 
+        let innerFn wsTarget wsOpponent =
+            let result = getWsTable wsTarget wsOpponent |> run D6
+            match result with 
+                | Ok (x,y) -> ok (Hits 1, y) //,RollResult x, mapList y)
+                | Bad (y) -> fail (Hits 0, y) //, mapList y)
+        Rule innerFn
+    let makeWounds D6 = 
+        let innerFn str tough = 
+            let result = getWounds str tough |> run D6
+            match result with 
+                | Ok (x,y) -> ok (Wounds 1)//,RollResult x, mapList y)
+                | Bad (y) -> fail (Wounds 0)//, mapList y)
+        Rule innerFn
+    let D6R = makeD6 D6s
+    let doHits = makeHit D6R
+    let doWounds = makeWounds D6R

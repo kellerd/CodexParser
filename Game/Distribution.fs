@@ -1,7 +1,4 @@
 ﻿namespace Distribution
-#if INTERACTIVE
-#r @"..\packages\FSPowerPack.Core.Community.3.0.0.0\Lib\Net40\FSharp.PowerPack.dll"
-#endif
 module Distribution =
     type 'T Outcome = { Value: 'T; Probability: float;} 
 //        static member (+) (x,y) = 
