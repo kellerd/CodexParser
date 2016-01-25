@@ -8,17 +8,16 @@ module WarhammerDomain =
     type Tree<'a> = | EmptyTree | Branch of 'a * Tree<'a> list
     type Player = Player1 | Player2
     type Probability = decimal 
-    type Characteristic = int
     
-    type WeaponSkill = Characteristic
-    type BallisticSkill = Characteristic
-    type Strength = Characteristic
-    type Toughness = Characteristic
-    type Saves = Characteristic
-    type ArmorPen = Characteristic
-    type Attacks = Characteristic
-    type InvSaves = Characteristic
-    type Wounds = Characteristic
+    type WeaponSkill =      WeaponSkill      of int
+    type BallisticSkill =   BallisticSkill    of int
+    type Strength =         Strength          of int
+    type Toughness =        Toughness        of int
+    type Saves =            Saves             of int
+    type ArmorPen =         ArmorPen         of int
+    type Attacks =          Attacks          of int
+    type InvSaves =         InvSaves         of int
+    type Wounds =           Wounds            of int
 
     type WeaponType = Heavy | RapidFire | Assault 
     type Weapon = {
@@ -32,6 +31,7 @@ module WarhammerDomain =
     } 
 
     type Model = {
+      Name              : string;
       WeaponSkill       : WeaponSkill;
       BallisticSkill    : BallisticSkill;
       Strength          : Strength;
@@ -81,16 +81,16 @@ module WarhammerDomain =
         newGame : MoveCapability
         }
 
-    let D sides = toUniformDistribution [1..sides]
-    let D6 = D 6
-    let FourD6 =  [D6; D6; D6; D6;]
-    let trans = traverseDistributionA (fun x -> x |> Seq.map(fun y -> {y with Value = 2 * y.Value})) FourD6 
-    let seqss = sequenceDistributionA FourD6 
+    //let D sides = toUniformDistribution [1..sides]
+//    let D6 = D 6
+//    let FourD6 =  [D6; D6; D6; D6;]
+//    let trans = traverseDistributionA (fun x -> x |> Seq.map(fun y -> {y with Value = 2 * y.Value})) FourD6 
+//    let seqss = sequenceDistributionA FourD6 
 
-    printf "%A" FourD6 |> ignore
-    printf "%A" trans |> ignore
-    printf "%A" seqss |> ignore
-    let HitDice = FourD6 |> List.map average |> List.sum
+//    printf "%A" FourD6 |> ignore
+//    printf "%A" trans |> ignore
+//    printf "%A" seqss |> ignore
+//    let HitDice = FourD6 |> List.map average |> List.sum
 
 
 module TickTacToeDomain =
