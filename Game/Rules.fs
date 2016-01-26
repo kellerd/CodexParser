@@ -178,7 +178,9 @@ module RuleEquations =
           (System.Math.Max(7 - bs, 2)) //Redo calculation
     
     let getWounds str tough  =
-         match str - tough with 
+         let (Strength str') = str
+         let (Toughness tough') = tough
+         match str' - tough' with 
             | 0 ->  4
             | 1 ->  3
             | -1 ->  5
@@ -191,12 +193,6 @@ module RuleEquations =
         match pen - saves with
         | x when x > 0 -> saves
         | _ ->  2
-
-    let getHitsAssault ws wsOpponent  =
-         match ws,wsOpponent with
-            | x,y when x > y ->  3
-            | x,y when y > x * 2 ->  5
-            | _ ->  4
 
 module Try5 =
     open RuleEquations
@@ -217,7 +213,7 @@ module Try5 =
     type Hits = Hits of int
     let mapList xs = xs |> List.map (fun z -> RollResult z)
 
-    type MakeHit<'a> = WeaponSkill -> WeaponSkill -> DiceRoll<'a> -> Hits*Result<'a,'a>
+    type MakeHit<'a> = MakeHit of (Rule<int->Result<'a,'a>> -> WeaponSkill -> WeaponSkill ->  Hits*Result<'a,'a>)
 
     let run rule input = 
         let (Rule innerFn) = rule
@@ -230,19 +226,63 @@ module Try5 =
         Rule innerFn
 
     let makeHit D6 = 
-        let innerFn wsTarget wsOpponent =
+        let innerFn (wsTarget,wsOpponent) =
             let result = getWsTable wsTarget wsOpponent |> run D6
             match result with 
-                | Ok (x,y) -> ok (Hits 1, y) //,RollResult x, mapList y)
-                | Bad (y) -> fail (Hits 0, y) //, mapList y)
+                | Ok (x,y) -> ok (Hits 1, x) //,RollResult x, mapList y)
+                | Bad (y) -> fail (Hits 0, y |> List.tryHead) //, mapList y)
         Rule innerFn
-    let makeWounds D6 = 
-        let innerFn str tough = 
+    let makeWounds D6  = 
+        let innerFn (hits,(str,tough)) = 
+            let (Hits hits') = hits
             let result = getWounds str tough |> run D6
             match result with 
-                | Ok (x,y) -> ok (Wounds 1)//,RollResult x, mapList y)
-                | Bad (y) -> fail (Wounds 0)//, mapList y)
+                    | Ok (x,y) -> ok (Wounds (hits' * 1),x)
+                    | Bad (y) -> fail (Wounds 0)
+//            let result = List.init hits' (fun _ -> getWounds str tough |> run D6)
+//            result |> List.map (function
+//                                        | Ok (x,y) -> ok (Wounds 1,x)//,RollResult x, mapList y)
+//                                        | Bad (y) -> fail (Wounds 0)//, mapList y)
+//                                    )
         Rule innerFn
+        
+    let andThen rule1 rule2 =
+        let innerFn input input2 =
+            let result1 = run rule1 input
+            match result1 with
+            | Bad err -> 
+                fail [],err
+            | Ok ((value1,result),resultList) -> 
+                let result2 =  run rule2 (value1,input2)
+                match result2 with 
+                |  Bad err2 ->
+                    fail err2, resultList 
+                | Ok (value2,resultList2) -> 
+                    let newValue = (value1,value2)
+                    ok (newValue),[]
+        Rule innerFn 
+
+    let map f r =
+        let innerFn input =
+            let result = run r input
+            match result with 
+                | Ok (v,l) -> 
+                    let newValue = f v
+                    ok (newValue, l |> List.tryHead)
+                | Bad err ->
+                    fail (err |> List.tryHead)
+        Rule innerFn
+
+    let ( .>>. ) = andThen
+
+
     let D6R = makeD6 D6s
-    let doHits = makeHit D6R
-    let doWounds = makeWounds D6R
+    let mh2 = makeHit D6R
+    let mw2 = makeWounds D6R
+    let mapped = map (fun (Hits(x),_) -> x) mh2
+    let doHits = run mh2 (WeaponSkill 4, WeaponSkill 4)
+    let doHits' = run mapped (WeaponSkill 4, WeaponSkill 4)
+    let hitsThenWounds = mh2 .>>. mw2
+    let hitsThenWounds' = run hitsThenWounds (WeaponSkill 4, WeaponSkill 4) (Strength 4, Toughness 4)
+
+
