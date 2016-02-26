@@ -1,12 +1,12 @@
-﻿namespace Rules
+﻿
 
 //namespace Domain
 
 //
 //module Try2 =
 //    open Domain.WarhammerDomain
-//    type Result<'TSuccess,'TFailure> = 
-//        | Success of 'TSuccess
+//    type Result<'TOk,'TFailure> = 
+//        | Ok of 'TOk
 //        | Failure of 'TFailure
 //
 //    type DiceRoll = DiceRoll of int
@@ -19,7 +19,7 @@
 //    let Check d6 dPlus =
 //        let (DiceRoll die) = d6()
 //        printfn "Die: %A" die |> ignore
-//        if die >= dPlus then Success die else Failure die 
+//        if die >= dPlus then Ok die else Failure die 
 //    
 //    let d6 = 
 //        let rnd = System.Random()
@@ -55,10 +55,10 @@
 //     // apply either a success function or failure function
 //    let either successFunc failureFunc twoTrackInput =
 //        match twoTrackInput with
-//        | Success s -> successFunc s
+//        | Ok s -> successFunc s
 //        | Failure f -> failureFunc f
 //    let succeed x = 
-//        Success x
+//        Ok x
 //
 //    let fail x = 
 //        Failure x
@@ -79,9 +79,9 @@
 //
 //    let inline apply wrappedFunction result = 
 //        match wrappedFunction, result with
-//            | Success f, Success x -> Success(f x)
-//            | Failure f, Success x -> Failure(x)
-//            | Success f, Failure x -> Failure(x)
+//            | Ok f, Ok x -> Ok(f x)
+//            | Failure f, Ok x -> Failure(x)
+//            | Ok f, Failure x -> Failure(x)
 //            | Failure f, Failure x -> Failure(x)   
 //    let (<*>) = apply
 //
@@ -101,7 +101,7 @@
 //            bind f m
 //
 //        member this.Return(x) = 
-//            Success x
+//            Ok x
 //
 //        member this.ReturnFrom(x) = 
 //            x
@@ -137,30 +137,30 @@
 //        return r
 //    }
 //
-//    let x = makeHitAssault2 m1 target weap d6Check Success
+//    let x = makeHitAssault2 m1 target weap d6Check Ok
 //    let y = makeWoundsAssault2 m1 target weap d6Check x
 //    let z = makeUnsavedWounds m1 target weap d6Check y
 //
 //    let doAssault assaulter target weapon d6Check = result {
-//        let! r = makeHitAssault2 assaulter target weapon d6Check Success
+//        let! r = makeHitAssault2 assaulter target weapon d6Check Ok
 //        let! t = makeWoundsAssault2 assaulter target weapon d6Check r
 //        let! s = makeUnsavedWounds assaulter target weapon d6Check t
 //        return s
 //    }
 //    let xy = result {
-//        let! a = makeHitAssault2 <!> (Success m1) <*> (Success target) <*> (Success weap) <*> (Success d6Check)
+//        let! a = makeHitAssault2 <!> (Ok m1) <*> (Ok target) <*> (Ok weap) <*> (Ok d6Check)
 //        return a
 //    }
 //
 //    let x1 = doAssault m1 target weap d6Check
 #if INTERACTIVE
-    #r @"C:\Users\Dan\Source\Repos\CodexParser\packages\Chessie.0.4.0\lib\net40\Chessie.dll"
     #r @"C:\Users\Dan\Source\Repos\CodexParser\packages\FSharpx.Extras.1.10.3\lib\40\FSharpx.Extras.dll"
     #load "Distribution.fs"
     #load "Domain.fs"
-#endif
+#else
+namespace Rules
 module RuleEquations = 
-    open Chessie.ErrorHandling
+#endif
     open Domain.WarhammerDomain
 
     let D = 
@@ -193,13 +193,14 @@ module RuleEquations =
         match pen - saves with
         | x when x > 0 -> saves
         | _ ->  2
-
+#if !INTERACTIVE
 module Try5 =
     open RuleEquations
-    open Chessie.ErrorHandling
-    open Chessie.ErrorHandling.Trial
+#endif
     open Domain.WarhammerDomain
-    
+    open Chessie.ErrorHandling
+    open Chessie
+
     type DiceRoll<'a> = DiceRoll of (unit->'a)
     type DiceCheck<'a> = DiceCheck of (int->'a)
     type RollResult<'a> = RollResult of 'a 
@@ -210,14 +211,65 @@ module Try5 =
         Seq.initInfinite (fun _ -> D6)
 
     type Rule<'a> = Rule of 'a
+
+    /// type alias (optional)
+    type RuleResult<'a,'b> = Rule<Result<'a,'b>>
+    module Rule =
+        let retn = Rule
+        let apply fR xR = 
+            let (Rule f) = fR
+            let (Rule x) = xR
+            retn (f x)
+        let map  (f:'a->'b) (rule:Rule<'a>) = 
+            let (Rule r) = rule
+            retn (f r)
+        let lift2 (f:'a->'b->'c) (x:Rule<'a>) (y:Rule<'b>) = 
+            let (Rule r) = x
+            let (Rule r2) = y
+            retn (f r r2)
+        let bind (f:'a->Rule<'b>) xRule = 
+            let (Rule x) = xRule
+            f x
+        let run rule input = 
+            let (Rule innerFn) = rule
+            innerFn input
+
+        type RuleBuilder() =
+            member this.Bind(m, f) = bind f m
+            member this.Return(x) = Rule x
+            member this.ReturnFrom(x) = x
+        let rule = new RuleBuilder()
+
+    module RuleResult =
+        
+        let map f (x:RuleResult<'a,'c>) : RuleResult<'b,'c> = 
+            (f |> Trial.lift |> Rule.map ) x
+
+        let lift2 f x y : RuleResult<'c,'d> =
+            (f |> Trial.lift2 |> Rule.lift2) x y
+
+        let retn x : RuleResult<'a,'b> = 
+            x |> ok |> Rule.retn
+
+        let apply (f:RuleResult<'a->'b,'c>) (x:RuleResult<'a,'c>) : RuleResult<'b,'c> = 
+            f |> Rule.bind (fun fResult -> 
+            x |> Rule.map (fun xResult -> 
+            Trial.apply fResult xResult))
+
+        let bind (f:'a->RuleResult<'b,'c>) (x:RuleResult<'a,'c>) : RuleResult<'b,'c> = Rule.rule {
+            let! xResult = x 
+            match xResult with
+            | Ok (x,y) -> return! f x
+            | Bad err -> return (Bad err)
+            }
+        type RuleRBuilder() =
+            member this.Bind(m, f) = bind f m
+            member this.Return(x) = RuleResult x
+            member this.ReturnFrom(x) = x
+        let ruleresult = new RuleRBuilder()
     type Hits = Hits of int
     let mapList xs = xs |> List.map (fun z -> RollResult z)
 
-    type MakeHit<'a> = MakeHit of (Rule<int->Result<'a,'a>> -> WeaponSkill -> WeaponSkill ->  Hits*Result<'a,'a>)
-
-    let run rule input = 
-        let (Rule innerFn) = rule
-        innerFn input
     
     let makeD6 d6s  =
         let innerFn dPlus =
@@ -227,62 +279,35 @@ module Try5 =
 
     let makeHit D6 = 
         let innerFn (wsTarget,wsOpponent) =
-            let result = getWsTable wsTarget wsOpponent |> run D6
-            match result with 
-                | Ok (x,y) -> ok (Hits 1, x) //,RollResult x, mapList y)
-                | Bad (y) -> fail (Hits 0, y |> List.tryHead) //, mapList y)
+            getWsTable wsTarget wsOpponent 
+                |> Rule.run D6 
+                |> lift (fun roll -> (Hits 1, roll))
+                |> mapFailure (fun roll -> [(Hits 0, roll |> List.head)])
         Rule innerFn
     let makeWounds D6  = 
-        let innerFn (hits,(str,tough)) = 
-            let (Hits hits') = hits
-            let result = getWounds str tough |> run D6
-            match result with 
-                    | Ok (x,y) -> ok (Wounds (hits' * 1),x)
-                    | Bad (y) -> fail (Wounds 0)
-//            let result = List.init hits' (fun _ -> getWounds str tough |> run D6)
-//            result |> List.map (function
-//                                        | Ok (x,y) -> ok (Wounds 1,x)//,RollResult x, mapList y)
-//                                        | Bad (y) -> fail (Wounds 0)//, mapList y)
-//                                    )
-        Rule innerFn
-        
-    let andThen rule1 rule2 =
-        let innerFn input input2 =
-            let result1 = run rule1 input
-            match result1 with
-            | Bad err -> 
-                fail [],err
-            | Ok ((value1,result),resultList) -> 
-                let result2 =  run rule2 (value1,input2)
-                match result2 with 
-                |  Bad err2 ->
-                    fail err2, resultList 
-                | Ok (value2,resultList2) -> 
-                    let newValue = (value1,value2)
-                    ok (newValue),[]
-        Rule innerFn 
-
-    let map f r =
-        let innerFn input =
-            let result = run r input
-            match result with 
-                | Ok (v,l) -> 
-                    let newValue = f v
-                    ok (newValue, l |> List.tryHead)
-                | Bad err ->
-                    fail (err |> List.tryHead)
+        let innerFn hits (str,tough)  = 
+            let (Hits hits',_) = hits
+            getWounds str tough 
+                |> Rule.run D6
+                |> lift (fun roll -> (Wounds (1 * hits'), roll))
+                |> mapFailure (fun roll -> [(Wounds 0, roll |> List.head)])
         Rule innerFn
 
-    let ( .>>. ) = andThen
+    let pipeRules (rule1:Rule<'a->'c>) (rule2:RuleResult<'a,'d>) : RuleResult<'c,'d> = 
+        let result = RuleResult.ruleresult {
+            let! result = rule2
+            let returned = match result with 
+                            | Ok (v,m) -> Rule.apply rule1 v
+                            | Bad (err) -> rule1
+            return returned
+        }
+        result
+
 
 
     let D6R = makeD6 D6s
-    let mh2 = makeHit D6R
-    let mw2 = makeWounds D6R
-    let mapped = map (fun (Hits(x),_) -> x) mh2
-    let doHits = run mh2 (WeaponSkill 4, WeaponSkill 4)
-    let doHits' = run mapped (WeaponSkill 4, WeaponSkill 4)
-    let hitsThenWounds = mh2 .>>. mw2
-    let hitsThenWounds' = run hitsThenWounds (WeaponSkill 4, WeaponSkill 4) (Strength 4, Toughness 4)
+    
+    let (<*>) = Rule.apply
+    let mh2 = makeHit D6R <*> Rule (WeaponSkill 4, WeaponSkill 4)
 
-
+    let mw2 = pipeRules (makeWounds D6R) mh2
