@@ -1,43 +1,44 @@
 ﻿namespace Domain
 
 module WarhammerDomain =
-    open Distribution.Distribution
-    open FSharpx.State
-
-    type Rule = { Name : string; Desc : string list }
-    type Tree<'a> = | EmptyTree | Branch of 'a * Tree<'a> list
-    type Player = Player1 | Player2
-    type Probability = decimal 
     
-    type WeaponSkill =      WeaponSkill      of int
-    type BallisticSkill =   BallisticSkill    of int
-    type Strength =         Strength          of int
-    type Toughness =        Toughness        of int
-    type Saves =            Saves             of int
-    type ArmorPen =         ArmorPen         of int
-    type Attacks =          Attacks          of int
-    type InvSaves =         InvSaves         of int
-    type Wounds =           Wounds            of int
+    type RuleDescription = {Name: string; Description: string}
+    type Rule<'a> = 
+        | StaticRule of 'a
+        | NestedRule of Rule<'a>
+        | RuleDescription of RuleDescription
 
+    type Player = Player1 | Player2
+    type Characteristic = 
+        | WeaponSkill      of int
+        | BallisticSkill    of int
+        | Strength          of int
+        | Toughness        of int
+        | Saves             of int
+        | Attacks          of int
+        | InvSaves         of int
+        | Wounds            of int
+    type ArmorPen = 
+        | None
+        | ArmorPen of int
+        | InvulPen of int
+    type Range = 
+        | Melee
     type WeaponType = Heavy | RapidFire | Assault 
+    [<Measure>] type inch;
     type Weapon = {
       weaponName         : string;
       weaponType         : WeaponType;
-      weaponAttacks      : int;
-      weaponStrength     : int;
+      weaponAttacks      : Rule<int>;
+      weaponStrength     : Rule<int>;
       weaponArmorPen     : ArmorPen;
-      weaponRange        : int;
+      weaponRange        : int<inch>;
       weaponIsTwinLinked : bool
     } 
 
     type Model = {
       Name              : string;
-      WeaponSkill       : WeaponSkill;
-      BallisticSkill    : BallisticSkill;
-      Strength          : Strength;
-      Toughness         : Toughness;
-      Saves             : Saves;
-      Wounds            : Wounds;
+      Characeristics : Characteristic list;
     } 
 
     type Unit = {
@@ -54,7 +55,7 @@ module WarhammerDomain =
         }
 
     type MoveCapability = 
-        unit -> RuleResult 
+        unit -> RuleResultR
 
     /// A capability along with the position the capability is associated with.
     /// This allows the UI to show information so that the user
@@ -68,7 +69,7 @@ module WarhammerDomain =
     /// The result of a move. It includes: 
     /// * The information on the current board state.
     /// * The capabilities for the next move, if any.
-    and RuleResult = 
+    and RuleResultR = 
         | Player1ToMove of BoardInfo * NextMoveInfo list 
         | Player2ToMove of BoardInfo * NextMoveInfo list 
         | GameWon of BoardInfo * Player 
@@ -80,17 +81,6 @@ module WarhammerDomain =
         {
         newGame : MoveCapability
         }
-
-    //let D sides = toUniformDistribution [1..sides]
-//    let D6 = D 6
-//    let FourD6 =  [D6; D6; D6; D6;]
-//    let trans = traverseDistributionA (fun x -> x |> Seq.map(fun y -> {y with Value = 2 * y.Value})) FourD6 
-//    let seqss = sequenceDistributionA FourD6 
-
-//    printf "%A" FourD6 |> ignore
-//    printf "%A" trans |> ignore
-//    printf "%A" seqss |> ignore
-//    let HitDice = FourD6 |> List.map average |> List.sum
 
 
 module TickTacToeDomain =
