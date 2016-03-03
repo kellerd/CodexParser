@@ -1,61 +1,113 @@
-﻿namespace Domain
-
+﻿#if !INTERACTIVE
+namespace Domain
 module WarhammerDomain =
-    
+#endif 
+    open System
     type RuleDescription = {Name: string; Description: string}
-    type Rule<'a> = 
-        | StaticRule of 'a
-        | NestedRule of Rule<'a>
-        | RuleDescription of RuleDescription
+    [<Measure>] type ft
+    [<Measure>] type deg
+    [<Measure>] type dpi
+    [<Measure>]
+    type inch =
+      static member ToPixels (inches : float<inch>) (resolution : float<dpi>) =
+        LanguagePrimitives.FloatWithMeasure<px> (float inches * float resolution)
+      static member perFoot = 12.0<inch/ft>;
+    and
+      [<Measure>]
+      px =
+        static member ToInches (pixels : float<px>) (resolution : float<dpi>) =
+          LanguagePrimitives.FloatWithMeasure<inch> (float pixels / float resolution)
+    [<Measure>]
+    type mm =
+        static member perInch = 25.4<mm/inch>
+    type Position< [<Measure>] 'u > = { X : float<'u>; Y : float<'u> } with
+      member this.FindDistance other =
+        let deltaX = other.X - this.X
+        let deltaY = other.Y - this.Y
+        sqrt ((deltaX * deltaX) + (deltaY * deltaY))
+    type CharacteristicValue = CharacteristicValue of int
+    type MaxMovement = MaxMovement of int<inch>
+    type value =
+        | Bool of bool
+        | Characteristic
+        | Double of double
+        | String of string
+        | Inch of int<inch>
+        | Range of int<inch> * int<inch>
+        | D6 of (unit->int)
 
-    type Player = Player1 | Player2
+    type expr = 
+        | Literal of value
+        | Function of invoke
+        | Array of value []
+    and invoke =
+        | Call of string * expr list // Language extension
+        | Method of string * string * expr list
+        | PropertyGet of string * string
+    type Rule = 
+        | Single of expr
+        | Nested of Rule  * Rule 
+        | Overwritten of Rule  * Rule 
+        | Description of RuleDescription
+
     type Characteristic = 
-        | WeaponSkill      of int
-        | BallisticSkill    of int
-        | Strength          of int
-        | Toughness        of int
-        | Saves             of int
-        | Attacks          of int
-        | InvSaves         of int
-        | Wounds            of int
-    type ArmorPen = 
-        | None
-        | ArmorPen of int
-        | InvulPen of int
-    type Range = 
-        | Melee
-    type WeaponType = Heavy | RapidFire | Assault 
-    [<Measure>] type inch;
-    type Weapon = {
-      weaponName         : string;
-      weaponType         : WeaponType;
-      weaponAttacks      : Rule<int>;
-      weaponStrength     : Rule<int>;
-      weaponArmorPen     : ArmorPen;
-      weaponRange        : int<inch>;
-      weaponIsTwinLinked : bool
-    } 
+        | WeaponSkill     of CharacteristicValue
+        | BallisticSkill  of CharacteristicValue
+        | Strength        of CharacteristicValue
+        | Toughness       of CharacteristicValue
+        | Wounds          of CharacteristicValue
+        | Initiative      of CharacteristicValue
+        | Attacks         of CharacteristicValue
+        | Leadership      of CharacteristicValue
+        | InvSaves        of CharacteristicValue
+        | Saves           of CharacteristicValue
+
+    type Deployment = 
+        | Deployed of int<inch> * int<inch>
+        | Destroyed
+        | OngoingReserves
+        | Reserves
+        | NotDeployed
+
+    
+    type Player = Player1 | Player2
 
     type Model = {
-      Name              : string;
-      Characeristics : Characteristic list;
+      Name : string;
+      Id : Guid;
+      Characteristic : Map<string,Characteristic>;
+      Rules : Rule list
+      BaseDiameter : int<mm>
+    } 
+    type UnitFunctions = {
+        move: MoveFn option;
+        run: RunFn option;
+    } 
+    and MoveFn = expr -> (MaxMovement * UnitFunctions)
+    and RunFn = expr -> (MaxMovement * UnitFunctions)
+
+    type Unit = { 
+      unitModels  : Model list
+      unitName    : string
+      Rules : Rule list
+      Deployment : Deployment
     } 
 
-    type Unit = {
-      unitModels  : Model list;
-      unitName    : string
+    type Phase = Movement | Psychic | Shooting | Assault
+    type Round = One=1 | Two =2| Three=3 | Four=4 | Five =5| Six =6| Seven=7
+    type Mission = {
+       MaxRounds:(expr->Round)
+       Rules : Rule list
+       EndCondition:(expr->bool)
     }
-    
-    type Move = unit->int * Rule
-    type Run = unit->decimal Distribution * Rule
-
-    type BoardInfo = {
-        Board : Model list
-        Player : Player list 
+    type GameInfo = {
+        Phase : Phase
+        Round : Round
+        Mission:Mission
         }
 
     type MoveCapability = 
-        unit -> RuleResultR
+        unit -> RuleResult
 
     /// A capability along with the position the capability is associated with.
     /// This allows the UI to show information so that the user
@@ -63,17 +115,17 @@ module WarhammerDomain =
     and NextMoveInfo = {
         // the pos is for UI information only
         // the actual pos is baked into the cap.
-        posToPlay : Rule 
-        capability : MoveCapability }
+        Unit : Unit list
+        UnitFunctions : UnitFunctions }
 
     /// The result of a move. It includes: 
     /// * The information on the current board state.
     /// * The capabilities for the next move, if any.
-    and RuleResultR = 
-        | Player1ToMove of BoardInfo * NextMoveInfo list 
-        | Player2ToMove of BoardInfo * NextMoveInfo list 
-        | GameWon of BoardInfo * Player 
-        | GameTied of BoardInfo 
+    and RuleResult = 
+        | Player1ToMove of GameInfo * NextMoveInfo list 
+        | Player2ToMove of GameInfo * NextMoveInfo list 
+        | GameWon of GameInfo * Player 
+        | GameTied of GameInfo 
     
     // Only the newGame function is exported from the implementation
     // all other functions come from the results of the previous move
