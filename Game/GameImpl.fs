@@ -1,10 +1,12 @@
 ﻿namespace GameImpl
 module WarhammerImpl = 
     open Domain.WarhammerDomain
-    
-    type BoardInfo = {
-        Board : Model list
-        Player : Player list 
+    let resolution = 26.0<dpi>
+    type Dimensions = {Width:int<ft>; Height:int<ft>}
+    type GameState = {
+        Board : (Model*Position<px>) list
+        Player : (Player*Unit list) list 
+        Dimensions : Dimensions
         }
 
 
