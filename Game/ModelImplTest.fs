@@ -4,9 +4,9 @@ module ModelImplTest =
     open Domain.WarhammerDomain
 #endif
     open System
-    let Termagant = 
+    let Termagant id  = 
         {   Name="Termagant"; 
-            Id=Guid("666D7AF7-D74B-49B8-B7B9-EFFF44D77ACE");
+            Id=id;
             Characteristic = 
                 [WeaponSkill    (CharacteristicValue 3);
                 BallisticSkill  (CharacteristicValue 3);
@@ -20,5 +20,13 @@ module ModelImplTest =
                 Saves           (CharacteristicValue 3)] 
                 |> List.map(fun x -> x.GetType().Name, x) 
                 |> Map.ofList;
+            Base = BaseDiameter 25<mm>;
             Rules = [Description {Name = "Lurker"; Description = "Termagant Lurks when outside synapse"}];
         }
+
+    let TermUnit = {
+     unitModels = [Termagant Guid("666D7AF7-D74B-49B8-B7B9-EFFF44D77ACE")]
+     unitName = "Termagaunts"
+     Rules = []
+     Deployment=NotDeployed
+    }
