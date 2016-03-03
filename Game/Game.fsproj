@@ -56,10 +56,8 @@
   <ItemGroup>
     <Compile Include="AssemblyInfo.fs" />
     <None Include="App.config" />
-    <Compile Include="Distribution.fs" />
-    <Compile Include="Probability.fs" />
     <Compile Include="Domain.fs" />
-    <Compile Include="Rules.fs" />
+    <Compile Include="ModelImplTest.fs" />
     <Compile Include="GameImpl.fs" />
     <Compile Include="ConsoleUi.fs" />
     <Compile Include="Logging.fs" />
