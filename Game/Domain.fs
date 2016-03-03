@@ -63,7 +63,7 @@ module WarhammerDomain =
         | Saves           of CharacteristicValue
 
     type Deployment = 
-        | Deployed of int<inch> * int<inch>
+        | Deployed of float<inch> * float<inch>
         | Destroyed
         | OngoingReserves
         | Reserves
@@ -72,17 +72,25 @@ module WarhammerDomain =
     
     type Player = Player1 | Player2
 
+    
+    type Dimentions<[<Measure>]'u> =
+      {Width:float<'u>;Length:float<'u>} 
+    type Base =
+     | BaseDiameter of int<mm>
+     | ModelDimentions of Dimentions<mm>
     type Model = {
       Name : string;
       Id : Guid;
       Characteristic : Map<string,Characteristic>;
       Rules : Rule list
-      BaseDiameter : int<mm>
+      Base: Base
     } 
     type UnitFunctions = {
-        move: MoveFn option;
-        run: RunFn option;
+        deploy : DeployFn option
+        move: MoveFn option
+        run: RunFn option
     } 
+    and DeployFn = expr -> (Deployment * UnitFunctions)
     and MoveFn = expr -> (MaxMovement * UnitFunctions)
     and RunFn = expr -> (MaxMovement * UnitFunctions)
 
