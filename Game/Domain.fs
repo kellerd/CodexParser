@@ -27,6 +27,7 @@ module WarhammerDomain =
         sqrt ((deltaX * deltaX) + (deltaY * deltaY))
     type CharacteristicValue = CharacteristicValue of int
     type MaxMovement = MaxMovement of int<inch>
+    [<StructuralEquality>]
     type value =
         | Bool of bool
         | Characteristic
@@ -35,19 +36,23 @@ module WarhammerDomain =
         | Inch of int<inch>
         | Range of int<inch> * int<inch>
         | D6 of (unit->int)
-
+        
+    [<StructuralEquality>]
     type expr = 
         | Literal of value
         | Function of invoke
-        | Array of value []
+        | List of value list
     and invoke =
-        | Call of string * expr list // Language extension
+        | Call of string * expr list 
         | Method of string * string * expr list
         | PropertyGet of string * string
+    [<StructuralEquality>]
     type Rule = 
-        | Single of expr
+        | Single of Rule
         | Nested of Rule  * Rule 
         | Overwritten of Rule  * Rule 
+        | OncePerPhase of Rule
+        | OncePerGame of Rule
         | Description of RuleDescription
 
     type Characteristic = 
@@ -85,55 +90,62 @@ module WarhammerDomain =
       Rules : Rule list
       Base: Base
     } 
-    type UnitFunctions = {
-        deploy : DeployFn option
-        move: MoveFn option
-        run: RunFn option
-    } 
-    and DeployFn = expr -> (Deployment * UnitFunctions)
-    and MoveFn = expr -> (MaxMovement * UnitFunctions)
-    and RunFn = expr -> (MaxMovement * UnitFunctions)
+    
 
     type Unit = { 
-      unitModels  : Model list
-      unitName    : string
+      UnitModels  : Model list
+      UnitName    : string
       Rules : Rule list
       Deployment : Deployment
     } 
 
-    type Phase = Movement | Psychic | Shooting | Assault
-    type Round = One=1 | Two =2| Three=3 | Four=4 | Five =5| Six =6| Seven=7
-    type Mission = {
-       MaxRounds:(expr->Round)
-       Rules : Rule list
-       EndCondition:(expr->bool)
+    type Phase = Begin | Movement | Psychic | Shooting | Assault | End
+    type Round = Begin | One | Two | Three | Four | Five | Six | Seven | End
+    
+
+    let resolution = 26.0<dpi>
+    type Dimensions = {Width:int<ft>; Height:int<ft>}
+    type Score = Score of int
+    type GameState = {
+        Board : BoardInfo
+        Players : PlayerInfo list
+        Game:GameInfo
+        }
+    and PlayerInfo = {
+        Player: Player
+        Units: Unit list
+        Score: Score
     }
-    type GameInfo = {
+    and BoardInfo = {
+        Models : (Player*Model*Position<px>) list
+        Dimensions : Dimensions
+    }
+    and GameInfo = {
         Phase : Phase
         Round : Round
         Mission:Mission
-        }
+    }
+    and Mission = {
+       MaxRounds:GameState->Round
+       Rules : Rule list
+       EndCondition:GameState->bool
+    }
 
+    type DisplayInfo = {
+        Board : BoardInfo
+    }
     type MoveCapability = 
         unit -> RuleResult
 
-    /// A capability along with the position the capability is associated with.
-    /// This allows the UI to show information so that the user
-    /// can pick a particular capability to exercise.
-    and NextMoveInfo = {
-        // the pos is for UI information only
-        // the actual pos is baked into the cap.
-        Unit : Unit list
-        UnitFunctions : UnitFunctions }
-
+    and NextMoveInfo = NextMoveInfo of Unit list 
     /// The result of a move. It includes: 
     /// * The information on the current board state.
     /// * The capabilities for the next move, if any.
     and RuleResult = 
-        | Player1ToMove of GameInfo * NextMoveInfo list 
-        | Player2ToMove of GameInfo * NextMoveInfo list 
-        | GameWon of GameInfo * Player 
-        | GameTied of GameInfo 
+        | Player1ToMove of DisplayInfo * NextMoveInfo list 
+        | Player2ToMove of DisplayInfo * NextMoveInfo list 
+        | GameWon of DisplayInfo * Player 
+        | GameTied of DisplayInfo 
     
     // Only the newGame function is exported from the implementation
     // all other functions come from the results of the previous move
