@@ -1,21 +1,91 @@
 ﻿namespace GameImpl
 module WarhammerImpl = 
     open Domain.WarhammerDomain
-    let resolution = 26.0<dpi>
-    type Dimensions = {Width:int<ft>; Height:int<ft>}
-    type GameState = {
-        Board : (Model*Position<px>) list
-        Player : (Player*Unit list) list 
-        Dimensions : Dimensions
-        GameInfo:GameInfo
-        }
     
-    let other player = function
+    
+    let other player = player |> function
         | Player1 -> Player2
         | Player2 -> Player1
 
-    let next gs = gs.GameInfo.Phase |> function
-        | Movement -> {gs with GameInfo = {gs.GameInfo with Phase = Psyhic}}
+    let Mission = {
+       MaxRounds = (fun gs -> Six)
+       Rules = []
+       EndCondition = (fun gs -> gs.Game.Round = Round.End && gs.Game.Phase = Phase.End)
+    }
+
+    let private gameWonBy gameState = 
+        let maxPlayerInfo = gameState.Players |> List.sortBy (fun p -> p.Score)
+        match maxPlayerInfo with 
+            | p1::p2::_ when p1.Score > p2.Score -> Some p1.Player
+            | _ -> None
+    let private isEndCondition gameState = 
+        (gameState.Game.Mission.EndCondition gameState)
+    let pick nextMoveInfos = 
+        nextMoveInfos |> List.tryHead
+
+    let rec removeFirst pred lst =
+        match lst with
+        | h::t when pred h -> t
+        | h::t -> h::removeFirst pred t
+        | _ -> []
+
+    let getDisplayInfo (gameState:GameState) =
+        {DisplayInfo.Board = gameState.Board}
+
+    let rec runRule = function
+        | Single e -> [e]
+        | Nested (r,r2) -> 
+            [r;r2] |> List.map runRule |> List.collect id
+        | Overwritten (r,r2) -> runRule r
+        | OncePerPhase _ -> []
+        | OncePerGame _ -> []
+        | Description _ -> []
+    let eval f gameState =
+        gameState    
+    let updateGame f (unit:Unit) gameState  = 
+        ///TODO
+        let newGameState = eval (runRule f) gameState
+        
+        
+        let foundPlayer = gameState.Players |> List.tryPick (fun p -> p.Units 
+                                                                |> List.tryFind(fun u -> u = unit)
+                                                                |> Option.bind (fun _ -> Some p))
+        
+        let replace xs x y = 
+            let pred z = x = z
+            y :: (removeFirst pred xs)
+
+        let cUnit f = {unit with Rules = replace unit.Rules f (OncePerPhase f)}
+        let cState s p np = {s with Players = replace s.Players p np }
+        let cPlayer p u nu = {p with Units = replace p.Units u nu }
+
+        let newUnit = cUnit f
+        let newPlayer = foundPlayer |> Option.map (fun p-> cPlayer p unit newUnit)
+
+        newGameState 
+
+    let rec playerMove player unit (thingToDo:Rule) currentCapabilities gameState = 
+        let newGameState,newUnit = gameState |> updateGame thingToDo unit
+        let displayInfo = getDisplayInfo newGameState 
+        let newCurrentCapabilities = 
+            let findRule = currentCapabilities 
+                                |> removeFirst  (fun (unit,unitFunctions) -> unitFunctions = thingToDo)
+            let trunc = 
+                Option.m
+            currentCapabilities  |> List.truncate                   
+            //currentCapabilities |> List.truncate 
+        if isEndCondition gameState then 
+            match gameWonBy gameState with
+            | Some player -> GameWon (displayInfo, player) 
+            | None -> GameTied displayInfo 
+        else
+            let otherPlayer = otherPlayer player 
+            let moveResult = 
+                newGameState 
+                |> remainingMoves
+                |> makeMoveResultWithCapabilities playerMove otherPlayer newGameState
+            moveResult 
+
 
 module TickTacToeImpl = 
     open Domain.TickTacToeDomain
