@@ -7,8 +7,15 @@ module WarhammerImpl =
         Board : (Model*Position<px>) list
         Player : (Player*Unit list) list 
         Dimensions : Dimensions
+        GameInfo:GameInfo
         }
+    
+    let other player = function
+        | Player1 -> Player2
+        | Player2 -> Player1
 
+    let next gs = gs.GameInfo.Phase |> function
+        | Movement -> {gs with GameInfo = {gs.GameInfo with Phase = Psyhic}}
 
 module TickTacToeImpl = 
     open Domain.TickTacToeDomain
