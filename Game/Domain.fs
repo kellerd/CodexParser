@@ -27,7 +27,6 @@ module WarhammerDomain =
         sqrt ((deltaX * deltaX) + (deltaY * deltaY))
     type CharacteristicValue = CharacteristicValue of int
     type MaxMovement = MaxMovement of int<inch>
-    [<StructuralEquality>]
     type value =
         | Bool of bool
         | Characteristic
@@ -37,7 +36,6 @@ module WarhammerDomain =
         | Range of int<inch> * int<inch>
         | D6 of (unit->int)
         
-    [<StructuralEquality>]
     type expr = 
         | Literal of value
         | Function of invoke
@@ -46,7 +44,7 @@ module WarhammerDomain =
         | Call of string * expr list 
         | Method of string * string * expr list
         | PropertyGet of string * string
-    [<StructuralEquality>]
+    [<StructuralEquality>][<NoComparison>]
     type Rule = 
         | Single of Rule
         | Nested of Rule  * Rule 
@@ -131,21 +129,17 @@ module WarhammerDomain =
        EndCondition:GameState->bool
     }
 
-    type DisplayInfo = {
-        Board : BoardInfo
-    }
     type MoveCapability = 
         unit -> RuleResult
 
-    and NextMoveInfo = NextMoveInfo of Unit list 
-    /// The result of a move. It includes: 
-    /// * The information on the current board state.
-    /// * The capabilities for the next move, if any.
+    and NextMoveInfo = 
+        | NextMoveInfo of Unit list 
+    /// The result of a move. Do displayInfo later.
     and RuleResult = 
-        | Player1ToMove of DisplayInfo * NextMoveInfo list 
-        | Player2ToMove of DisplayInfo * NextMoveInfo list 
-        | GameWon of DisplayInfo * Player 
-        | GameTied of DisplayInfo 
+        | Player1ToMove of GameState * NextMoveInfo
+        | Player2ToMove of GameState * NextMoveInfo
+        | GameWon of GameState * Player 
+        | GameTied of GameState 
     
     // Only the newGame function is exported from the implementation
     // all other functions come from the results of the previous move

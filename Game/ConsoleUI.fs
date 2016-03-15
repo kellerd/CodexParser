@@ -17,7 +17,7 @@ module Console =
     /// index selected by the user
     let getCapability selectedIndex nextMoves = 
         if selectedIndex < List.length nextMoves then
-            let move = List.nth nextMoves selectedIndex 
+            let move = List.item selectedIndex nextMoves 
             Some move.capability 
         else
             None
