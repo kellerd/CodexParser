@@ -28,9 +28,9 @@ module WarhammerImpl =
         | h::t when pred h -> t
         | h::t -> h::removeFirst pred t
         | _ -> []
-
-    let getDisplayInfo (gameState:GameState) =
-        {DisplayInfo.Board = gameState.Board}
+//
+//    let getDisplayInfo (gameState:GameState) =
+//        {DisplayInfo.Board = gameState.Board}
 
     let rec runRule = function
         | Single e -> [e]
@@ -42,50 +42,115 @@ module WarhammerImpl =
         | Description _ -> []
     let eval f gameState =
         gameState    
+    let advanceRound gs = 
+        match gs.Game.Round with 
+            | Round.Begin -> Round.One
+            | Round.One -> Round.Two
+            | Round.Two -> Round.Three
+            | Round.Three -> Round.Four
+            | Round.Four -> Round.Five
+            | Round.Five -> Round.Six
+            | Round.Six -> Round.Seven
+            | Round.Seven -> Round.End
+            | Round.End -> Round.End
+    let advancePhase gs = 
+        match gs.Game.Phase with
+            | Phase.Begin -> {gs with Game = {gs.Game with Phase = Phase.Movement} }
+            | Phase.Movement -> {gs with Game = {gs.Game with Phase = Phase.Psychic}  }
+            | Phase.Psychic -> {gs with Game = {gs.Game with Phase = Phase.Shooting}  }
+            | Phase.Shooting -> {gs with Game = {gs.Game with Phase = Phase.Assault}  }
+            | Phase.Assault -> {gs with Game = {gs.Game with Phase = Phase.End}       }
+            | Phase.End -> {gs with Game = {gs.Game with Phase = Phase.Begin; Round = advanceRound gs}         }
     let updateGame f (unit:Unit) gameState  = 
         ///TODO
-        let newGameState = eval (runRule f) gameState
-        
-        
         let foundPlayer = gameState.Players |> List.tryPick (fun p -> p.Units 
-                                                                |> List.tryFind(fun u -> u = unit)
-                                                                |> Option.bind (fun _ -> Some p))
-        
+                                                                    |> List.tryFind(fun u -> u = unit)
+                                                                    |> Option.bind (fun _ -> Some p))
         let replace xs x y = 
             let pred z = x = z
             y :: (removeFirst pred xs)
 
-        let cUnit f = {unit with Rules = replace unit.Rules f (OncePerPhase f)}
-        let cState s p np = {s with Players = replace s.Players p np }
+        let cUnit f (unit:Unit)  = {unit with Rules = replace unit.Rules f (OncePerPhase f)}
         let cPlayer p u nu = {p with Units = replace p.Units u nu }
+        let cState s p np = {s with Players = replace s.Players p np }
 
-        let newUnit = cUnit f
+        let newUnit = cUnit f unit
         let newPlayer = foundPlayer |> Option.map (fun p-> cPlayer p unit newUnit)
+        match (eval (runRule f) gameState), foundPlayer, newPlayer with
+            | (gs, Some p, Some np) -> cState gs p np
+            | (gs, _, _) -> gs
 
-        newGameState 
-
-    let rec playerMove player unit (thingToDo:Rule) currentCapabilities gameState = 
-        let newGameState,newUnit = gameState |> updateGame thingToDo unit
-        let displayInfo = getDisplayInfo newGameState 
-        let newCurrentCapabilities = 
-            let findRule = currentCapabilities 
-                                |> removeFirst  (fun (unit,unitFunctions) -> unitFunctions = thingToDo)
-            let trunc = 
-                Option.m
-            currentCapabilities  |> List.truncate                   
-            //currentCapabilities |> List.truncate 
+    let rec playerMove gameState player unit thingToDo = 
+        let newGameState = gameState |> updateGame thingToDo unit
+//        let displayInfo = getDisplayInfo newGameState 
         if isEndCondition gameState then 
             match gameWonBy gameState with
-            | Some player -> GameWon (displayInfo, player) 
-            | None -> GameTied displayInfo 
+            | Some player -> GameWon (gameState, player) 
+            | None -> GameTied gameState 
         else
-            let otherPlayer = otherPlayer player 
-            let moveResult = 
-                newGameState 
-                |> remainingMoves
-                |> makeMoveResultWithCapabilities playerMove otherPlayer newGameState
-            moveResult 
+            let availableUnits gs : Unit list  = []
+            let rec getCapabilities player gs  = 
+                match gs |> availableUnits with
+                    | [] -> match gs.Game.Phase with
+                                | Phase.End ->  getCapabilities <| other player <| advancePhase gs
+                                | _ -> getCapabilities player <| advancePhase gs
+                    | xs -> NextMoveInfo xs, player, gs
+            
+            let moveResultFor (nextMoves, player, gs) = 
+                match player with
+                | Player1 -> Player1ToMove (gs, nextMoves)
+                | Player2 -> Player2ToMove (gs, nextMoves)
+            newGameState |> getCapabilities player |> moveResultFor
 
+    let newGame() = 
+
+//        // allPositions is the cross-product of the positions
+//        let allPositions = [
+//            for h in allHorizPositions do 
+//            for v in allVertPositions do 
+//                yield (h,v)
+//            ]
+//
+//        // all cells are empty initially
+//        let emptyCells = 
+//            allPositions 
+//            |> List.map (fun pos -> {pos = pos; state = Empty})
+//        
+//        // create initial game state
+        let gameState =  {
+          Board = {
+                   Models=[]
+                   Dimensions = {Width=6.<ft>;Height=4.<ft>}
+          }
+          Players = [{    Player= Player1
+                          Units= [Termagaunts] 
+                          Score=0
+          }] 
+          Game={
+                 Phase = Phase.Begin
+                 Round = Round.Begin
+                 Mission=
+                          MaxRounds=(fun gs ->Round.Six)
+                          Rules =[]
+                          EndCondition=(fun gs -> gs.Game.Round=Round.Seven )
+               }
+          }        
+          
+   
+//
+//        // initial of valid moves for player X is all positions
+//        let moveResult = 
+//            allPositions 
+//            |> makeMoveResultWithCapabilities playerMove PlayerX gameState
+//
+//        // return new game
+//        moveResult 
+
+
+    /// export the API to the application
+    let api = {
+        newGame = newGame 
+        }
 
 module TickTacToeImpl = 
     open Domain.TickTacToeDomain
