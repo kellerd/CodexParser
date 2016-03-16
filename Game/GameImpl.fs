@@ -79,6 +79,17 @@ module WarhammerImpl =
         match (eval (runRule f) gameState), foundPlayer, newPlayer with
             | (gs, Some p, Some np) -> cState gs p np
             | (gs, _, _) -> gs
+    let rec getCapabilities availableUnits player gs  = 
+                match gs |> availableUnits with
+                    | [] -> match gs.Game.Phase with
+                                | Phase.End ->  getCapabilities  availableUnits <| other player <| advancePhase gs
+                                | _ -> getCapabilities availableUnits player <| advancePhase gs
+                    | xs -> NextMoveInfo xs, player, gs
+            
+    let moveResultFor (nextMoves, player, gs) = 
+        match player with
+        | Player1 -> Player1ToMove (gs, nextMoves)
+        | Player2 -> Player2ToMove (gs, nextMoves)
 
     let rec playerMove gameState player unit thingToDo = 
         let newGameState = gameState |> updateGame thingToDo unit
@@ -89,63 +100,41 @@ module WarhammerImpl =
             | None -> GameTied gameState 
         else
             let availableUnits gs : Unit list  = []
-            let rec getCapabilities player gs  = 
-                match gs |> availableUnits with
-                    | [] -> match gs.Game.Phase with
-                                | Phase.End ->  getCapabilities <| other player <| advancePhase gs
-                                | _ -> getCapabilities player <| advancePhase gs
-                    | xs -> NextMoveInfo xs, player, gs
-            
-            let moveResultFor (nextMoves, player, gs) = 
-                match player with
-                | Player1 -> Player1ToMove (gs, nextMoves)
-                | Player2 -> Player2ToMove (gs, nextMoves)
-            newGameState |> getCapabilities player |> moveResultFor
+            newGameState |> getCapabilities availableUnits player |> moveResultFor
 
     let newGame() = 
 
-//        // allPositions is the cross-product of the positions
-//        let allPositions = [
-//            for h in allHorizPositions do 
-//            for v in allVertPositions do 
-//                yield (h,v)
-//            ]
-//
-//        // all cells are empty initially
-//        let emptyCells = 
-//            allPositions 
-//            |> List.map (fun pos -> {pos = pos; state = Empty})
-//        
-//        // create initial game state
-        let gameState =  {
-          Board = {
-                   Models=[]
-                   Dimensions = {Width=6.<ft>;Height=4.<ft>}
-          }
-          Players = [{    Player= Player1
-                          Units= [Termagaunts] 
-                          Score=0
-          }] 
-          Game={
-                 Phase = Phase.Begin
-                 Round = Round.Begin
-                 Mission=
-                          MaxRounds=(fun gs ->Round.Six)
-                          Rules =[]
-                          EndCondition=(fun gs -> gs.Game.Round=Round.Seven )
-               }
-          }        
-          
-   
-//
-//        // initial of valid moves for player X is all positions
-//        let moveResult = 
-//            allPositions 
-//            |> makeMoveResultWithCapabilities playerMove PlayerX gameState
-//
-//        // return new game
-//        moveResult 
-
+        // create initial game state
+        let gameState =  { 
+                            Board = {
+                                        Models=[]
+                                        Dimensions = {Width=6<ft>;Height=4<ft>}
+                                    }
+                            Players = [
+                                        {    
+                                            Player= Player1
+                                            Units= [Impl.ModelImplTest.TermUnit] 
+                                            Score=Score 0
+                                        };
+                                        {    
+                                            Player= Player2
+                                            Units= [Impl.ModelImplTest.HormagauntUnit] 
+                                            Score=Score 0
+                                        }] 
+                            Game={
+                                    Phase = Phase.Begin
+                                    Round = Round.Begin
+                                    Mission= {
+                                                MaxRounds=(fun gs ->Round.Six)
+                                                Rules =[]
+                                                EndCondition=(fun gs -> gs.Game.Round=Round.Seven )
+                                              }
+                                    }      
+                        }
+        let player1 = gameState.Players |> List.head  
+        let availableUnits gs : Unit list  = []
+        let moveResult = getCapabilities availableUnits player1.Player gameState |> moveResultFor
+        moveResult
 
     /// export the API to the application
     let api = {
