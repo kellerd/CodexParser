@@ -29,31 +29,12 @@ module WarhammerDomain =
     type MaxMovement = MaxMovement of int<inch>
     type value =
         | Bool of bool
-        | Characteristic
+        | Characteristic of CharacteristicValue
         | Double of double
         | String of string
         | Inch of int<inch>
         | Range of int<inch> * int<inch>
-        | D6 of (unit->int)
-        
-    type expr = 
-        | Literal of value
-        | Function of invoke
-        | List of value list
-    and invoke =
-        | Call of string * expr list 
-        | Method of string * string * expr list
-        | PropertyGet of string * string
-    [<StructuralEquality>][<NoComparison>]
-    type Rule = 
-        | Single of Rule
-        | Nested of Rule  * Rule 
-        | Overwritten of Rule  * Rule 
-        | OncePerPhase of Rule
-        | OncePerGame of Rule
-        | Description of RuleDescription
-
-    type Characteristic = 
+    and     Characteristic = 
         | WeaponSkill     of CharacteristicValue
         | BallisticSkill  of CharacteristicValue
         | Strength        of CharacteristicValue
@@ -64,6 +45,24 @@ module WarhammerDomain =
         | Leadership      of CharacteristicValue
         | InvSaves        of CharacteristicValue
         | Saves           of CharacteristicValue
+        
+    type expr = 
+        | Literal of value
+        | Function of invoke
+        | List of value list
+    and invoke =
+        | Call of string * expr list 
+        | Method of string * string * expr list
+        | PropertyGet of string * string
+    type Rule = 
+        | Single of expr
+        | Nested of Rule  * Rule 
+        | Overwritten of Rule  * Rule 
+        | DeactivatedUntilEndOfPhase of Rule
+        | DeactivatedUntilEndOfGame of Rule
+        | Description of RuleDescription
+
+
 
     type Deployment = 
         | Deployed of float<inch> * float<inch>

@@ -2,7 +2,6 @@
 module WarhammerImpl = 
     open Domain.WarhammerDomain
     
-    
     let other player = player |> function
         | Player1 -> Player2
         | Player2 -> Player1
@@ -31,14 +30,21 @@ module WarhammerImpl =
 //
 //    let getDisplayInfo (gameState:GameState) =
 //        {DisplayInfo.Board = gameState.Board}
-
-    let rec runRule = function
+    let rec isRunnable = function
+        | Single _ -> true
+        | Nested (r,r2) -> 
+            seq {yield r; yield r2} |> Seq.exists isRunnable
+        | Overwritten (r,r2) -> isRunnable r
+        | DeactivatedUntilEndOfPhase _ -> false
+        | DeactivatedUntilEndOfGame _ -> false
+        | Description _ -> false
+    let rec collectRules = function
         | Single e -> [e]
         | Nested (r,r2) -> 
-            [r;r2] |> List.map runRule |> List.collect id
-        | Overwritten (r,r2) -> runRule r
-        | OncePerPhase _ -> []
-        | OncePerGame _ -> []
+            [r;r2] |> List.map collectRules |> List.collect id
+        | Overwritten (r,r2) -> collectRules r
+        | DeactivatedUntilEndOfPhase _ -> []
+        | DeactivatedUntilEndOfGame _ -> []
         | Description _ -> []
     let eval f gameState =
         gameState    
@@ -70,22 +76,26 @@ module WarhammerImpl =
             let pred z = x = z
             y :: (removeFirst pred xs)
 
-        let cUnit f (unit:Unit)  = {unit with Rules = replace unit.Rules f (OncePerPhase f)}
+        let cUnit f (unit:Unit)  = {unit with Rules = replace unit.Rules f (DeactivatedUntilEndOfPhase f)}
         let cPlayer p u nu = {p with Units = replace p.Units u nu }
         let cState s p np = {s with Players = replace s.Players p np }
 
         let newUnit = cUnit f unit
         let newPlayer = foundPlayer |> Option.map (fun p-> cPlayer p unit newUnit)
-        match (eval (runRule f) gameState), foundPlayer, newPlayer with
+        match (eval (collectRules f) gameState), foundPlayer, newPlayer with
             | (gs, Some p, Some np) -> cState gs p np
             | (gs, _, _) -> gs
-    let rec getCapabilities availableUnits player gs  = 
-                match gs |> availableUnits with
+    let rec getCapabilities availableUnits gs player   = 
+                match availableUnits gs player with
                     | [] -> match gs.Game.Phase with
-                                | Phase.End ->  getCapabilities  availableUnits <| other player <| advancePhase gs
-                                | _ -> getCapabilities availableUnits player <| advancePhase gs
+                                | Phase.End ->  getCapabilities  availableUnits  <| advancePhase gs <| other player
+                                | _ -> getCapabilities availableUnits  <| advancePhase gs  <| player
                     | xs -> NextMoveInfo xs, player, gs
-            
+    let availableUnits gs player : Unit list  = 
+        gs.Players 
+        |> List.filter (fun p -> p.Player = player) 
+        |> List.collect (fun p -> p.Units)
+        |> List.filter(fun u -> u.Rules |> Seq.ofList |> Seq.exists isRunnable)        
     let moveResultFor (nextMoves, player, gs) = 
         match player with
         | Player1 -> Player1ToMove (gs, nextMoves)
@@ -99,11 +109,9 @@ module WarhammerImpl =
             | Some player -> GameWon (gameState, player) 
             | None -> GameTied gameState 
         else
-            let availableUnits gs : Unit list  = []
-            newGameState |> getCapabilities availableUnits player |> moveResultFor
+            getCapabilities availableUnits newGameState player  |> moveResultFor
 
     let newGame() = 
-
         // create initial game state
         let gameState =  { 
                             Board = {
@@ -132,8 +140,7 @@ module WarhammerImpl =
                                     }      
                         }
         let player1 = gameState.Players |> List.head  
-        let availableUnits gs : Unit list  = []
-        let moveResult = getCapabilities availableUnits player1.Player gameState |> moveResultFor
+        let moveResult = getCapabilities availableUnits gameState player1.Player  |> moveResultFor
         moveResult
 
     /// export the API to the application

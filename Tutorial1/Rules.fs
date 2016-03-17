@@ -1,7 +1,6 @@
 ﻿
 
-//namespace Domain
-
+namespace Rules
 //
 //module Try2 =
 //    open Domain.WarhammerDomain
