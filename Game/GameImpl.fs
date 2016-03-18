@@ -133,7 +133,7 @@ module WarhammerImpl =
                                     Phase = Phase.Begin
                                     Round = Round.Begin
                                     Mission= {
-                                                MaxRounds=(fun gs ->Round.Six)
+                                                MaxRounds=(fun _ ->Round.Six)
                                                 Rules =[]
                                                 EndCondition=(fun gs -> gs.Game.Round=Round.Seven )
                                               }
