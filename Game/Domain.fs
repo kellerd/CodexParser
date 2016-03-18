@@ -132,7 +132,7 @@ module WarhammerDomain =
         unit -> RuleResult
 
     and NextMoveInfo = 
-        | NextMoveInfo of Unit list 
+        | NextMoveInfo of Unit list * MoveCapability
     /// The result of a move. Do displayInfo later.
     and RuleResult = 
         | Player1ToMove of GameState * NextMoveInfo
@@ -144,7 +144,7 @@ module WarhammerDomain =
     // all other functions come from the results of the previous move
     type WarhammerAPI  = 
         {
-        newGame : MoveCapability
+        NewGame : MoveCapability
         }
 
 

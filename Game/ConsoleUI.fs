@@ -1,4 +1,66 @@
 ﻿namespace ConsoleUi
+module ConsoleWarhammer = 
+    open Domain.WarhammerDomain
+    open System
+    /// Track the UI state
+    type UserAction<'a> =
+        | ContinuePlay of 'a
+        | ExitGame
+    
+    let nextMovesToRulesList nextMoves = 
+        nextMoves 
+        |> List.collect (fun (NextMoveInfo (x, _)) -> x)
+        |> List.collect (fun (u:Unit) -> u.Rules |> List.map (fun r -> r, u))
+    /// Print the rules on the console.
+    let displayNextMoves nextMoves = 
+        nextMoves |> nextMovesToRulesList
+        |> List.iteri (fun i (r,unitName) -> 
+            printfn "%i) %s - %A" i unitName.UnitName r)
+
+    let getCapability selectedIndex (nextMoves:NextMoveInfo list) = 
+        if selectedIndex < List.length nextMoves then
+            let (NextMoveInfo (_, moveCapability)) = List.item selectedIndex nextMoves 
+            Some moveCapability
+        else
+            None
+
+    let processMoveIndex inputStr availableMoves processInputAgain = 
+        match Int32.TryParse inputStr with
+        // TryParse will output a tuple (parsed?,int)
+        | true,inputIndex ->
+            // parsed ok, now try to find the corresponding move
+            match getCapability inputIndex availableMoves with
+            | Some capability -> 
+                // corresponding move found, so make a move
+                let moveResult = capability()  
+                ContinuePlay moveResult // return it
+            | None ->
+                // no corresponding move found
+                printfn "...No move found for inputIndex %i. Try again" inputIndex 
+                // try again
+                processInputAgain()
+        | false, _ -> 
+            // int was not parsed
+            printfn "...Please enter an int corresponding to a displayed move."             
+            // try again
+            processInputAgain()
+
+    /// Ask the user for input. Process the string entered as 
+    /// a move index or a "quit" command
+    let rec processInput availableCapabilities = 
+
+        // helper that calls this function again with exactly
+        // the same parameters
+        let processInputAgain() = 
+            processInput availableCapabilities 
+
+        printfn "Enter an int corresponding to a displayed move or q to quit:" 
+        let inputStr = Console.ReadLine()
+        if inputStr = "q" then
+            ExitGame
+        else
+            processMoveIndex inputStr availableCapabilities processInputAgain
+
 module Console =
     open Domain.TickTacToeDomain
     open System
