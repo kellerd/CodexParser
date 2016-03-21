@@ -9,8 +9,9 @@ module ConsoleWarhammer =
     
     let nextMovesToRulesList nextMoves = 
         nextMoves 
-        |> List.collect (fun (NextMoveInfo (x, _)) -> x)
-        |> List.collect (fun (u:Unit) -> u.Rules |> List.map (fun r -> r, u))
+        |> List.map (function 
+                            | UnitRule nextMove -> nextMove.Rule
+                            | EndRule nextMove -> nextMove.Rule)
     /// Print the rules on the console.
     let displayNextMoves nextMoves = 
         nextMoves |> nextMovesToRulesList
@@ -44,6 +45,42 @@ module ConsoleWarhammer =
             printfn "...Please enter an int corresponding to a displayed move."             
             // try again
             processInputAgain()
+
+        /// Display the cells on the console in a grid
+    let displayCells gameState = 
+        let board = gameState.Board
+        let characterWidth = 12<px>
+        let characterHeight = 6<px>
+        let ftToPx x = x * inch.perFoot |> inch.ToPixels resolution
+        let maxHeight = ftToPx board.Dimensions.Height
+        let maxWidth = ftToPx board.Dimensions.Height
+        let models = gameState.Board.Models |>
+                        
+        let cellToStr cell = 
+            match cell.state with
+            | Empty -> "-"            
+            | Played player ->
+                match player with
+                | PlayerO -> "O"
+                | PlayerX -> "X"
+
+        let printCells cells  = 
+            cells
+            |> List.map cellToStr
+            |> List.reduce (fun s1 s2 -> s1 + "|" + s2) 
+            |> printfn "|%s|"
+
+        let topCells = 
+            cells |> List.filter (fun cell -> snd cell.pos = Top) 
+        let centerCells = 
+            cells |> List.filter (fun cell -> snd cell.pos = VCenter) 
+        let bottomCells = 
+            cells |> List.filter (fun cell -> snd cell.pos = Bottom) 
+        
+        printCells topCells
+        printCells centerCells 
+        printCells bottomCells 
+        printfn ""   // add some space
 
     /// Ask the user for input. Process the string entered as 
     /// a move index or a "quit" command
@@ -123,7 +160,16 @@ module Console =
             ExitGame
         else
             processMoveIndex inputStr availableCapabilities processInputAgain
-            
+    
+    let rec askToPlayAgain api  = 
+        printfn "Would you like to play again (y/n)?"             
+        match Console.ReadLine() with
+        | "y" -> 
+            ContinuePlay (api.newGame())
+        | "n" -> 
+            ExitGame
+        | _ -> askToPlayAgain api 
+        
     /// Display the cells on the console in a grid
     let displayCells displayInfo = 
         let cells = displayInfo.cells
