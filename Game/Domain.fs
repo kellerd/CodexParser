@@ -9,13 +9,13 @@ module WarhammerDomain =
     [<Measure>] type dpi
     [<Measure>]
     type inch =
-      static member ToPixels (inches : float<inch>) (resolution : float<dpi>) =
+      static member ToPixels (resolution : float<dpi>)  (inches : float<inch>) =
         LanguagePrimitives.FloatWithMeasure<px> (float inches * float resolution)
       static member perFoot = 12.0<inch/ft>;
     and
       [<Measure>]
       px =
-        static member ToInches (pixels : float<px>) (resolution : float<dpi>) =
+        static member ToInches  (resolution : float<dpi>) (pixels : float<px>) =
           LanguagePrimitives.FloatWithMeasure<inch> (float pixels / float resolution)
     [<Measure>]
     type mm =
@@ -27,7 +27,7 @@ module WarhammerDomain =
         sqrt ((deltaX * deltaX) + (deltaY * deltaY))
     type CharacteristicValue = CharacteristicValue of int
     type MaxMovement = MaxMovement of int<inch>
-    type value =
+    type Value =
         | Bool of bool
         | Characteristic of CharacteristicValue
         | Double of double
@@ -45,24 +45,30 @@ module WarhammerDomain =
         | Leadership      of CharacteristicValue
         | InvSaves        of CharacteristicValue
         | Saves           of CharacteristicValue
-        
-    type expr = 
-        | Literal of value
-        | Function of invoke
-        | List of value list
-    and invoke =
-        | Call of string * expr list 
-        | Method of string * string * expr list
-        | PropertyGet of string * string
+    
+
+    type Phase = Begin | Movement | Psychic | Shooting | Assault | End
+    type Round = Begin | One | Two | Three | Four | Five | Six | Seven | End
+
+    type RuleImpl = 
+        | EndPhase
+    type Expr = 
+        | Literal of Value
+        | Function of RuleImpl
+        | List of Value list
+//    and invoke =
+//        | Call of RuleImpl // * expr list 
+//        | Method of string * string * expr list
+//        | PropertyGet of string * string
     type Rule = 
-        | Single of expr
+        | Single of Expr
         | Nested of Rule  * Rule 
         | Overwritten of Rule  * Rule 
         | DeactivatedUntilEndOfPhase of Rule
         | DeactivatedUntilEndOfGame of Rule
         | Description of RuleDescription
 
-
+    
 
     type Deployment = 
         | Deployed of float<inch> * float<inch>
@@ -95,13 +101,10 @@ module WarhammerDomain =
       Rules : Rule list
       Deployment : Deployment
     } 
-
-    type Phase = Begin | Movement | Psychic | Shooting | Assault | End
-    type Round = Begin | One | Two | Three | Four | Five | Six | Seven | End
     
 
     let resolution = 26.0<dpi>
-    type Dimensions = {Width:int<ft>; Height:int<ft>}
+    type Dimensions = {Width:float<ft>; Height:float<ft>}
     type Score = Score of int
     type GameState = {
         Board : BoardInfo
@@ -127,16 +130,23 @@ module WarhammerDomain =
        Rules : Rule list
        EndCondition:GameState->bool
     }
-
-    type MoveCapability = 
+    type UnitRule = {
+        Unit: Unit 
+        Rule: Rule 
+        Capability: MoveCapability}
+    and EndRule = {
+        Rule: Rule 
+        Capability: MoveCapability}
+    and MoveCapability = 
         unit -> RuleResult
 
     and NextMoveInfo = 
-        | NextMoveInfo of Unit list * MoveCapability
+        | UnitRule of UnitRule
+        | EndRule of EndRule
     /// The result of a move. Do displayInfo later.
     and RuleResult = 
-        | Player1ToMove of GameState * NextMoveInfo
-        | Player2ToMove of GameState * NextMoveInfo
+        | Player1ToMove of GameState * NextMoveInfo list
+        | Player2ToMove of GameState * NextMoveInfo list
         | GameWon of GameState * Player 
         | GameTied of GameState 
     

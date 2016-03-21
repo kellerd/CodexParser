@@ -39,15 +39,14 @@ module WarhammerImpl =
         | DeactivatedUntilEndOfGame _ -> false
         | Description _ -> false
     let rec collectRules = function
-        | Single e -> [e]
+        | Single e -> [Single e]
         | Nested (r,r2) -> 
             [r;r2] |> List.map collectRules |> List.collect id
         | Overwritten (r,r2) -> collectRules r
         | DeactivatedUntilEndOfPhase _ -> []
         | DeactivatedUntilEndOfGame _ -> []
         | Description _ -> []
-    let eval f gameState =
-        gameState    
+
     let advanceRound gs = 
         match gs.Game.Round with 
             | Round.Begin -> Round.One
@@ -67,7 +66,18 @@ module WarhammerImpl =
             | Phase.Shooting -> {gs with Game = {gs.Game with Phase = Phase.Assault}  }
             | Phase.Assault -> {gs with Game = {gs.Game with Phase = Phase.End}       }
             | Phase.End -> {gs with Game = {gs.Game with Phase = Phase.Begin; Round = advanceRound gs}         }
-    let updateGame f (unit:Unit) gameState  = 
+    let rec eval fs gameState = 
+        match fs with 
+            | [] -> gameState
+            | h::tail -> 
+                    h
+                        |> (function
+                            | Single(Function(EndPhase)) -> gameState |> advancePhase
+                            | _ -> gameState) 
+                        |> eval tail
+
+
+    let updateUnit f (unit:Unit) gameState  = 
         ///TODO
         let foundPlayer = gameState.Players |> List.tryPick (fun p -> p.Units 
                                                                     |> List.tryFind(fun u -> u = unit)
@@ -85,32 +95,58 @@ module WarhammerImpl =
         match (eval (collectRules f) gameState), foundPlayer, newPlayer with
             | (gs, Some p, Some np) -> cState gs p np
             | (gs, _, _) -> gs
-    let rec getCapabilities availableUnits gs player   = 
-                match availableUnits gs player with
-                    | [] -> match gs.Game.Phase with
-                                | Phase.End ->  getCapabilities  availableUnits  <| advancePhase gs <| other player
-                                | _ -> getCapabilities availableUnits  <| advancePhase gs  <| player
-                    | xs -> NextMoveInfo xs, player, gs
-    let availableUnits gs player : Unit list  = 
-        gs.Players 
-        |> List.filter (fun p -> p.Player = player) 
-        |> List.collect (fun p -> p.Units)
-        |> List.filter(fun u -> u.Rules |> Seq.ofList |> Seq.exists isRunnable)        
-    let moveResultFor (nextMoves, player, gs) = 
+
+    let endPhase = EndPhase |> Function |> Single  
+
+    let  availableRuleCapabilities player gs  = 
+         gs.Players 
+            |> List.filter (fun p -> p.Player = player) 
+            |> List.collect (fun p -> p.Units)
+            |> List.collect (fun u -> u.Rules |> List.filter isRunnable |> List.map (fun r -> r, Some u))
+
+    let makeNextMoveInfo f (player:Player) gameState (rule,unit) =
+        let capability() = f player unit rule gameState 
+        match unit with 
+            | Some u -> 
+                UnitRule ({
+                                Unit= u
+                                Rule= rule 
+                                Capability= capability
+                            })
+            | None ->
+                EndRule {Rule=rule; Capability = capability}
+        
+    let moveResultFor player gs nextMoves = 
         match player with
         | Player1 -> Player1ToMove (gs, nextMoves)
         | Player2 -> Player2ToMove (gs, nextMoves)
-
-    let rec playerMove gameState player unit thingToDo = 
-        let newGameState = gameState |> updateGame thingToDo unit
+    let makeMoveResultWithCapabilities f player newGameState rulesAndUnits = 
+            match rulesAndUnits with 
+            | [] -> None
+            | rulesAndUnits -> 
+                (endPhase, None) :: rulesAndUnits
+                |> List.map (makeNextMoveInfo f player newGameState) 
+                |> moveResultFor player newGameState |> Some 
+    let moveResult gs playerMove player  = 
+        let result = gs 
+                            |> availableRuleCapabilities player 
+                            |> makeMoveResultWithCapabilities playerMove player gs
+        match result, gs.Game.Phase with
+            | Some ruleResult, _ -> ruleResult
+            | None, Phase.End  -> playerMove (other player) None endPhase gs
+            | None, _ -> playerMove player None endPhase gs
+    let rec playerMove player unit thingToDo gameState = 
+        let newGameState = 
+                match unit with
+                    | Some u -> gameState |> updateUnit thingToDo u
+                    | None -> gameState |> eval [thingToDo]
 //        let displayInfo = getDisplayInfo newGameState 
-        if isEndCondition gameState then 
-            match gameWonBy gameState with
-            | Some player -> GameWon (gameState, player) 
-            | None -> GameTied gameState 
+        if isEndCondition newGameState then 
+            match gameWonBy newGameState with
+            | Some player -> GameWon (newGameState, player) 
+            | None -> GameTied newGameState 
         else
-            getCapabilities availableUnits newGameState player  |> moveResultFor
-
+            moveResult newGameState playerMove player
     let newGame() = 
         // create initial game state
         let gameState =  { 
@@ -139,13 +175,12 @@ module WarhammerImpl =
                                               }
                                     }      
                         }
-        let player1 = gameState.Players |> List.head  
-        let moveResult = getCapabilities availableUnits gameState player1.Player  |> moveResultFor
-        moveResult
-
+        gameState.Players |> List.head  |> (fun p -> p.Player) |> moveResult gameState playerMove
+        
+        
     /// export the API to the application
     let api = {
-        newGame = newGame 
+        NewGame = newGame 
         }
 
 module TickTacToeImpl = 
