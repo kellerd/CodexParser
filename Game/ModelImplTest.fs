@@ -1,8 +1,6 @@
-﻿#if !INTERACTIVE 
-namespace Impl
+﻿namespace Impl
 module ModelImplTest = 
     open Domain.WarhammerDomain
-#endif
     open System
     let Termagant id  = 
         {   Name="Termagant"; 
