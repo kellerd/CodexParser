@@ -105,7 +105,8 @@ module WarhammerDomain =
     } 
     
 
-    let resolution = 26.0<dpi>
+    let drawingResolution = 26.0<dpi>
+    let characterResolution = 9.0<dpi>
     type Dimensions = {Width:int<ft>; Height:int<ft>}
     type Score = Score of int
     type GameState = {
