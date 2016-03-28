@@ -53,9 +53,9 @@ module ConsoleWarhammer =
         /// Display the cells on the console in a grid
     let displayCells gameState = 
         
-        let toCharacterWidth x =  x / 12<px/WidthChars>
-        let toCharacterHeight x =  x / 6<px/HeightChars>
-        let ftToPx x = x * inch.perFootI |> inch.ToPixelsI (int resolution * 1<dpi>)
+        let toCharacterWidth x =  x / 6<px/WidthChars>
+        let toCharacterHeight x =  x / 12<px/HeightChars>
+        let ftToPx x = x * inch.perFootI |> inch.ToPixelsI (int characterResolution * 1<dpi>)
         let playerToStr  = function
             | Player1 -> "1"
             | Player2 -> "2"
@@ -81,7 +81,7 @@ module ConsoleWarhammer =
             seq { for y in 0 .. (int maxHeight) do
                     yield seq { for x in 0 .. (int maxWidth) do
                                     yield  boardDisplay.Item((x * 1<WidthChars>,y*1<HeightChars>))}}
-            |> (Seq.map (fun seq -> seq |> Seq.reduce (fun s1 s2 -> s1 + s2)))
+            |> (Seq.map (fun seq -> seq |> Seq.reduce (+)))
             
         
         boardToStr gameState.Board |> Seq.iter (printfn "%s")    // add some space
