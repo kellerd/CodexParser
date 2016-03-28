@@ -60,8 +60,8 @@
     <Compile Include="Tutorial.fsx" />
     <None Include="OCR.fsx" />
     <Compile Include="Rules.fs" />
-    <Compile Include="Probability.fs" />
     <Compile Include="Distribution.fs" />
+    <Compile Include="Probability.fs" />
   </ItemGroup>
   <ItemGroup>
     <Reference Include="FSharp.Data">

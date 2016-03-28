@@ -1,4 +1,5 @@
 ﻿namespace Distribution
+open System
 module Distribution =
     type 'T Outcome = { Value: 'T; Probability: float;} 
 //        static member (+) (x,y) = 
@@ -70,7 +71,7 @@ module Distribution =
         let folder head tail = 
             retn cons <*> (f head) <*> tail
 
-        Seq.foldBack folder seq initState 
+        List.foldBack folder seq initState 
     let traverseDistributionM f list =
 
         // define the monadic functions
