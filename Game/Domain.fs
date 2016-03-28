@@ -1,7 +1,6 @@
-﻿#if !INTERACTIVE
+﻿
 namespace Domain
 module WarhammerDomain =
-#endif 
     open System
     type RuleDescription = {Name: string; Description: string}
     [<Measure>] type ft
@@ -11,7 +10,10 @@ module WarhammerDomain =
     type inch =
       static member ToPixels (resolution : float<dpi>)  (inches : float<inch>) =
         LanguagePrimitives.FloatWithMeasure<px> (float inches * float resolution)
-      static member perFoot = 12.0<inch/ft>;
+      static member ToPixelsI (resolution : int<dpi>)  (inches : int<inch>) =
+        LanguagePrimitives.Int32WithMeasure<px> (int inches * int resolution)
+      static member perFootI = 12<inch/ft>;
+      static member perFoot = 12.<inch/ft>;
     and
       [<Measure>]
       px =
@@ -20,11 +22,11 @@ module WarhammerDomain =
     [<Measure>]
     type mm =
         static member perInch = 25.4<mm/inch>
-    type Position< [<Measure>] 'u > = { X : float<'u>; Y : float<'u> } with
-      member this.FindDistance other =
-        let deltaX = other.X - this.X
-        let deltaY = other.Y - this.Y
-        sqrt ((deltaX * deltaX) + (deltaY * deltaY))
+    type Position< [<Measure>] 'u > = { X : int<'u>; Y : int<'u> } with
+      member this.FindDistance other  : int<'u>=
+        let deltaX = float (other.X - this.X)
+        let deltaY = float (other.Y - this.Y)
+        sqrt ((deltaX * deltaX) + (deltaY * deltaY)) |> Math.Round |> (fun x -> (x |> int) * (LanguagePrimitives.Int32WithMeasure 1))
     type CharacteristicValue = CharacteristicValue of int
     type MaxMovement = MaxMovement of int<inch>
     type Value =
@@ -104,7 +106,7 @@ module WarhammerDomain =
     
 
     let resolution = 26.0<dpi>
-    type Dimensions = {Width:float<ft>; Height:float<ft>}
+    type Dimensions = {Width:int<ft>; Height:int<ft>}
     type Score = Score of int
     type GameState = {
         Board : BoardInfo
@@ -117,8 +119,13 @@ module WarhammerDomain =
         Score: Score
     }
     and BoardInfo = {
-        Models : (Player*Model*Position<px>) list
+        Models : ModelInfo list
         Dimensions : Dimensions
+    }
+    and ModelInfo = {
+        Model : Model
+        Player : Player
+        Position: Position<px>
     }
     and GameInfo = {
         Phase : Phase
@@ -156,56 +163,3 @@ module WarhammerDomain =
         {
         NewGame : MoveCapability
         }
-
-
-module TickTacToeDomain =
-    type HorizPosition = Left | HCenter | Right
-    type VertPosition = Top | VCenter | Bottom
-    type CellPosition = HorizPosition * VertPosition 
-
-    type Player = PlayerO | PlayerX
-
-    type CellState = 
-        | Played of Player 
-        | Empty
-
-    type Cell = {
-        pos : CellPosition 
-        state : CellState 
-        }
-
-    /// Everything the UI needs to know to display the board
-    type DisplayInfo = {
-        cells : Cell list
-        }
-    
-    /// The capability to make a move at a particular location.
-    /// The gamestate, player and position are already "baked" into the function.
-    type MoveCapability = 
-        unit -> MoveResult 
-
-    /// A capability along with the position the capability is associated with.
-    /// This allows the UI to show information so that the user
-    /// can pick a particular capability to exercise.
-    and NextMoveInfo = {
-        // the pos is for UI information only
-        // the actual pos is baked into the cap.
-        posToPlay : CellPosition 
-        capability : MoveCapability }
-
-    /// The result of a move. It includes: 
-    /// * The information on the current board state.
-    /// * The capabilities for the next move, if any.
-    and MoveResult = 
-        | PlayerXToMove of DisplayInfo * NextMoveInfo list 
-        | PlayerOToMove of DisplayInfo * NextMoveInfo list 
-        | GameWon of DisplayInfo * Player 
-        | GameTied of DisplayInfo 
-
-    // Only the newGame function is exported from the implementation
-    // all other functions come from the results of the previous move
-    type TicTacToeAPI  = 
-        {
-        newGame : MoveCapability
-        }
-
