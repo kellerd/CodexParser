@@ -50,7 +50,8 @@ module WarhammerDomain =
     
 
     type Phase = Begin | Movement | Psychic | Shooting | Assault | End
-    type Turn = Begin | One | Two | Three | Four | Five | Six | Seven | End
+    type GameTurn = Begin | One | Two | Three | Four | Five | Six | Seven | End
+    type PlayerTurn = Top of GameTurn | Bottom of GameTurn
 
     type RuleImpl = 
         | EndPhase
@@ -131,11 +132,11 @@ module WarhammerDomain =
     }
     and GameInfo = {
         Phase : Phase
-        Turn : Turn
+        Turn : PlayerTurn
         Mission:Mission
     }
     and Mission = {
-       MaxRounds:GameState->Turn
+       MaxRounds:GameState->PlayerTurn
        Rules : Rule list
        EndCondition:GameState->bool
     }
