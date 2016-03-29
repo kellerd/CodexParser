@@ -51,7 +51,7 @@ module ConsoleWarhammer =
     [<Measure>] 
     type WidthChars
         /// Display the cells on the console in a grid
-    let displayCells gameState = 
+    let displayBoard gameState = 
         
         let toCharacterWidth x =  x / 6<px/WidthChars>
         let toCharacterHeight x =  x / 12<px/HeightChars>
@@ -121,27 +121,31 @@ module ConsoleWarhammer =
         | ContinuePlay moveResult -> 
             // handle each case of the result
             match moveResult with
-            | GameTied displayInfo -> 
-                displayInfo |> displayCells
-                printfn "GAME OVER - Tie"             
+            | GameTied gameState -> 
+                gameState |> displayBoard
+                printfn "GAME OVER - Tie"       
+                printfn "Phase: %A, Turn: %A" gameState.Game.Phase gameState.Game.Turn      
                 printfn ""             
                 let nextUserAction = askToPlayAgain api 
                 gameLoop api nextUserAction
-            | GameWon (displayInfo,player) -> 
-                displayInfo |> displayCells
-                printfn "GAME WON by %A" player            
+            | GameWon (gameState,player) -> 
+                gameState |> displayBoard
+                printfn "GAME WON by %A" player    
+                printfn "Phase: %A, Turn: %A" gameState.Game.Phase gameState.Game.Turn        
                 printfn ""             
                 let nextUserAction = askToPlayAgain api 
                 gameLoop api nextUserAction
-            | Player1ToMove (displayInfo,nextMoves) -> 
-                displayInfo |> displayCells
+            | Player1ToMove (gameState,nextMoves) -> 
+                gameState |> displayBoard
                 printfn "Player 1 to move" 
+                printfn "Phase: %A, Turn: %A" gameState.Game.Phase gameState.Game.Turn
                 displayNextMoves nextMoves
                 let newResult = processInput nextMoves
                 gameLoop api newResult 
-            | Player2ToMove (displayInfo,nextMoves) -> 
-                displayInfo |> displayCells
+            | Player2ToMove (gameState,nextMoves) -> 
+                gameState |> displayBoard
                 printfn "Player 2 to move" 
+                printfn "Phase: %A, Turn: %A" gameState.Game.Phase gameState.Game.Turn
                 displayNextMoves nextMoves
                 let newResult = processInput nextMoves
                 gameLoop api newResult 
