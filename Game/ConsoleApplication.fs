@@ -3,7 +3,7 @@ namespace ConsoleApplication
 module ConsoleApplication = 
 #else
     #load "Domain.fs"
-    #load "ModelImplTest.fs"
+    #load "ImplTest.fs"
     #load "GameImpl.fs"
     #load "ConsoleUi.fs"
     #load "Logging.fs"
