@@ -25,7 +25,7 @@ module ModelImplTest =
     let TermUnit = {
      UnitModels = [Termagant (Guid "666D7AF7-D74B-49B8-B7B9-EFFF44D77ACE")]
      UnitName = "Termagaunts"
-     Rules = []
+     Rules = [Rule(Function(Move))]
      Deployment=NotDeployed
     }
 
@@ -46,12 +46,14 @@ module ModelImplTest =
                 |> List.map(fun x -> x.GetType().Name, x) 
                 |> Map.ofList;
             Base = BaseDiameter 25<mm>;
-            Rules = [Description {Name = "Lurker"; Description = "Termagant Lurks when outside synapse"}];
+            Rules = [Description {Name = "Lurker"; Description = "Termagant Lurks when outside synapse"};
+                     Rule(Function(Move))];
         }
 
     let HormagauntUnit = {
      UnitModels = [Hormagaunt (Guid "666D7AF7-D74B-49B8-B7B9-EFFF44D77ACE")]
      UnitName = "Hormagaunts"
-     Rules = [Description {Name = "Bounding Leap"; Description = "Run 3 extra inches"}]
+     Rules = [Description {Name = "Bounding Leap"; Description = "Run 3 extra inches"};
+                Rule(Function(Move))]
      Deployment=NotDeployed
     }
