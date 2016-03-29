@@ -5,7 +5,6 @@ module WarhammerImpl =
     let other player = player |> function
         | Player1 -> Player2
         | Player2 -> Player1
-
     let private gameWonBy gameState = 
         let maxPlayerInfo = gameState.Players |> List.sortBy (fun p -> p.Score)
         match maxPlayerInfo with 
@@ -41,26 +40,73 @@ module WarhammerImpl =
         | DeactivatedUntilEndOfGame _ -> []
         | Description _ -> []
 
-    let advanceRound gs = 
-        match gs.Game.Turn with 
-            | Top x -> Bottom x
-            | Bottom GameTurn.Begin -> Top GameTurn.One
-            | Bottom GameTurn.One ->   Top GameTurn.Two
-            | Bottom GameTurn.Two ->   Top GameTurn.Three
-            | Bottom GameTurn.Three -> Top GameTurn.Four
-            | Bottom GameTurn.Four ->  Top GameTurn.Five
-            | Bottom GameTurn.Five ->  Top GameTurn.Six
-            | Bottom GameTurn.Six ->   Top GameTurn.Seven
-            | Bottom GameTurn.Seven -> Top GameTurn.End
-            | Bottom GameTurn.End ->   Top GameTurn.End
+    //let advanceRound gs = 
+        
+//         match gs.Game.Turn with
+//            | Phase.Begin -> {gs with Game = {gs.Game with Phase = Phase.Movement} }
+//            | Phase.Movement -> {gs with Game = {gs.Game with Phase = Phase.Psychic}  }
+//            | Phase.Psychic -> {gs with Game = {gs.Game with Phase = Phase.Shooting}  }
+//            | Phase.Shooting -> {gs with Game = {gs.Game with Phase = Phase.Assault}  }
+//            | Phase.Assault -> {gs with Game = {gs.Game with Phase = Phase.End}       }
+//            | Phase.End -> {gs with Game = {gs.Game with Phase = Phase.Begin; Turn = advanceRound gs}         }
+//
+//        match gs.Game.Turn with 
+//            | Top (x(_)) -> Bottom x
+//            | Bottom GameTurn.Begin ->   Top   (GameTurn.One     Phase.Begin)
+//            | Bottom (GameTurn.One x) -> Top   (GameTurn.Two     Phase.Begin)
+//            | Bottom (GameTurn.Two   x) -> Top (GameTurn.Three Phase.Begin)
+//            | Bottom (GameTurn.Three x) -> Top (GameTurn.Four  Phase.Begin)
+//            | Bottom (GameTurn.Four  x) -> Top (GameTurn.Five  Phase.Begin)
+//            | Bottom (GameTurn.Five  x) -> Top (GameTurn.Six   Phase.Begin)
+//            | Bottom (GameTurn.Six   x) -> Top (GameTurn.Seven Phase.Begin)
+//            | Bottom (GameTurn.Seven x) -> Top (GameTurn.End)
+//            | Bottom (End) -> Bottom (End)
+    let splitPt = function
+                    | Top (x) -> Top, x
+                    | Bottom (x) -> Bottom, x
+    let splitGt = function
+                   | Begin ->    (fun _ -> Begin)   , None
+                   | One   x ->  One  , Some x
+                   | Two   x ->  Two  , Some x
+                   | Three x ->  Three, Some x
+                   | Four  x ->  Four , Some x
+                   | Five  x ->  Five , Some x
+                   | Six   x ->  Six  , Some x
+                   | Seven x ->  Seven, Some x
+                   | End   ->    ( fun _ -> End), None
+
     let advancePhase gs = 
-        match gs.Game.Phase with
-            | Phase.Begin -> {gs with Game = {gs.Game with Phase = Phase.Movement} }
-            | Phase.Movement -> {gs with Game = {gs.Game with Phase = Phase.Psychic}  }
-            | Phase.Psychic -> {gs with Game = {gs.Game with Phase = Phase.Shooting}  }
-            | Phase.Shooting -> {gs with Game = {gs.Game with Phase = Phase.Assault}  }
-            | Phase.Assault -> {gs with Game = {gs.Game with Phase = Phase.End}       }
-            | Phase.End -> {gs with Game = {gs.Game with Phase = Phase.Begin; Turn = advanceRound gs}         }
+        let nextGt x =
+            match x with 
+            | Begin ->   (GameTurn.One   Phase.Begin)
+            | One   _ -> (GameTurn.Two   Phase.Begin)
+            | Two   _ -> (GameTurn.Three Phase.Begin)
+            | Three _ -> (GameTurn.Four  Phase.Begin)
+            | Four  _ -> (GameTurn.Five  Phase.Begin)
+            | Five  _ -> (GameTurn.Six   Phase.Begin)
+            | Six   _ -> (GameTurn.Seven Phase.Begin)
+            | Seven _ -> (GameTurn.End)
+            | End   ->   (GameTurn.End)
+
+        let otherPt = function
+            | Top(x) -> Bottom(x)
+            | Bottom(x) -> Top (nextGt x)
+            
+        let changePhase turn = 
+            let (PtMaker,gt) = splitPt turn
+            let (GtMaker,phase) = splitGt gt
+            match phase with
+                | Some Phase.Begin ->    PtMaker (GtMaker Phase.Movement )
+                | Some Phase.Movement -> PtMaker (GtMaker Phase.Psychic  )
+                | Some Phase.Psychic ->  PtMaker (GtMaker Phase.Shooting )
+                | Some Phase.Shooting -> PtMaker (GtMaker Phase.Assault  )
+                | Some Phase.Assault ->  PtMaker (GtMaker Phase.End      )
+                | Some Phase.End -> otherPt turn
+                | None -> PtMaker (GtMaker Phase.Begin)
+
+
+        {gs with Game = {gs.Game with Turn = changePhase gs.Game.Turn}}
+               
     let rec eval fs gameState = 
         match fs with 
             | [] -> gameState
@@ -123,10 +169,11 @@ module WarhammerImpl =
                 |> List.map (makeNextMoveInfo f player newGameState) 
                 |> moveResultFor player newGameState |> Some 
     let moveResult gs playerMove currentPlayer  = 
+        let phase = gs.Game.Turn |> splitPt |> snd |> splitGt |> snd
         let newPlayer = 
-            match currentPlayer, gs.Game.Phase with
+            match currentPlayer, phase with
                 | None, _ -> Player1
-                | Some p, Phase.Begin -> other p
+                | Some p, Some Phase.Begin -> other p
                 | Some p, _ -> p
         let result = gs 
                             |> availableRuleCapabilities newPlayer 

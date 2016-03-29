@@ -75,12 +75,11 @@ module ImplTest =
                                 Score=Score 0
                             }] 
                 Game={
-                        Phase = Phase.Begin
                         Turn = Top GameTurn.Begin
                         Mission= {
-                                   MaxRounds = (fun gs -> Bottom(Six))
+                                   MaxRounds = (fun gs -> Bottom(Six(Phase.End)))
                                    Rules = []
-                                   EndCondition = (fun gs -> gs.Game.Turn = Bottom(GameTurn.End) && gs.Game.Phase = Phase.End)
+                                   EndCondition = (fun gs -> gs.Game.Turn = Bottom(GameTurn.End))
                                 }
                         }      
                 }

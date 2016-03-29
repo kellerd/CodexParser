@@ -124,28 +124,28 @@ module ConsoleWarhammer =
             | GameTied gameState -> 
                 gameState |> displayBoard
                 printfn "GAME OVER - Tie"       
-                printfn "Phase: %A, Turn: %A" gameState.Game.Phase gameState.Game.Turn      
+                printfn "Turn: %A" gameState.Game.Turn      
                 printfn ""             
                 let nextUserAction = askToPlayAgain api 
                 gameLoop api nextUserAction
             | GameWon (gameState,player) -> 
                 gameState |> displayBoard
                 printfn "GAME WON by %A" player    
-                printfn "Phase: %A, Turn: %A" gameState.Game.Phase gameState.Game.Turn        
+                printfn "Turn: %A" gameState.Game.Turn          
                 printfn ""             
                 let nextUserAction = askToPlayAgain api 
                 gameLoop api nextUserAction
             | Player1ToMove (gameState,nextMoves) -> 
                 gameState |> displayBoard
                 printfn "Player 1 to move" 
-                printfn "Phase: %A, Turn: %A" gameState.Game.Phase gameState.Game.Turn
+                printfn "Turn: %A" gameState.Game.Turn     
                 displayNextMoves nextMoves
                 let newResult = processInput nextMoves
                 gameLoop api newResult 
             | Player2ToMove (gameState,nextMoves) -> 
                 gameState |> displayBoard
                 printfn "Player 2 to move" 
-                printfn "Phase: %A, Turn: %A" gameState.Game.Phase gameState.Game.Turn
+                printfn "Turn: %A" gameState.Game.Turn     
                 displayNextMoves nextMoves
                 let newResult = processInput nextMoves
                 gameLoop api newResult 

@@ -50,7 +50,15 @@ module WarhammerDomain =
     
 
     type Phase = Begin | Movement | Psychic | Shooting | Assault | End
-    type GameTurn = Begin | One | Two | Three | Four | Five | Six | Seven | End
+    type GameTurn = | Begin
+                    | One    of Phase
+                    | Two    of Phase
+                    | Three  of Phase
+                    | Four   of Phase
+                    | Five   of Phase
+                    | Six    of Phase
+                    | Seven  of Phase
+                    | End
     type PlayerTurn = Top of GameTurn | Bottom of GameTurn
 
     type RuleImpl = 
@@ -131,7 +139,6 @@ module WarhammerDomain =
         Position: Position<px>
     }
     and GameInfo = {
-        Phase : Phase
         Turn : PlayerTurn
         Mission:Mission
     }
