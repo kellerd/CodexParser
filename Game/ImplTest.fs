@@ -1,5 +1,5 @@
 ﻿namespace Impl
-module ModelImplTest = 
+module ImplTest = 
     open Domain.WarhammerDomain
     open System
     let Termagant id  = 
@@ -57,3 +57,30 @@ module ModelImplTest =
                 Rule(Function(Move))]
      Deployment=NotDeployed
     }
+
+    let initial = { 
+                Board = {
+                            Models=[]
+                            Dimensions = {Width=6<ft>;Height=4<ft>}
+                        }
+                Players = [
+                            {    
+                                Player= Player1
+                                Units= [TermUnit] 
+                                Score=Score 0
+                            };
+                            {    
+                                Player= Player2
+                                Units= [HormagauntUnit] 
+                                Score=Score 0
+                            }] 
+                Game={
+                        Phase = Phase.Begin
+                        Turn = Top GameTurn.Begin
+                        Mission= {
+                                   MaxRounds = (fun gs -> Bottom(Six))
+                                   Rules = []
+                                   EndCondition = (fun gs -> gs.Game.Turn = Bottom(GameTurn.End) && gs.Game.Phase = Phase.End)
+                                }
+                        }      
+                }
