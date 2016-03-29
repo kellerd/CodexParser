@@ -35,7 +35,7 @@ type ``Given a Example state with Single Rules`` () =
            availableRuleCapabilities gameState.Players.Head.Player gameState |> should not' (be Empty)
 
 type ``Given a mission in top, at the end of phase`` () =
-    let gameState = { Impl.ImplTest.initial with Game = {Impl.ImplTest.initial.Game with Phase = Phase.End; Turn = Top(GameTurn.Begin)}}
+    let gameState = { Impl.ImplTest.initial with Game = {Impl.ImplTest.initial.Game with Turn = Top(One(Phase.End))}}
     let gameTurn = 
         match gameState.Game.Turn with 
             | Top gt -> gt
