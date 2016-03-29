@@ -9,7 +9,7 @@ module WarhammerImpl =
     let Mission = {
        MaxRounds = (fun gs -> Six)
        Rules = []
-       EndCondition = (fun gs -> gs.Game.Round = Round.End && gs.Game.Phase = Phase.End)
+       EndCondition = (fun gs -> gs.Game.Turn = Turn.End && gs.Game.Phase = Phase.End)
     }
 
     let private gameWonBy gameState = 
@@ -31,7 +31,7 @@ module WarhammerImpl =
 //    let getDisplayInfo (gameState:GameState) =
 //        {DisplayInfo.Board = gameState.Board}
     let rec isRunnable = function
-        | Single _ -> true
+        | Rule _ -> true
         | Nested (r,r2) -> 
             seq {yield r; yield r2} |> Seq.exists isRunnable
         | Overwritten (r,r2) -> isRunnable r
@@ -39,7 +39,7 @@ module WarhammerImpl =
         | DeactivatedUntilEndOfGame _ -> false
         | Description _ -> false
     let rec collectRules = function
-        | Single e -> [Single e]
+        | Rule e -> [Rule e]
         | Nested (r,r2) -> 
             [r;r2] |> List.map collectRules |> List.collect id
         | Overwritten (r,r2) -> collectRules r
@@ -48,16 +48,16 @@ module WarhammerImpl =
         | Description _ -> []
 
     let advanceRound gs = 
-        match gs.Game.Round with 
-            | Round.Begin -> Round.One
-            | Round.One -> Round.Two
-            | Round.Two -> Round.Three
-            | Round.Three -> Round.Four
-            | Round.Four -> Round.Five
-            | Round.Five -> Round.Six
-            | Round.Six -> Round.Seven
-            | Round.Seven -> Round.End
-            | Round.End -> Round.End
+        match gs.Game.Turn with 
+            | Turn.Begin -> Turn.One
+            | Turn.One -> Turn.Two
+            | Turn.Two -> Turn.Three
+            | Turn.Three -> Turn.Four
+            | Turn.Four -> Turn.Five
+            | Turn.Five -> Turn.Six
+            | Turn.Six -> Turn.Seven
+            | Turn.Seven -> Turn.End
+            | Turn.End -> Turn.End
     let advancePhase gs = 
         match gs.Game.Phase with
             | Phase.Begin -> {gs with Game = {gs.Game with Phase = Phase.Movement} }
@@ -65,14 +65,14 @@ module WarhammerImpl =
             | Phase.Psychic -> {gs with Game = {gs.Game with Phase = Phase.Shooting}  }
             | Phase.Shooting -> {gs with Game = {gs.Game with Phase = Phase.Assault}  }
             | Phase.Assault -> {gs with Game = {gs.Game with Phase = Phase.End}       }
-            | Phase.End -> {gs with Game = {gs.Game with Phase = Phase.Begin; Round = advanceRound gs}         }
+            | Phase.End -> {gs with Game = {gs.Game with Phase = Phase.Begin; Turn = advanceRound gs}         }
     let rec eval fs gameState = 
         match fs with 
             | [] -> gameState
             | h::tail -> 
                     h
                         |> (function
-                            | Single(Function(EndPhase)) -> gameState |> advancePhase
+                            | Rule(Function(EndPhase)) -> gameState |> advancePhase
                             | _ -> gameState) 
                         |> eval tail
 
@@ -96,7 +96,7 @@ module WarhammerImpl =
             | (gs, Some p, Some np) -> cState gs p np
             | (gs, _, _) -> gs
 
-    let endPhase = EndPhase |> Function |> Single  
+    let endPhase = EndPhase |> Function |> Rule  
 
     let  availableRuleCapabilities player gs  = 
          gs.Players 
@@ -147,34 +147,36 @@ module WarhammerImpl =
             | None -> GameTied newGameState 
         else
             moveResult newGameState playerMove player
+
+    let initial = { 
+                    Board = {
+                                Models=[]
+                                Dimensions = {Width=6<ft>;Height=4<ft>}
+                            }
+                    Players = [
+                                {    
+                                    Player= Player1
+                                    Units= [Impl.ModelImplTest.TermUnit] 
+                                    Score=Score 0
+                                };
+                                {    
+                                    Player= Player2
+                                    Units= [Impl.ModelImplTest.HormagauntUnit] 
+                                    Score=Score 0
+                                }] 
+                    Game={
+                            Phase = Phase.Begin
+                            Turn = Turn.Begin
+                            Mission= {
+                                        MaxRounds=(fun _ ->Turn.Six)
+                                        Rules =[]
+                                        EndCondition=(fun gs -> gs.Game.Turn=Turn.Seven && gs.Game.Phase = Phase.End)
+                                        }
+                            }      
+                    }
     let newGame() = 
         // create initial game state
-        let gameState =  { 
-                            Board = {
-                                        Models=[]
-                                        Dimensions = {Width=6<ft>;Height=4<ft>}
-                                    }
-                            Players = [
-                                        {    
-                                            Player= Player1
-                                            Units= [Impl.ModelImplTest.TermUnit] 
-                                            Score=Score 0
-                                        };
-                                        {    
-                                            Player= Player2
-                                            Units= [Impl.ModelImplTest.HormagauntUnit] 
-                                            Score=Score 0
-                                        }] 
-                            Game={
-                                    Phase = Phase.Begin
-                                    Round = Round.Begin
-                                    Mission= {
-                                                MaxRounds=(fun _ ->Round.Six)
-                                                Rules =[]
-                                                EndCondition=(fun gs -> gs.Game.Round=Round.Seven )
-                                              }
-                                    }      
-                        }
+        let gameState = initial
         gameState.Players |> List.head  |> (fun p -> p.Player) |> moveResult gameState playerMove
         
         
