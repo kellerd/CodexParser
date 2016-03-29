@@ -50,10 +50,11 @@ module WarhammerDomain =
     
 
     type Phase = Begin | Movement | Psychic | Shooting | Assault | End
-    type Round = Begin | One | Two | Three | Four | Five | Six | Seven | End
+    type Turn = Begin | One | Two | Three | Four | Five | Six | Seven | End
 
     type RuleImpl = 
         | EndPhase
+        | Move
     type Expr = 
         | Literal of Value
         | Function of RuleImpl
@@ -63,7 +64,7 @@ module WarhammerDomain =
 //        | Method of string * string * expr list
 //        | PropertyGet of string * string
     type Rule = 
-        | Single of Expr
+        | Rule of Expr
         | Nested of Rule  * Rule 
         | Overwritten of Rule  * Rule 
         | DeactivatedUntilEndOfPhase of Rule
@@ -130,11 +131,11 @@ module WarhammerDomain =
     }
     and GameInfo = {
         Phase : Phase
-        Round : Round
+        Turn : Turn
         Mission:Mission
     }
     and Mission = {
-       MaxRounds:GameState->Round
+       MaxRounds:GameState->Turn
        Rules : Rule list
        EndCondition:GameState->bool
     }
