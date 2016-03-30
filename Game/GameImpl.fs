@@ -89,7 +89,7 @@ module WarhammerImpl =
             | End   ->   (GameTurn.End)
 
         let otherPt = function
-            | Top(x) -> Bottom(x)
+            | Top(x) -> Phase.Begin |> (splitGt x |> fst) |> Bottom
             | Bottom(x) -> Top (nextGt x)
             
         let changePhase turn = 
@@ -101,9 +101,7 @@ module WarhammerImpl =
                 | Some Phase.Psychic ->  PtMaker (GtMaker Phase.Shooting )
                 | Some Phase.Shooting -> PtMaker (GtMaker Phase.Assault  )
                 | Some Phase.Assault ->  PtMaker (GtMaker Phase.End      )
-                | Some Phase.End -> otherPt turn
-                | None -> PtMaker (GtMaker Phase.Begin)
-
+                | Some Phase.End  | None -> otherPt turn
 
         {gs with Game = {gs.Game with Turn = changePhase gs.Game.Turn}}
                
@@ -169,36 +167,35 @@ module WarhammerImpl =
                 |> List.map (makeNextMoveInfo f player newGameState) 
                 |> moveResultFor player newGameState |> Some 
     let moveResult gs playerMove currentPlayer  = 
-        let phase = gs.Game.Turn |> splitPt |> snd |> splitGt |> snd
-        let newPlayer = 
-            match currentPlayer, phase with
-                | None, _ -> Player1
-                | Some p, Some Phase.Begin -> other p
-                | Some p, _ -> p
         let result = gs 
-                            |> availableRuleCapabilities newPlayer 
-                            |> makeMoveResultWithCapabilities playerMove newPlayer gs
+                            |> availableRuleCapabilities currentPlayer 
+                            |> makeMoveResultWithCapabilities playerMove currentPlayer gs
         match result with
             | Some ruleResult -> ruleResult
-            | None -> playerMove newPlayer None endPhase gs
+            | None -> playerMove currentPlayer None endPhase gs
     let rec playerMove player unit thingToDo gameState = 
         let newGameState = 
                 match unit with
                     | Some u -> gameState |> updateUnit thingToDo u
                     | None -> gameState |> eval [thingToDo]
-//        let displayInfo = getDisplayInfo newGameState 
+        let newPlayer =
+            match gameState.Game.Turn,newGameState.Game.Turn with
+                | Top(x),Top(y) -> player
+                | Top(x),Bottom(y) -> other player
+                | Bottom(x),Top(y) -> other player 
+                | Bottom(x),Bottom(y) -> player
         if isEndCondition newGameState then 
             match gameWonBy newGameState with
             | Some player -> GameWon (newGameState, player) 
             | None -> GameTied newGameState 
         else
-            Some player |> moveResult newGameState playerMove 
+            newPlayer |> moveResult newGameState playerMove
 
 
     let newGame() = 
         // create initial game state
         let gameState = Impl.ImplTest.initial
-        moveResult gameState playerMove None
+        moveResult gameState playerMove Player1
         
         
     /// export the API to the application
