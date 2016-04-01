@@ -2,6 +2,7 @@
 namespace Domain
 module WarhammerDomain =
     open System
+
     type RuleDescription = {Name: string; Description: string}
     [<Measure>] type ft
     [<Measure>] type deg
@@ -26,16 +27,30 @@ module WarhammerDomain =
       member this.FindDistance other  : int<'u>=
         let deltaX = float (other.X - this.X)
         let deltaY = float (other.Y - this.Y)
-        sqrt ((deltaX * deltaX) + (deltaY * deltaY)) |> Math.Round |> (fun x -> (x |> int) * (LanguagePrimitives.Int32WithMeasure 1))
+        sqrt ((deltaX * deltaX) + (deltaY * deltaY)) 
+            |> Math.Round 
+            |> (fun x -> (x |> int) * (LanguagePrimitives.Int32WithMeasure 1))
     type CharacteristicValue = CharacteristicValue of int
     type MaxMovement = MaxMovement of int<inch>
+    type Range = Range of int<inch> * int<inch>
+    type Dimentions<[<Measure>]'u> =
+        {Width:float<'u>;Length:float<'u>}
+    type Base =
+        | BaseDiameter of int<mm>
+        | ModelDimentions of Dimentions<mm>
+    type Deployment = 
+        | Deployed 
+        | Destroyed
+        | OngoingReserves
+        | Reserves
+        | NotDeployed
     type Value =
         | Bool of bool
         | Characteristic of CharacteristicValue
         | Double of double
         | String of string
         | Inch of int<inch>
-        | Range of int<inch> * int<inch>
+        | Range of Range
     and     Characteristic = 
         | WeaponSkill     of CharacteristicValue
         | BallisticSkill  of CharacteristicValue
@@ -60,11 +75,12 @@ module WarhammerDomain =
                     | Seven  of Phase
                     | End
     type PlayerTurn = Top of GameTurn | Bottom of GameTurn
-
+    [<NoComparison>]
     type RuleImpl = 
         | EndPhase
+        | Deploy of (Range * Range * Unit)
         | Move
-    type Expr = 
+    and Expr = 
         | Literal of Value
         | Function of RuleImpl
         | List of Value list
@@ -72,48 +88,30 @@ module WarhammerDomain =
 //        | Call of RuleImpl // * expr list 
 //        | Method of string * string * expr list
 //        | PropertyGet of string * string
-    type Rule = 
+    and Rule = 
         | Rule of Expr
         | Nested of Rule  * Rule 
         | Overwritten of Rule  * Rule 
         | DeactivatedUntilEndOfPhase of Rule
         | DeactivatedUntilEndOfGame of Rule
         | Description of RuleDescription
-
-    
-
-    type Deployment = 
-        | Deployed of float<inch> * float<inch>
-        | Destroyed
-        | OngoingReserves
-        | Reserves
-        | NotDeployed
-
-    
-    type Player = Player1 | Player2
-
-    
-    type Dimentions<[<Measure>]'u> =
-      {Width:float<'u>;Length:float<'u>} 
-    type Base =
-     | BaseDiameter of int<mm>
-     | ModelDimentions of Dimentions<mm>
-    type Model = {
+    and Model = {
       Name : string;
       Id : Guid;
       Characteristic : Map<string,Characteristic>;
       Rules : Rule list
       Base: Base
     } 
-    
-
-    type Unit = { 
+    and Unit = { 
       UnitModels  : Model list
       UnitName    : string
       Rules : Rule list
       Deployment : Deployment
     } 
     
+
+
+    type Player = Player1 | Player2
 
     let drawingResolution = 26.0<dpi>
     let characterResolution = 9.0<dpi>
@@ -130,7 +128,7 @@ module WarhammerDomain =
         Score: Score
     }
     and BoardInfo = {
-        Models : ModelInfo list
+        Models :  ModelInfo list
         Dimensions : Dimensions
     }
     and ModelInfo = {
