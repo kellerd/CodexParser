@@ -1,10 +1,12 @@
 ﻿namespace GameImpl
 module WarhammerImpl = 
     open Domain.WarhammerDomain
+    open FSharpx.Reader
     
-    let other player = player |> function
-        | Player1 -> Player2
-        | Player2 -> Player1
+    let other player =
+        match player with
+            | Player1 -> Player2
+            | Player2 -> Player1
     let private gameWonBy gameState = 
         let maxPlayerInfo = gameState.Players |> List.sortBy (fun p -> p.Score)
         match maxPlayerInfo with 
@@ -12,9 +14,7 @@ module WarhammerImpl =
             | _ -> None
     let private isEndCondition gameState = 
         (gameState.Game.Mission.EndCondition gameState)
-    let pick nextMoveInfos = 
-        nextMoveInfos |> List.tryHead
-
+    
     let rec removeFirst pred lst =
         match lst with
         | h::t when pred h -> t
@@ -27,7 +27,7 @@ module WarhammerImpl =
         | Rule _ -> true
         | Nested (r,r2) -> 
             seq {yield r; yield r2} |> Seq.exists isRunnable
-        | Overwritten (r,r2) -> isRunnable r
+        | Overwritten (r,_) -> isRunnable r
         | DeactivatedUntilEndOfPhase _ -> false
         | DeactivatedUntilEndOfGame _ -> false
         | Description _ -> false
@@ -35,32 +35,11 @@ module WarhammerImpl =
         | Rule e -> [Rule e]
         | Nested (r,r2) -> 
             [r;r2] |> List.map collectRules |> List.collect id
-        | Overwritten (r,r2) -> collectRules r
+        | Overwritten (r,_) -> collectRules r
         | DeactivatedUntilEndOfPhase _ -> []
         | DeactivatedUntilEndOfGame _ -> []
         | Description _ -> []
 
-    //let advanceRound gs = 
-        
-//         match gs.Game.Turn with
-//            | Phase.Begin -> {gs with Game = {gs.Game with Phase = Phase.Movement} }
-//            | Phase.Movement -> {gs with Game = {gs.Game with Phase = Phase.Psychic}  }
-//            | Phase.Psychic -> {gs with Game = {gs.Game with Phase = Phase.Shooting}  }
-//            | Phase.Shooting -> {gs with Game = {gs.Game with Phase = Phase.Assault}  }
-//            | Phase.Assault -> {gs with Game = {gs.Game with Phase = Phase.End}       }
-//            | Phase.End -> {gs with Game = {gs.Game with Phase = Phase.Begin; Turn = advanceRound gs}         }
-//
-//        match gs.Game.Turn with 
-//            | Top (x(_)) -> Bottom x
-//            | Bottom GameTurn.Begin ->   Top   (GameTurn.One     Phase.Begin)
-//            | Bottom (GameTurn.One x) -> Top   (GameTurn.Two     Phase.Begin)
-//            | Bottom (GameTurn.Two   x) -> Top (GameTurn.Three Phase.Begin)
-//            | Bottom (GameTurn.Three x) -> Top (GameTurn.Four  Phase.Begin)
-//            | Bottom (GameTurn.Four  x) -> Top (GameTurn.Five  Phase.Begin)
-//            | Bottom (GameTurn.Five  x) -> Top (GameTurn.Six   Phase.Begin)
-//            | Bottom (GameTurn.Six   x) -> Top (GameTurn.Seven Phase.Begin)
-//            | Bottom (GameTurn.Seven x) -> Top (GameTurn.End)
-//            | Bottom (End) -> Bottom (End)
     let splitPt = function
                     | Top (x) -> Top, x
                     | Bottom (x) -> Bottom, x
@@ -104,36 +83,71 @@ module WarhammerImpl =
                 | Some Phase.End  | None -> otherPt turn
 
         {gs with Game = {gs.Game with Turn = changePhase gs.Game.Turn}}
-               
-    let rec eval fs gameState = 
+ 
+    let findPlayerOfUnit gameState unit = 
+        gameState.Players 
+            |> List.pick (fun p -> p.Units 
+                                            |> List.tryFind(fun u -> u = unit)
+                                            |> Option.bind (fun _ -> Some p))
+    let replace xs x y = 
+        let pred z = x = z
+        y :: (removeFirst pred xs)
+    let replaceUnit p u nu = {p with Units = replace p.Units u nu }
+    let replacePlayer s p np = {s with Players = replace s.Players p np }
+    
+    let replacePlayer s p np = {s with Players = replace s.Players p np }
+
+    let deployUnit  (widthRange:Range) (heightRange:Range)  unit gameState = reader {
+            let! f = ask
+            let player = findPlayerOfUnit gameState unit
+            let newPlayer = replaceUnit player unit {unit with Deployment = Deployed}
+
+            let newModels = unit.UnitModels 
+                                |> List.map (fun m -> { Model= m
+                                                        Player = player.Player
+                                                        Position =  f widthRange heightRange m })
+            let newGs = { gameState with Board = {gameState.Board with Models = newModels @ gameState.Board.Models}}
+            return replacePlayer newGs player newPlayer
+        }
+
+    let rec eval runReader fs gameState  = 
         match fs with 
             | [] -> gameState
             | h::tail -> 
                     h
                         |> (function
                             | Rule(Function(EndPhase)) -> gameState |> advancePhase
+                            | Rule(Function(Deploy(w,h,u))) -> gameState |> deployUnit w h u |> runReader
                             | _ -> gameState) 
-                        |> eval tail
+                        |> eval runReader tail
+//    let rec eval fs (gameState:GameState) = //reader {
+//        //let! gs =
+//         match fs with 
+//                    | [] -> returnM gameState
+//                    | h::tail -> reader {
+//                                            //let! eval' = 
+//                                                eval tail
+//                                            let! gs = match h with
+//                                                            | Rule(Function(EndPhase)) -> returnM (gameState |> advancePhase)
+//                                                            //| Rule(Function(Deploy(w,h,u))) -> gameState |> deployUnit (w,h) u
+//                                                            | _ -> returnM gameState
+//                                            return gs//}
+//       // return gs
+//    }
 
 
-    let updateUnit f (unit:Unit) gameState  = 
+    let updateUnit runReader rule unit gameState  = 
         ///TODO
-        let foundPlayer = gameState.Players |> List.tryPick (fun p -> p.Units 
-                                                                    |> List.tryFind(fun u -> u = unit)
-                                                                    |> Option.bind (fun _ -> Some p))
-        let replace xs x y = 
-            let pred z = x = z
-            y :: (removeFirst pred xs)
+        let foundPlayer = findPlayerOfUnit gameState unit
+
 
         let cUnit f (unit:Unit)  = {unit with Rules = replace unit.Rules f (DeactivatedUntilEndOfPhase f)}
-        let cPlayer p u nu = {p with Units = replace p.Units u nu }
-        let cState s p np = {s with Players = replace s.Players p np }
 
-        let newUnit = cUnit f unit
-        let newPlayer = foundPlayer |> Option.map (fun p-> cPlayer p unit newUnit)
-        match (eval (collectRules f) gameState), foundPlayer, newPlayer with
-            | (gs, Some p, Some np) -> cState gs p np
-            | (gs, _, _) -> gs
+
+        let newUnit = cUnit rule unit
+        let newPlayer = replaceUnit foundPlayer unit newUnit
+        let (gs, p, np) = (eval runReader (collectRules rule) gameState), foundPlayer, newPlayer 
+        replacePlayer gs p np
 
     let endPhase = Rule(Function(EndPhase))
 
@@ -173,32 +187,32 @@ module WarhammerImpl =
         match result with
             | Some ruleResult -> ruleResult
             | None -> playerMove currentPlayer None endPhase gs
-    let rec playerMove player unit thingToDo gameState = 
+    let rec playerMove runReader player unit thingToDo gameState = 
         let newGameState = 
                 match unit with
-                    | Some u -> gameState |> updateUnit thingToDo u
-                    | None -> gameState |> eval [thingToDo]
+                    | Some u -> gameState |> updateUnit runReader thingToDo u
+                    | None -> gameState |> eval runReader [thingToDo]
         let newPlayer =
             match gameState.Game.Turn,newGameState.Game.Turn with
-                | Top(x),Top(y) -> player
-                | Top(x),Bottom(y) -> other player
-                | Bottom(x),Top(y) -> other player 
-                | Bottom(x),Bottom(y) -> player
+                | Top(_),Top(_) -> player
+                | Top(_),Bottom(_) -> other player
+                | Bottom(_),Top(_) -> other player 
+                | Bottom(_),Bottom(_) -> player
         if isEndCondition newGameState then 
             match gameWonBy newGameState with
             | Some player -> GameWon (newGameState, player) 
             | None -> GameTied newGameState 
         else
-            newPlayer |> moveResult newGameState playerMove
+            newPlayer |> moveResult newGameState (playerMove runReader)
 
 
-    let newGame() = 
+    let newGame runReader () = 
         // create initial game state
         let gameState = Impl.ImplTest.initial
-        moveResult gameState playerMove Player1
+        moveResult gameState (playerMove runReader) Player1
         
         
     /// export the API to the application
-    let api = {
-        NewGame = newGame 
+    let api runReader = {
+        NewGame = (newGame runReader)
         }
