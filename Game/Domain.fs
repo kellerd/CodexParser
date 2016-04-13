@@ -34,9 +34,6 @@ module WarhammerDomain =
     type Base =
      | BaseDiameter of int<mm>
      | ModelDimentions of Dimentions<mm>
-    type ModelPlacement = 
-        | Position of Position<px>
-        | Storage
     type Value =
         | Bool of bool
         | Characteristic of CharacteristicValue
@@ -80,7 +77,7 @@ module WarhammerDomain =
     type RuleImpl = 
         | EndPhase
         | Move
-        | Deploy of Unit
+        | Deploy
     and Expr = 
         | Literal of Value
         | Function of RuleImpl
@@ -102,7 +99,6 @@ module WarhammerDomain =
       Characteristic : Map<string,Characteristic>
       Rules : Rule list
       Base: Base
-      Placement: ModelPlacement
     } 
     
 
