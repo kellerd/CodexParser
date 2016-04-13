@@ -52,10 +52,3 @@ module Logger =
         { api with
             NewGame = fun () -> api.NewGame() |> transformMoveResult
             }
-
-module ConsoleApplication = 
-
-    let startGame() =
-        let api = GameImpl.WarhammerImpl.api
-        let loggedApi = Logger.injectLogging api
-        ConsoleUi.ConsoleWarhammer.startGame loggedApi 
