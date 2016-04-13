@@ -170,5 +170,5 @@ module ConsoleWarhammer =
         let y = Console.ReadLine()
         match x, y, gameState.Board.Dimensions.Width, gameState.Board.Dimensions.Height with
             | IntPx xp, IntPx yp, maxX, maxY when xp >= 0<px> && yp >= 0<px> && xp <= ftToPx maxX && yp <= ftToPx maxY -> {X=xp; Y=yp}
-            | _,_, maxX, maxY-> printfn "Please enter numbers within 0-%i wide and 0-%i tall" maxX maxY
+            | _,_, maxX, maxY-> printfn "Please enter numbers within 0-%i wide and 0-%i tall" (ftToPx maxX) (ftToPx maxY)
                                 positionAsker gameState
