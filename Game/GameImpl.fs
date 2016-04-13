@@ -27,7 +27,7 @@ module WarhammerImpl =
         | Rule _ -> true
         | Nested (r,r2) -> 
             seq {yield r; yield r2} |> Seq.exists isRunnable
-        | Overwritten (r,r2) -> isRunnable r
+        | Overwritten (r,_) -> isRunnable r
         | DeactivatedUntilEndOfPhase _ -> false
         | DeactivatedUntilEndOfGame _ -> false
         | Description _ -> false
@@ -35,32 +35,11 @@ module WarhammerImpl =
         | Rule e -> [Rule e]
         | Nested (r,r2) -> 
             [r;r2] |> List.map collectRules |> List.collect id
-        | Overwritten (r,r2) -> collectRules r
+        | Overwritten (r,_) -> collectRules r
         | DeactivatedUntilEndOfPhase _ -> []
         | DeactivatedUntilEndOfGame _ -> []
         | Description _ -> []
 
-    //let advanceRound gs = 
-        
-//         match gs.Game.Turn with
-//            | Phase.Begin -> {gs with Game = {gs.Game with Phase = Phase.Movement} }
-//            | Phase.Movement -> {gs with Game = {gs.Game with Phase = Phase.Psychic}  }
-//            | Phase.Psychic -> {gs with Game = {gs.Game with Phase = Phase.Shooting}  }
-//            | Phase.Shooting -> {gs with Game = {gs.Game with Phase = Phase.Assault}  }
-//            | Phase.Assault -> {gs with Game = {gs.Game with Phase = Phase.End}       }
-//            | Phase.End -> {gs with Game = {gs.Game with Phase = Phase.Begin; Turn = advanceRound gs}         }
-//
-//        match gs.Game.Turn with 
-//            | Top (x(_)) -> Bottom x
-//            | Bottom GameTurn.Begin ->   Top   (GameTurn.One     Phase.Begin)
-//            | Bottom (GameTurn.One x) -> Top   (GameTurn.Two     Phase.Begin)
-//            | Bottom (GameTurn.Two   x) -> Top (GameTurn.Three Phase.Begin)
-//            | Bottom (GameTurn.Three x) -> Top (GameTurn.Four  Phase.Begin)
-//            | Bottom (GameTurn.Four  x) -> Top (GameTurn.Five  Phase.Begin)
-//            | Bottom (GameTurn.Five  x) -> Top (GameTurn.Six   Phase.Begin)
-//            | Bottom (GameTurn.Six   x) -> Top (GameTurn.Seven Phase.Begin)
-//            | Bottom (GameTurn.Seven x) -> Top (GameTurn.End)
-//            | Bottom (End) -> Bottom (End)
     let splitPt = function
                     | Top (x) -> Top, x
                     | Bottom (x) -> Bottom, x
@@ -104,36 +83,50 @@ module WarhammerImpl =
                 | Some Phase.End  | None -> otherPt turn
 
         {gs with Game = {gs.Game with Turn = changePhase gs.Game.Turn}}
-               
-    let rec eval fs gameState = 
+
+    let replace xs x y = 
+        let pred z = x = z
+        y :: (removeFirst pred xs)
+    let replacePlayerUnits p u nu = {p with Units = replace p.Units u nu }
+    let replaceGameStatePlayers s p np = {s with Players = replace s.Players p np }
+    let findPlayer gameState unit = 
+        gameState.Players 
+        |> List.tryPick (fun p -> p.Units 
+                                    |> List.tryFind(fun u -> u = unit)
+                                    |> Option.bind (fun _ -> Some p))
+
+    let updatePlayerInGameState unit newUnit gameState =
+        let foundPlayer = findPlayer gameState unit
+        let newPlayer = foundPlayer |> Option.map (fun p-> replacePlayerUnits p unit newUnit)
+        match gameState, foundPlayer, newPlayer with
+            | (gs, Some p, Some np) -> replaceGameStatePlayers gs p np
+            | (gs, _, _) -> gs
+    
+    let deployModels positionAsker ms gameState = 
+        [for m in ms do 
+            yield {m with Placement = gameState |> positionAsker |> Position}]
+
+    let deploy u gameState positionAsker =
+         let newUnit = {u with Deployment = Deployed; UnitModels = deployModels positionAsker u.UnitModels gameState}
+         updatePlayerInGameState u newUnit gameState
+
+    let rec eval fs positionAsker gameState  = 
         match fs with 
             | [] -> gameState
             | h::tail -> 
                     h
                         |> (function
-                            | Rule(Function(EndPhase)) -> gameState |> advancePhase
+                            | Rule(Function(EndPhase)) -> advancePhase gameState 
+                            | Rule(Function(Deploy u)) ->  deploy u gameState positionAsker
                             | _ -> gameState) 
-                        |> eval tail
+                        |> eval tail positionAsker
 
 
-    let updateUnit f (unit:Unit) gameState  = 
-        ///TODO
-        let foundPlayer = gameState.Players |> List.tryPick (fun p -> p.Units 
-                                                                    |> List.tryFind(fun u -> u = unit)
-                                                                    |> Option.bind (fun _ -> Some p))
-        let replace xs x y = 
-            let pred z = x = z
-            y :: (removeFirst pred xs)
+    let disableRuleOnUnit f unit positionAsker gameState = 
 
-        let cUnit f (unit:Unit)  = {unit with Rules = replace unit.Rules f (DeactivatedUntilEndOfPhase f)}
-        let cPlayer p u nu = {p with Units = replace p.Units u nu }
-        let cState s p np = {s with Players = replace s.Players p np }
-
-        let newUnit = cUnit f unit
-        let newPlayer = foundPlayer |> Option.map (fun p-> cPlayer p unit newUnit)
-        match (eval (collectRules f) gameState), foundPlayer, newPlayer with
-            | (gs, Some p, Some np) -> cState gs p np
-            | (gs, _, _) -> gs
+        let replaceUnit f (unit:Unit)  = {unit with Rules = replace unit.Rules f (DeactivatedUntilEndOfPhase f)}
+        let newUnit = replaceUnit f unit
+        eval (collectRules f) positionAsker gameState  |> updatePlayerInGameState unit newUnit 
 
     let endPhase = Rule(Function(EndPhase))
 
@@ -173,32 +166,32 @@ module WarhammerImpl =
         match result with
             | Some ruleResult -> ruleResult
             | None -> playerMove currentPlayer None endPhase gs
-    let rec playerMove player unit thingToDo gameState = 
+    let rec playerMove positionAsker player unit thingToDo gameState  = 
         let newGameState = 
                 match unit with
-                    | Some u -> gameState |> updateUnit thingToDo u
-                    | None -> gameState |> eval [thingToDo]
+                    | Some u -> gameState |> disableRuleOnUnit thingToDo u positionAsker
+                    | None -> gameState |> eval [thingToDo] positionAsker
         let newPlayer =
             match gameState.Game.Turn,newGameState.Game.Turn with
-                | Top(x),Top(y) -> player
-                | Top(x),Bottom(y) -> other player
-                | Bottom(x),Top(y) -> other player 
-                | Bottom(x),Bottom(y) -> player
+                | Top(_),Top(_) -> player
+                | Top(_),Bottom(_) -> other player
+                | Bottom(_),Top(_) -> other player 
+                | Bottom(_),Bottom(_) -> player
         if isEndCondition newGameState then 
             match gameWonBy newGameState with
             | Some player -> GameWon (newGameState, player) 
             | None -> GameTied newGameState 
         else
-            newPlayer |> moveResult newGameState playerMove
+            newPlayer |> moveResult newGameState (playerMove positionAsker)
 
 
-    let newGame() = 
+    let newGame positionAsker () = 
         // create initial game state
         let gameState = Impl.ImplTest.initial
-        moveResult gameState playerMove Player1
+        moveResult gameState (playerMove positionAsker) Player1
         
         
     /// export the API to the application
-    let api = {
-        NewGame = newGame 
+    let api positionAsker = {
+        NewGame = newGame positionAsker
         }

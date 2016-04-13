@@ -18,7 +18,8 @@ module ImplTest =
                 Saves           (CharacteristicValue 3)] 
                 |> List.map(fun x -> x.GetType().Name, x) 
                 |> Map.ofList;
-            Base = BaseDiameter 25<mm>;
+            Base = BaseDiameter 25<mm>
+            Placement = Storage
             Rules = [Description {Name = "Lurker"; Description = "Termagant Lurks when outside synapse"}];
         }
 
@@ -45,6 +46,7 @@ module ImplTest =
                 Saves           (CharacteristicValue 3)] 
                 |> List.map(fun x -> x.GetType().Name, x) 
                 |> Map.ofList;
+            Placement = Storage
             Base = BaseDiameter 25<mm>;
             Rules = [Description {Name = "Lurker"; Description = "Termagant Lurks when outside synapse"};
                      Rule(Function(Move))];
