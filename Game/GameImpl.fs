@@ -69,40 +69,6 @@ module WarhammerImpl =
         | Seven x -> Seven, Some x
         | End -> (fun _ -> End), None
     
-    let advancePhase gs = 
-        let nextGt x = 
-            match x with
-            | Begin -> (GameTurn.One Phase.Begin)
-            | One _ -> (GameTurn.Two Phase.Begin)
-            | Two _ -> (GameTurn.Three Phase.Begin)
-            | Three _ -> (GameTurn.Four Phase.Begin)
-            | Four _ -> (GameTurn.Five Phase.Begin)
-            | Five _ -> (GameTurn.Six Phase.Begin)
-            | Six _ -> (GameTurn.Seven Phase.Begin)
-            | Seven _ -> (GameTurn.End)
-            | End -> (GameTurn.End)
-        
-        let otherPt = 
-            function 
-            | Top(x) -> 
-                Phase.Begin
-                |> (splitGt x |> fst)
-                |> Bottom
-            | Bottom(x) -> Top(nextGt x)
-        
-        let changePhase turn = 
-            let (PtMaker, gt) = splitPt turn
-            let (GtMaker, phase) = splitGt gt
-            match phase with
-            | Some Phase.Begin -> PtMaker(GtMaker Phase.Movement)
-            | Some Phase.Movement -> PtMaker(GtMaker Phase.Psychic)
-            | Some Phase.Psychic -> PtMaker(GtMaker Phase.Shooting)
-            | Some Phase.Shooting -> PtMaker(GtMaker Phase.Assault)
-            | Some Phase.Assault -> PtMaker(GtMaker Phase.End)
-            | Some Phase.End | None -> otherPt turn
-        
-        { gs with Game = { gs.Game with Turn = changePhase gs.Game.Turn } }
-    
     let replace xs x y = 
         let pred z = x = z
         y :: (removeFirst pred xs)
@@ -141,6 +107,57 @@ module WarhammerImpl =
             |> updatePlayerInGameState u newUnit
         | None -> failwith "Couldn't find player"
     
+    let advancePhase gs = 
+        let nextGt x = 
+            match x with
+            | Begin -> (GameTurn.One Phase.Begin)
+            | One _ -> (GameTurn.Two Phase.Begin)
+            | Two _ -> (GameTurn.Three Phase.Begin)
+            | Three _ -> (GameTurn.Four Phase.Begin)
+            | Four _ -> (GameTurn.Five Phase.Begin)
+            | Five _ -> (GameTurn.Six Phase.Begin)
+            | Six _ -> (GameTurn.Seven Phase.Begin)
+            | Seven _ -> (GameTurn.End)
+            | End -> (GameTurn.End)
+        
+        let enableDeactivatedRules gameState = 
+            let rec enableRule = 
+                function 
+                | Nested(r, r2) -> Nested(enableRule r, enableRule r2)
+                | DeactivatedUntilEndOfPhase r -> r
+                | r -> r
+            
+            let newUnit (unit : Unit) = { unit with Rules = List.map enableRule unit.Rules }
+            let newGameState = 
+                gameState.Players 
+                |> List.fold 
+                       (fun acc p -> 
+                       p.Units |> List.fold (fun acc2 unit -> updatePlayerInGameState unit (newUnit unit) acc2) acc) 
+                       gameState
+            newGameState.Players
+        
+        let otherPt = 
+            function 
+            | Top(x) -> 
+                Phase.Begin
+                |> (splitGt x |> fst)
+                |> Bottom
+            | Bottom(x) -> Top(nextGt x)
+        
+        let changePhase turn = 
+            let (PtMaker, gt) = splitPt turn
+            let (GtMaker, phase) = splitGt gt
+            match phase with
+            | Some Phase.Begin -> PtMaker(GtMaker Phase.Movement)
+            | Some Phase.Movement -> PtMaker(GtMaker Phase.Psychic)
+            | Some Phase.Psychic -> PtMaker(GtMaker Phase.Shooting)
+            | Some Phase.Shooting -> PtMaker(GtMaker Phase.Assault)
+            | Some Phase.Assault -> PtMaker(GtMaker Phase.End)
+            | Some Phase.End | None -> otherPt turn
+        
+        { gs with Game = { gs.Game with Turn = changePhase gs.Game.Turn }
+                  Players = gs |> enableDeactivatedRules }
+    
     let rec eval fs positionAsker u gameState = 
         match fs with
         | [] -> gameState
@@ -155,7 +172,7 @@ module WarhammerImpl =
     let disableRuleOnUnit f (unit : Unit) positionAsker gameState = 
         let newUnit = { unit with Rules = replace unit.Rules f (DeactivatedUntilEndOfPhase f) }
         let newGameState = updatePlayerInGameState unit newUnit gameState
-        eval (collectRules f) positionAsker (Some newUnit) newGameState 
+        eval (collectRules f) positionAsker (Some newUnit) newGameState
     
     let endPhase = Rule(Function(EndPhase))
     
