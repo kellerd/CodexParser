@@ -172,3 +172,17 @@ module ConsoleWarhammer =
             | IntPx xp, IntPx yp, maxX, maxY when xp >= 0<px> && yp >= 0<px> && xp <= ftToPx maxX && yp <= ftToPx maxY -> {X=xp; Y=yp}
             | _,_, maxX, maxY-> printfn "Please enter numbers within 0-%i wide and 0-%i tall" (ftToPx maxX) (ftToPx maxY)
                                 positionAsker gameState
+
+    let rec moveAsker (maxMove:int<inch>) m gameState =
+        printfn "Give X coordinates"
+        let x = Console.ReadLine()
+        printfn "Give Y coordinates"
+        let y = Console.ReadLine()
+        let r = match x, y, gameState.Board.Dimensions.Width, gameState.Board.Dimensions.Height with
+                    | IntPx xp, IntPx yp, maxX, maxY when xp >= 0<px> && yp >= 0<px> && xp <= ftToPx maxX && yp <= ftToPx maxY -> {X=xp; Y=yp}
+                    | _,_, maxX, maxY-> printfn "Please enter numbers within 0-%i wide and 0-%i tall" (ftToPx maxX) (ftToPx maxY)
+                                        positionAsker gameState
+        match r, m.Position.FindDistance r with
+            | r, d when px.ToInches Domain.WarhammerDomain.drawingResolution ((d|>float)  * 1.<px>) <= (( maxMove|>float)  * 1.<inch>)-> 
+                r
+            | _ -> moveAsker maxMove m gameState
