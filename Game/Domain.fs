@@ -76,7 +76,7 @@ module WarhammerDomain =
 
     type RuleImpl = 
         | EndPhase
-        | Move
+        | Move of int<inch>
         | Deploy
     and Expr = 
         | Literal of Value
