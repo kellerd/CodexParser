@@ -37,7 +37,7 @@ type ``Given a mission in top, at the end of phase`` () =
     let positionAsker gs = 
         let r = new System.Random()
         {X=r.Next(ConsoleUi.ConsoleWarhammer.ftToPx gs.Board.Dimensions.Width-1<px> |> int)*1<px>;Y=r.Next(ConsoleUi.ConsoleWarhammer.ftToPx gs.Board.Dimensions.Height-1<px> |> int)*1<px>}
-    let moveAsker max gs = 
+    let moveAsker modelInfo max gs = 
         let r = new System.Random()
         {X=r.Next(ConsoleUi.ConsoleWarhammer.ftToPx gs.Board.Dimensions.Width-1<px> |> int)*1<px>;Y=r.Next(ConsoleUi.ConsoleWarhammer.ftToPx gs.Board.Dimensions.Height-1<px> |> int)*1<px>}
 
