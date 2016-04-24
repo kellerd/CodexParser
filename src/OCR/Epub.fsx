@@ -1,4 +1,4 @@
-﻿#r "../packages/HtmlAgilityPack.1.4.9/lib/Net45/HtmlAgilityPack.dll"
+﻿#r "../../packages/HtmlAgilityPack/lib/Net45/HtmlAgilityPack.dll"
 
 //open FSharp.Data
 open System.IO
