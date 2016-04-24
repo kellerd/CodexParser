@@ -1,4 +1,2 @@
-Chessie
-FSharpx.Extras
-FSPowerPack.Community
-FsUnit.Sample
+nuget FSharpx.Extras
+nuget FsUnit.Sample
