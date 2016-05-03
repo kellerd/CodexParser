@@ -15,7 +15,9 @@ module WarhammerImpl =
         | _ -> None
     
     let private isEndCondition gameState = (gameState.Game.Mission.EndCondition gameState)
-    let pick nextMoveInfos = nextMoveInfos |> List.tryHead
+    let pick nextMoveInfos = nextMoveInfos |> function
+                                                | [] -> None
+                                                | x :: xs -> Some x
     
     let rec removeFirst pred lst = 
         match lst with
