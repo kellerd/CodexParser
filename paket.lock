@@ -2,13 +2,13 @@ FRAMEWORK: >= NET45
 NUGET
   remote: https://www.nuget.org/api/v2
   specs:
-    FAKE (4.25.4)
-    FSharp.Control.AsyncSeq (1.13)
+    FAKE (4.25.5)
+    FSharp.Control.AsyncSeq (2.0.8)
     FSharp.Core (4.0.0.1)
     FSharp.Data (2.2)
     FSharpx.Async (1.12)
       FSharp.Control.AsyncSeq
-    FSharpx.Collections (1.13.4)
+    FSharpx.Collections (1.14)
       FSharp.Core (>= 3.0)
     FSharpx.Extras (1.10.3)
       FSharpx.Async (>= 1.12)
