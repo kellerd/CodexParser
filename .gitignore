@@ -118,7 +118,6 @@ ClientBin/
 *.pfx
 *.publishsettings
 .fake/
-.paket/
 .vscode/
 build/
 deploy/
