@@ -104,10 +104,26 @@ module WarhammerImpl =
                                                             @ gameState.Board.Models } }
             |> updatePlayerInGameState u newUnit
         | None -> failwith "Couldn't find player"
-    
+
     let move u gameState maxMove moveAsker = 
         let foundPlayer = findPlayer gameState u
         let foundModel m = findModel gameState m
+        let pixelsInCircle r position =  seq {
+            for x in (position.X - r) .. (position.X + r) do
+                for y in (position.Y - r) .. (position.Y + r) do
+                    let newPos = {X=x*1<px>;Y=y*1<px>} 
+                    let findDistance = position.FindDistance newPos
+
+                    if findDistance <= r then
+                        yield newPos
+            }    
+
+        let pixels m = pixelsInCircle (maxMove inch.ToPixelsI drawingResolution) m.Position
+
+
+
+        let newPosition m = gameState |> moveAsker maxMove (foundModel m)
+
         match foundPlayer with
         | Some p -> 
             { gameState with Board = 
@@ -115,7 +131,7 @@ module WarhammerImpl =
                                                             [ for m in u.UnitModels do
                                                                   yield { Model = m
                                                                           Player = p.Player
-                                                                          Position = gameState |> moveAsker maxMove (foundModel m) } ]
+                                                                          Position = newPosition m } ]
                                                             @ gameState.Board.Models } }
         | None -> failwith "Couldn't find player"
     
