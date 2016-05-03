@@ -4,7 +4,6 @@ open NUnit.Framework
 open FsUnit
 open Domain.WarhammerDomain
 open GameImpl.WarhammerImpl
-open FSharpx.Reader
 
 [<TestFixture>] 
 type ``Given a Example state with Single Rules`` () =
@@ -48,15 +47,12 @@ type ``Given a mission in top, at the end of phase`` () =
             | Top(Seven(Phase.End)) -> Bottom(Seven(Phase.Begin))
             | Top(End) -> Bottom(End)
             | _ -> failwith "Wrong turn starting state, should be Top of"
-
-    let runReader rdr = rdr (fun rWidth rHeight model -> {X = 500<px>; Y = 500<px>})
-        
     [<Test>] member test.
         ``Turn should change from top to bottom``() = 
             (advancePhase gameState).Game.Turn |> should equal bottomOf
     [<Test>] member test.
         ``Turn should go to other player if ending last phase``() =
-            match (playerMove runReader Player1 None endPhase gameState) with
+            match (playerMove Player1 None endPhase gameState) with
                 | Player1ToMove _ -> failwith "Player should swap"
                 | Player2ToMove _ -> true |> should be True
                 | GameWon _ -> failwith "Tied not enough capabilities" 
