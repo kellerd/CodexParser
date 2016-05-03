@@ -11,10 +11,10 @@ module ConsoleApplication =
     open GameImpl
     open Logging
     let startGame() =
-        let api = WarhammerImpl.api
+        
+        let api = WarhammerImpl.api ConsoleUi.ConsoleWarhammer.positionAsker ConsoleUi.ConsoleWarhammer.moveAsker
         let loggedApi = Logger.injectLogging api
         ConsoleUi.ConsoleWarhammer.startGame loggedApi 
-
 #if INTERACTIVE 
     startGame()
 #endif
