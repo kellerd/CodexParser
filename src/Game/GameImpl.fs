@@ -108,33 +108,33 @@ module WarhammerImpl =
         | None -> failwith "Couldn't find player"
 
     let move u gameState maxMove moveAsker = 
-        let foundPlayer = findPlayer gameState u
-        let foundModel m = findModel gameState m
-        let pixelsInCircle r position =  seq {
-            for x in (position.X - r) .. (position.X + r) do
-                for y in (position.Y - r) .. (position.Y + r) do
-                    let newPos = {X=x*1<px>;Y=y*1<px>} 
+        let pixelsInCircle radius position =  seq {
+            for x in createSeq (position.X - radius) (position.X + radius) do
+                for y in createSeq (position.Y - radius) (position.Y + radius) do
+                    let newPos = {X=x;Y=y} 
                     let findDistance = position.FindDistance newPos
-
-                    if findDistance <= r then
+                    if findDistance <= radius then
                         yield newPos
-            }    
-
-        let pixels m = pixelsInCircle (maxMove inch.ToPixelsI drawingResolution) m.Position
+        }    
 
 
+        let newPosition m = 
+            let ps = pixelsInCircle ((inch.ToPixels drawingResolution maxMove / 1.<px> |> System.Math.Round |> int) * 1<px>) m.Position |> Seq.toArray
+            let rec newPick ps = 
+                let (p:Position<px>) = moveAsker ps
+                if Seq.contains p ps then p
+                else newPick ps
+            newPick ps
 
-        let newPosition m = gameState |> moveAsker maxMove (foundModel m)
-
-        match foundPlayer with
+        match findPlayer gameState u with
         | Some p -> 
             { gameState with Board = 
                                  { gameState.Board with Models = 
                                                             [ for m in u.UnitModels do
                                                                   yield { Model = m
                                                                           Player = p.Player
-                                                                          Position = newPosition m } ]
-                                                            @ gameState.Board.Models } }
+                                                                          Position = m |> findModel gameState |> newPosition } ]
+                                                            @ gameState.Board.Models |> List.filter (fun mi -> u.UnitModels |> List.contains mi.Model |> not )} }
         | None -> failwith "Couldn't find player"
     
     let advancePhase gs = 
