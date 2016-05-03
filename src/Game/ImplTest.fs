@@ -29,7 +29,7 @@ module ImplTest =
         { UnitModels = [ Termagant(Guid "666D7AF7-D74B-49B8-B7B9-EFFF44D77ACE") ]
           UnitName = "Termagaunts"
           Rules = 
-              [ Rule(Function(Move 6<inch>))
+              [ Rule(Function(Move 6.<inch>))
                 Rule(Function(Deploy)) ]
           Deployment = NotDeployed }
     
@@ -60,7 +60,7 @@ module ImplTest =
           Rules = 
               [ Description { Name = "Bounding Leap"
                               Description = "Run 3 extra inches" }
-                Rule(Function(Move 6<inch>))
+                Rule(Function(Move 6.<inch>))
                 Rule(Function(Deploy)) ]
           Deployment = NotDeployed }
     

@@ -3,6 +3,9 @@ namespace Domain
 module WarhammerDomain =
     open System
     type RuleDescription = {Name: string; Description: string}
+    let flip f x y = f y x
+    let createSeq min max = Seq.initInfinite ((*) (LanguagePrimitives.Int32WithMeasure 1) >> (+) min) |> Seq.takeWhile (flip (<=) max)
+
     [<Measure>] type ft
     [<Measure>] type deg
     [<Measure>] type dpi
@@ -76,7 +79,7 @@ module WarhammerDomain =
 
     type RuleImpl = 
         | EndPhase
-        | Move of int<inch>
+        | Move of float<inch>
         | Deploy
     and Expr = 
         | Literal of Value
