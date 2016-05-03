@@ -51,11 +51,14 @@ module ConsoleWarhammer =
     [<Measure>] 
     type WidthChars
         /// Display the cells on the console in a grid
+
+    let ftToPx x = x * inch.perFootI |> inch.ToPixelsI (int characterResolution * 1<dpi>)
+
     let displayBoard gameState = 
         
         let toCharacterWidth x =  x / 6<px/WidthChars>
         let toCharacterHeight x =  x / 12<px/HeightChars>
-        let ftToPx x = x * inch.perFootI |> inch.ToPixelsI (int characterResolution * 1<dpi>)
+        
         let playerToStr  = function
             | Player1 -> "1"
             | Player2 -> "2"
@@ -154,3 +157,32 @@ module ConsoleWarhammer =
     let startGame api =
         let userAction = ContinuePlay (api.NewGame())
         gameLoop api userAction 
+
+    let (|IntPx|_|) str =
+       match System.Int32.TryParse(str) with
+       | (true,int) -> Some(int * 1<px>)
+       | _ -> None
+
+    let rec positionAsker gameState =
+        printfn "Give X coordinates"
+        let x = Console.ReadLine()
+        printfn "Give Y coordinates"
+        let y = Console.ReadLine()
+        match x, y, gameState.Board.Dimensions.Width, gameState.Board.Dimensions.Height with
+            | IntPx xp, IntPx yp, maxX, maxY when xp >= 0<px> && yp >= 0<px> && xp <= ftToPx maxX && yp <= ftToPx maxY -> {X=xp; Y=yp}
+            | _,_, maxX, maxY-> printfn "Please enter numbers within 0-%i wide and 0-%i tall" (ftToPx maxX) (ftToPx maxY)
+                                positionAsker gameState
+
+    let rec moveAsker (maxMove:int<inch>) m gameState =
+        printfn "Give X coordinates"
+        let x = Console.ReadLine()
+        printfn "Give Y coordinates"
+        let y = Console.ReadLine()
+        let r = match x, y, gameState.Board.Dimensions.Width, gameState.Board.Dimensions.Height with
+                    | IntPx xp, IntPx yp, maxX, maxY when xp >= 0<px> && yp >= 0<px> && xp <= ftToPx maxX && yp <= ftToPx maxY -> {X=xp; Y=yp}
+                    | _,_, maxX, maxY-> printfn "Please enter numbers within 0-%i wide and 0-%i tall" (ftToPx maxX) (ftToPx maxY)
+                                        positionAsker gameState
+        match r, m.Position.FindDistance r with
+            | r, d when px.ToInches Domain.WarhammerDomain.drawingResolution ((d|>float)  * 1.<px>) <= (( maxMove|>float)  * 1.<inch>)-> 
+                r
+            | _ -> moveAsker maxMove m gameState

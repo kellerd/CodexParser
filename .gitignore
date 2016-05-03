@@ -97,7 +97,7 @@ publish/
 
 # NuGet Packages Directory
 ## TODO: If you have NuGet Package Restore enabled, uncomment the next line
-#packages/
+packages/
 
 # Windows Azure Build Output
 csx
@@ -117,6 +117,11 @@ ClientBin/
 *.[Pp]ublish.xml
 *.pfx
 *.publishsettings
+.fake/
+.paket/
+.vscode/
+build/
+deploy/
 
 # RIA/Silverlight projects
 Generated_Code/

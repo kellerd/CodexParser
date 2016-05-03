@@ -29,6 +29,11 @@ module WarhammerDomain =
         sqrt ((deltaX * deltaX) + (deltaY * deltaY)) |> Math.Round |> (fun x -> (x |> int) * (LanguagePrimitives.Int32WithMeasure 1))
     type CharacteristicValue = CharacteristicValue of int
     type MaxMovement = MaxMovement of int<inch>
+    type Dimentions<[<Measure>]'u> =
+      {Width:float<'u>;Length:float<'u>} 
+    type Base =
+     | BaseDiameter of int<mm>
+     | ModelDimentions of Dimentions<mm>
     type Value =
         | Bool of bool
         | Characteristic of CharacteristicValue
@@ -60,11 +65,20 @@ module WarhammerDomain =
                     | Seven  of Phase
                     | End
     type PlayerTurn = Top of GameTurn | Bottom of GameTurn
+    
+
+    type Deployment = 
+        | Deployed
+        | Destroyed
+        | OngoingReserves
+        | Reserves
+        | NotDeployed
 
     type RuleImpl = 
         | EndPhase
-        | Move
-    type Expr = 
+        | Move of int<inch>
+        | Deploy
+    and Expr = 
         | Literal of Value
         | Function of RuleImpl
         | List of Value list
@@ -72,47 +86,36 @@ module WarhammerDomain =
 //        | Call of RuleImpl // * expr list 
 //        | Method of string * string * expr list
 //        | PropertyGet of string * string
-    type Rule = 
+    and Rule = 
         | Rule of Expr
         | Nested of Rule  * Rule 
         | Overwritten of Rule  * Rule 
         | DeactivatedUntilEndOfPhase of Rule
         | DeactivatedUntilEndOfGame of Rule
         | Description of RuleDescription
-
-    
-
-    type Deployment = 
-        | Deployed of float<inch> * float<inch>
-        | Destroyed
-        | OngoingReserves
-        | Reserves
-        | NotDeployed
-
-    
-    type Player = Player1 | Player2
-
-    
-    type Dimentions<[<Measure>]'u> =
-      {Width:float<'u>;Length:float<'u>} 
-    type Base =
-     | BaseDiameter of int<mm>
-     | ModelDimentions of Dimentions<mm>
-    type Model = {
+    and Model = {
       Name : string;
       Id : Guid;
-      Characteristic : Map<string,Characteristic>;
+      Characteristic : Map<string,Characteristic>
       Rules : Rule list
       Base: Base
     } 
     
 
-    type Unit = { 
+    and Unit = { 
       UnitModels  : Model list
       UnitName    : string
       Rules : Rule list
       Deployment : Deployment
     } 
+    
+
+    
+    type Player = Player1 | Player2
+
+    
+
+ 
     
 
     let drawingResolution = 26.0<dpi>
