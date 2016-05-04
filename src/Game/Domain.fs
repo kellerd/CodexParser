@@ -93,6 +93,8 @@ module WarhammerDomain =
         | Rule of Expr
         | Nested of Rule  * Rule 
         | Overwritten of Rule  * Rule 
+        | DeactivatedUntilEndOfPhaseOnFirstUse of Rule
+        | DeactivatedUntilEndOfGameOnFirstUse of Rule
         | DeactivatedUntilEndOfPhase of Rule
         | DeactivatedUntilEndOfGame of Rule
         | Description of RuleDescription
@@ -122,7 +124,7 @@ module WarhammerDomain =
     
 
     let drawingResolution = 26.0<dpi>
-    let characterResolution = 9.0<dpi>
+    let characterResolution = 15.0<dpi>
     type Dimensions = {Width:int<ft>; Height:int<ft>}
     type Score = Score of int
     type GameState = {

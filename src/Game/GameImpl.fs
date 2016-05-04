@@ -41,6 +41,8 @@ module WarhammerImpl =
         | DeactivatedUntilEndOfPhase _ -> false
         | DeactivatedUntilEndOfGame _ -> false
         | Description _ -> false
+        | DeactivatedUntilEndOfPhaseOnFirstUse _ -> true
+        | DeactivatedUntilEndOfGameOnFirstUse _ -> true
     
     let rec collectRules = 
         function 
@@ -53,6 +55,8 @@ module WarhammerImpl =
         | DeactivatedUntilEndOfPhase _ -> []
         | DeactivatedUntilEndOfGame _ -> []
         | Description _ -> []
+        | DeactivatedUntilEndOfPhaseOnFirstUse r -> [DeactivatedUntilEndOfPhaseOnFirstUse r]
+        | DeactivatedUntilEndOfGameOnFirstUse r -> [DeactivatedUntilEndOfGameOnFirstUse r]
     
     let splitPt = 
         function 
@@ -97,7 +101,8 @@ module WarhammerImpl =
         let newUnit = { u with Deployment = Deployed }
         match foundPlayer with
         | Some p -> 
-            { gameState with Board = 
+            Some newUnit, 
+                { gameState with Board = 
                                  { gameState.Board with Models = 
                                                             [ for m in u.UnitModels do
                                                                   yield { Model = m
@@ -111,15 +116,14 @@ module WarhammerImpl =
         let pixelsInCircle radius position =  seq {
             for x in createSeq (position.X - radius) (position.X + radius) do
                 for y in createSeq (position.Y - radius) (position.Y + radius) do
-                    let newPos = {X=x;Y=y} 
-                    let findDistance = position.FindDistance newPos
-                    if findDistance <= radius then
+                    let newPos = {X=x;Y=y}
+                    if x > 0<px> && y > 0<px> && position.FindDistance newPos <= radius then
                         yield newPos
         }    
 
 
         let newPosition m = 
-            let ps = pixelsInCircle ((inch.ToPixels drawingResolution maxMove / 1.<px> |> System.Math.Round |> int) * 1<px>) m.Position |> Seq.toArray
+            let ps = pixelsInCircle ((inch.ToPixels characterResolution maxMove / 1.<px> |> System.Math.Round |> int) * 1<px>) m.Position |> Seq.toArray
             let rec newPick ps = 
                 let (p:Position<px>) = moveAsker ps
                 if Seq.contains p ps then p
@@ -128,13 +132,14 @@ module WarhammerImpl =
 
         match findPlayer gameState u with
         | Some p -> 
-            { gameState with Board = 
+            Some u, 
+                { gameState with Board = 
                                  { gameState.Board with Models = 
                                                             [ for m in u.UnitModels do
                                                                   yield { Model = m
                                                                           Player = p.Player
                                                                           Position = m |> findModel gameState |> newPosition } ]
-                                                            @ gameState.Board.Models |> List.filter (fun mi -> u.UnitModels |> List.contains mi.Model |> not )} }
+                                                            @ (gameState.Board.Models |> List.filter (fun mi -> u.UnitModels |> List.contains mi.Model |> not ))} }
         | None -> failwith "Couldn't find player"
     
     let advancePhase gs = 
@@ -188,21 +193,28 @@ module WarhammerImpl =
         { gs with Game = { gs.Game with Turn = changePhase gs.Game.Turn }
                   Players = gs |> enableDeactivatedRules }
     
+    let replaceRuleOnUnit r (unit : Unit) gameState createRule = 
+        let newUnit = { unit with Rules = replace unit.Rules r (createRule r) }
+        Some newUnit, updatePlayerInGameState unit newUnit gameState
+
     let rec eval fs positionAsker moveAsker u gameState = 
         match fs with
-        | [] -> gameState
+        | [] -> u, gameState
         | h :: tail -> 
             (h, u)
             |> (function 
-            | Rule(Function(EndPhase)), _ -> advancePhase gameState
-            | Rule(Function(Deploy)), Some unit -> deploy unit gameState positionAsker
-            | Rule(Function(Move maxMove)), Some unit -> move unit gameState maxMove moveAsker
-            | _ -> gameState)
-            |> eval tail positionAsker moveAsker u
+            | Rule(Function(EndPhase)), _ -> None, advancePhase gameState
+            | Rule(Function(Deploy)), Some u -> deploy u gameState positionAsker
+            | Rule(Function(Move maxMove)), Some u -> move u gameState maxMove moveAsker
+            | DeactivatedUntilEndOfPhaseOnFirstUse(r) as dr, Some u -> 
+                let fs = (collectRules r)
+                replaceRuleOnUnit dr u gameState DeactivatedUntilEndOfPhase ||> eval fs positionAsker moveAsker
+            | DeactivatedUntilEndOfGameOnFirstUse(r) as dr, Some u ->  
+                let fs = (collectRules r)
+                replaceRuleOnUnit dr u gameState DeactivatedUntilEndOfGame ||> eval fs positionAsker moveAsker
+            | _ -> None, gameState)
+            ||> eval tail positionAsker moveAsker 
     
-    let disableRuleOnUnit r (unit : Unit) gameState = 
-        let newUnit = { unit with Rules = replace unit.Rules r (DeactivatedUntilEndOfPhase r) }
-        updatePlayerInGameState unit newUnit gameState
     
     let endPhase = Rule(Function(EndPhase))
     
@@ -250,11 +262,8 @@ module WarhammerImpl =
         | None -> playerMove currentPlayer None endPhase gs
     
     let rec playerMove positionAsker moveAsker player unit thingToDo gameState = 
-        let newGameState = 
-            match unit with
-            | Some u -> gameState |> disableRuleOnUnit thingToDo u
-            | None -> gameState
-            |> eval (collectRules thingToDo) positionAsker moveAsker unit
+        let (_, newGameState) = 
+            eval (collectRules thingToDo) positionAsker moveAsker unit gameState
         
         let newPlayer = 
             match gameState.Game.Turn, newGameState.Game.Turn with
