@@ -37,14 +37,7 @@ module WarhammerDomain =
     type Base =
      | BaseDiameter of int<mm>
      | ModelDimentions of Dimentions<mm>
-    type Value =
-        | Bool of bool
-        | Characteristic of CharacteristicValue
-        | Double of double
-        | String of string
-        | Inch of int<inch>
-        | Range of int<inch> * int<inch>
-    and     Characteristic = 
+    type Characteristic = 
         | WeaponSkill     of CharacteristicValue
         | BallisticSkill  of CharacteristicValue
         | Strength        of CharacteristicValue
@@ -81,41 +74,31 @@ module WarhammerDomain =
         | EndPhase
         | Move of float<inch>
         | Deploy
-    and Expr = 
-        | Literal of Value
+        | SetCharacteristic of Rule<Characteristic>
+    and Rule<'a> = 
         | Function of RuleImpl
-        | List of Value list
-//    and invoke =
-//        | Call of RuleImpl // * expr list 
-//        | Method of string * string * expr list
-//        | PropertyGet of string * string
-    and Rule = 
-        | Rule of Expr
-        | Nested of Rule  * Rule 
-        | Overwritten of Rule  * Rule 
-        | DeactivatedUntilEndOfPhaseOnFirstUse of Rule
-        | DeactivatedUntilEndOfGameOnFirstUse of Rule
-        | DeactivatedUntilEndOfPhase of Rule
-        | DeactivatedUntilEndOfGame of Rule
+        | Value of 'a
+        | Nested of Rule<'a>  * Rule<'a>
+        | Overwritten of Rule<'a>  * Rule<'a> 
+        | DeactivatedUntilEndOfPhaseOnFirstUse of Rule<'a>
+        | DeactivatedUntilEndOfGameOnFirstUse of Rule<'a>
+        | DeactivatedUntilEndOfPhase of Rule<'a>
+        | DeactivatedUntilEndOfGame of Rule<'a>
         | Description of RuleDescription
     and Model = {
       Name : string;
       Id : Guid;
-      Characteristic : Map<string,Characteristic>
-      Rules : Rule list
+      Rules : Rule<obj> list
       Base: Base
     } 
     
-
     and Unit = { 
       UnitModels  : Model list
       UnitName    : string
-      Rules : Rule list
+      Rules : Rule<obj> list
       Deployment : Deployment
     } 
-    
 
-    
     type Player = Player1 | Player2
 
     
@@ -152,26 +135,26 @@ module WarhammerDomain =
     }
     and Mission = {
        MaxRounds:GameState->PlayerTurn
-       Rules : Rule list
+       Rules : Rule<obj> list
        EndCondition:GameState->bool
     }
-    type UnitRule = {
+    type UnitRule<'a> = {
         Unit: Unit 
-        Rule: Rule 
+        Rule: Rule<'a> 
         Capability: MoveCapability}
-    and EndRule = {
-        Rule: Rule 
+    and EndRule<'a> = {
+        Rule: Rule<'a> 
         Capability: MoveCapability}
     and MoveCapability = 
         unit -> RuleResult
 
-    and NextMoveInfo = 
-        | UnitRule of UnitRule
-        | EndRule of EndRule
+    and NextMoveInfo<'a> = 
+        | UnitRule of UnitRule<'a>
+        | EndRule of EndRule<'a>
     /// The result of a move. Do displayInfo later.
     and RuleResult = 
-        | Player1ToMove of GameState * NextMoveInfo list
-        | Player2ToMove of GameState * NextMoveInfo list
+        | Player1ToMove of GameState * NextMoveInfo<obj> list
+        | Player2ToMove of GameState * NextMoveInfo<obj> list
         | GameWon of GameState * Player 
         | GameTied of GameState 
     

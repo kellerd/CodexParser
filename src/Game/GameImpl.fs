@@ -30,7 +30,7 @@ module WarhammerImpl =
     //        {DisplayInfo.Board = gameState.Board}
     let rec isRunnable = 
         function 
-        | Rule _ -> true
+        | Function _ -> true
         | Nested(r, r2) -> 
             seq { 
                 yield r
@@ -43,10 +43,12 @@ module WarhammerImpl =
         | Description _ -> false
         | DeactivatedUntilEndOfPhaseOnFirstUse _ -> true
         | DeactivatedUntilEndOfGameOnFirstUse _ -> true
+        | Value _ -> false
     
     let rec collectRules = 
         function 
-        | Rule e -> [ Rule e ]
+        | Function e -> [ Function e ]
+        | Value _ -> []
         | Nested(r, r2) -> 
             [ r; r2 ]
             |> List.map collectRules
@@ -203,20 +205,32 @@ module WarhammerImpl =
         | h :: tail -> 
             (h, u)
             |> (function 
-            | Rule(Function(EndPhase)), _ -> None, advancePhase gameState
-            | Rule(Function(Deploy)), Some u -> deploy u gameState positionAsker
-            | Rule(Function(Move maxMove)), Some u -> move u gameState maxMove moveAsker
+            | Function(EndPhase), _ -> None, advancePhase gameState
+            | Function(Deploy), Some u -> deploy u gameState positionAsker
+            | Function(Move maxMove), Some u -> move u gameState maxMove moveAsker
+//            | Function(SetCharacteristic(WeaponSkill   (cv))), Some u -> u.Rules 
+//            | Function(SetCharacteristic(BallisticSkill(cv))), Some u -> u.Rules 
+//            | Function(SetCharacteristic(Strength      (cv))), Some u -> u.Rules 
+//            | Function(SetCharacteristic(Toughness     (cv))), Some u -> u.Rules 
+//            | Function(SetCharacteristic(Wounds        (cv))), Some u -> u.Rules 
+//            | Function(SetCharacteristic(Initiative    (cv))), Some u -> u.Rules 
+//            | Function(SetCharacteristic(Attacks       (cv))), Some u -> u.Rules 
+//            | Function(SetCharacteristic(Leadership    (cv))), Some u -> u.Rules 
+//            | Function(SetCharacteristic(InvSaves      (cv))), Some u -> u.Rules 
+//            | Function(SetCharacteristic(Saves         (cv))), Some u -> u.Rules 
             | DeactivatedUntilEndOfPhaseOnFirstUse(r) as dr, Some u -> 
                 let fs = (collectRules r)
-                replaceRuleOnUnit dr u gameState DeactivatedUntilEndOfPhase ||> eval fs positionAsker moveAsker
+                replaceRuleOnUnit dr u gameState DeactivatedUntilEndOfPhase 
+                ||> eval fs positionAsker moveAsker
             | DeactivatedUntilEndOfGameOnFirstUse(r) as dr, Some u ->  
                 let fs = (collectRules r)
-                replaceRuleOnUnit dr u gameState DeactivatedUntilEndOfGame ||> eval fs positionAsker moveAsker
+                replaceRuleOnUnit dr u gameState DeactivatedUntilEndOfGame 
+                ||> eval fs positionAsker moveAsker
             | _ -> None, gameState)
             ||> eval tail positionAsker moveAsker 
     
     
-    let endPhase = Rule(Function(EndPhase))
+    let endPhase = Function(EndPhase)
     
     let availableRuleCapabilities player gs = 
         gs.Players

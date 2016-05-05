@@ -14,7 +14,7 @@ module Logger =
             transformMR moveResult 
         newCap
     /// Transform a NextMove into a logged version
-    let transformNextMove transformMR player (move:NextMoveInfo) :NextMoveInfo = 
+    let transformNextMove transformMR player move = 
         match move with 
             | UnitRule ur -> 
                 let rule = ur.Rule 
