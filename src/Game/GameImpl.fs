@@ -1,8 +1,12 @@
-﻿namespace GameImpl
-
+﻿
+    
+namespace GameImpl
+module Map =
+    let pickKeyOfItem item map = Map.pick (fun k ur -> if item = ur then Some k  else None) map
+    let replace f x oldKey = (Map.remove oldKey >> Map.add oldKey (f x))
 module WarhammerImpl = 
     open Domain.WarhammerDomain
-    
+    open System    
     let other player = 
         player |> function 
         | Player1 -> Player2
@@ -43,12 +47,12 @@ module WarhammerImpl =
         | Description _ -> false
         | DeactivatedUntilEndOfPhaseOnFirstUse _ -> true
         | DeactivatedUntilEndOfGameOnFirstUse _ -> true
-        | Value _ -> false
+        | Characteristic _ -> false
     
     let rec collectRules = 
         function 
         | Function e -> [ Function e ]
-        | Value _ -> []
+        | Characteristic _ -> []
         | Nested(r, r2) -> 
             [ r; r2 ]
             |> List.map collectRules
@@ -164,7 +168,7 @@ module WarhammerImpl =
                 | DeactivatedUntilEndOfPhase r -> r
                 | r -> r
             
-            let newUnit (unit : Unit) = { unit with Rules = List.map enableRule unit.Rules }
+            let newUnit (unit : Unit) = { unit with Rules = Map.map (fun k t -> enableRule t) unit.Rules }
             let newGameState = 
                 gameState.Players 
                 |> List.fold 
@@ -194,11 +198,12 @@ module WarhammerImpl =
         
         { gs with Game = { gs.Game with Turn = changePhase gs.Game.Turn }
                   Players = gs |> enableDeactivatedRules }
-    
-    let replaceRuleOnUnit r (unit : Unit) gameState createRule = 
-        let newUnit = { unit with Rules = replace unit.Rules r (createRule r) }
+    let replaceRuleOnUnit gameState (unit : Unit) replace = 
+        let newUnit = { unit with Rules = unit.Rules |> replace }
         Some newUnit, updatePlayerInGameState unit newUnit gameState
-
+    let replaceCharacteristicOnUnit gameState (unit : Unit) replace = 
+        let newUnit = { unit with Characteristics = unit.Characteristics |> replace }
+        Some newUnit, updatePlayerInGameState unit newUnit gameState
     let rec eval fs positionAsker moveAsker u gameState = 
         match fs with
         | [] -> u, gameState
@@ -208,24 +213,23 @@ module WarhammerImpl =
             | Function(EndPhase), _ -> None, advancePhase gameState
             | Function(Deploy), Some u -> deploy u gameState positionAsker
             | Function(Move maxMove), Some u -> move u gameState maxMove moveAsker
-//            | Function(SetCharacteristic(WeaponSkill   (cv))), Some u -> u.Rules 
-//            | Function(SetCharacteristic(BallisticSkill(cv))), Some u -> u.Rules 
-//            | Function(SetCharacteristic(Strength      (cv))), Some u -> u.Rules 
-//            | Function(SetCharacteristic(Toughness     (cv))), Some u -> u.Rules 
-//            | Function(SetCharacteristic(Wounds        (cv))), Some u -> u.Rules 
-//            | Function(SetCharacteristic(Initiative    (cv))), Some u -> u.Rules 
-//            | Function(SetCharacteristic(Attacks       (cv))), Some u -> u.Rules 
-//            | Function(SetCharacteristic(Leadership    (cv))), Some u -> u.Rules 
-//            | Function(SetCharacteristic(InvSaves      (cv))), Some u -> u.Rules 
-//            | Function(SetCharacteristic(Saves         (cv))), Some u -> u.Rules 
+            | Function(SetCharacteristic(name, r)), Some u -> 
+                u.Characteristics 
+                |> Map.find name
+                |> Map.replace (Rule.CreateNested r) <| name
+                |> replaceCharacteristicOnUnit gameState u 
             | DeactivatedUntilEndOfPhaseOnFirstUse(r) as dr, Some u -> 
-                let fs = (collectRules r)
-                replaceRuleOnUnit dr u gameState DeactivatedUntilEndOfPhase 
-                ||> eval fs positionAsker moveAsker
+                u.Rules 
+                |> Map.pickKeyOfItem dr 
+                |> Map.replace DeactivatedUntilEndOfPhase dr
+                |> replaceRuleOnUnit gameState u 
+                ||> eval (collectRules r) positionAsker moveAsker
             | DeactivatedUntilEndOfGameOnFirstUse(r) as dr, Some u ->  
-                let fs = (collectRules r)
-                replaceRuleOnUnit dr u gameState DeactivatedUntilEndOfGame 
-                ||> eval fs positionAsker moveAsker
+                u.Rules 
+                |> Map.pickKeyOfItem dr 
+                |> Map.replace DeactivatedUntilEndOfGame dr
+                |> replaceRuleOnUnit gameState u 
+                ||> eval (collectRules r) positionAsker moveAsker
             | _ -> None, gameState)
             ||> eval tail positionAsker moveAsker 
     
@@ -238,8 +242,9 @@ module WarhammerImpl =
         |> List.collect (fun p -> p.Units)
         |> List.collect (fun u -> 
                u.Rules
-               |> List.filter isRunnable
-               |> List.map (fun r -> r, Some u))
+               |> Map.toList
+               |> List.filter (fun (_,t) -> isRunnable t)
+               |> List.map (fun (_,r) -> r, Some u))
     
     let makeNextMoveInfo f (player : Player) gameState (rule, unit) = 
         let capability() = f player unit rule gameState

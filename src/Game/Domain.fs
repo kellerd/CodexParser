@@ -2,6 +2,18 @@
 namespace Domain
 module WarhammerDomain =
     open System
+    open Microsoft.FSharp.Reflection
+
+    let toString (x:'a) = 
+        match FSharpValue.GetUnionFields(x, typeof<'a>) with
+        | case, _ -> case.Name
+
+    let fromString<'a> (s:string) =
+        match FSharpType.GetUnionCases typeof<'a> |> Array.filter (fun case -> case.Name = s) with
+        |[|case|] -> Some(FSharpValue.MakeUnion(case,[||]) :?> 'a)
+        |_ -> None
+
+
     type RuleDescription = {Name: string; Description: string}
     let flip f x y = f y x
     let createSeq min max = Seq.initInfinite ((*) (LanguagePrimitives.Int32WithMeasure 1) >> (+) min) |> Seq.takeWhile (flip (<=) max)
@@ -47,7 +59,9 @@ module WarhammerDomain =
         | Attacks         of CharacteristicValue
         | Leadership      of CharacteristicValue
         | InvSaves        of CharacteristicValue
-        | Saves           of CharacteristicValue
+        | Saves           of CharacteristicValue with
+        member this.ToString = toString this
+        static member FromString s = fromString<Characteristic> s
     
 
     type Phase = Begin | Movement | Psychic | Shooting | Assault | End
@@ -74,28 +88,32 @@ module WarhammerDomain =
         | EndPhase
         | Move of float<inch>
         | Deploy
-        | SetCharacteristic of Rule<Characteristic>
+        | SetCharacteristic of string * Rule<Characteristic>
+        member this.ToString = toString this
+        static member FromString s = fromString<RuleImpl> s
     and Rule<'a> = 
         | Function of RuleImpl
-        | Value of 'a
+        | Characteristic of 'a
         | Nested of Rule<'a>  * Rule<'a>
         | Overwritten of Rule<'a>  * Rule<'a> 
         | DeactivatedUntilEndOfPhaseOnFirstUse of Rule<'a>
         | DeactivatedUntilEndOfGameOnFirstUse of Rule<'a>
         | DeactivatedUntilEndOfPhase of Rule<'a>
         | DeactivatedUntilEndOfGame of Rule<'a>
-        | Description of RuleDescription
+        | Description of RuleDescription with
+        static member CreateNested = (fun (newR:Rule<'a>) (x:Rule<'a>) -> Nested(newR,x)) 
     and Model = {
       Name : string;
       Id : Guid;
-      Rules : Rule<obj> list
+      Rules : Map<string,Rule<obj>>
       Base: Base
     } 
     
     and Unit = { 
       UnitModels  : Model list
       UnitName    : string
-      Rules : Rule<obj> list
+      Characteristics : Map<string,Rule<Characteristic>>
+      Rules : Map<string,Rule<obj>>
       Deployment : Deployment
     } 
 
@@ -135,7 +153,7 @@ module WarhammerDomain =
     }
     and Mission = {
        MaxRounds:GameState->PlayerTurn
-       Rules : Rule<obj> list
+       Rules : Map<string,Rule<obj>>
        EndCondition:GameState->bool
     }
     type UnitRule<'a> = {
