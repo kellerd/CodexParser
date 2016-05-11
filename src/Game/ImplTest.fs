@@ -19,7 +19,7 @@ module ImplTest =
     let TermUnit = 
         { UnitModels = [ Termagant(Guid "666D7AF7-D74B-49B8-B7B9-EFFF44D77ACE") ]
           UnitName = "Termagaunts"
-          Characteristics = 
+          Rules = 
               seq { 
                   yield WeaponSkill.ToString(), Characteristic(WeaponSkill(CharacteristicValue 3))
                   yield BallisticSkill.ToString(), Characteristic(BallisticSkill(CharacteristicValue 3))
@@ -31,13 +31,10 @@ module ImplTest =
                   yield Leadership.ToString(), Characteristic(Leadership(CharacteristicValue 3))
                   yield InvSaves.ToString(), Characteristic(InvSaves(CharacteristicValue 3))
                   yield Saves.ToString(), Characteristic(Saves(CharacteristicValue 3))
-              }
-              |> Map.ofSeq
-          Rules = 
-              seq { 
                   yield "Move", DeactivatedUntilEndOfPhaseOnFirstUse(Function(Move 6.<inch>))
                   yield "Deploy", DeactivatedUntilEndOfPhaseOnFirstUse(Function(Deploy))
-                  yield "WeakenResolve", Function(SetCharacteristic(Strength.ToString(),Characteristic(Strength(CharacteristicValue 1))))
+                  yield "WeakenResolve", Nested(Description { Name = "Lurker"; Description = "Termagant Lurks when outside synapse" },
+                                                Function(SetCharacteristicUnit(Strength.ToString(),Characteristic(Strength(CharacteristicValue 1)))))
               }
               |> Map.ofSeq
           Deployment = NotDeployed }
@@ -57,7 +54,7 @@ module ImplTest =
     let HormagauntUnit = 
         { UnitModels = [ Hormagaunt(Guid "666D7AF7-D74B-49B8-B7B9-EFFF44D77ACE") ]
           UnitName = "Hormagaunts"
-          Characteristics = 
+          Rules = 
               seq { 
                   yield WeaponSkill.ToString(), Characteristic(WeaponSkill(CharacteristicValue 3))
                   yield BallisticSkill.ToString(), Characteristic(BallisticSkill(CharacteristicValue 3))
@@ -69,10 +66,6 @@ module ImplTest =
                   yield Leadership.ToString(), Characteristic(Leadership(CharacteristicValue 3))
                   yield InvSaves.ToString(), Characteristic(InvSaves(CharacteristicValue 3))
                   yield Saves.ToString(), Characteristic(Saves(CharacteristicValue 3))
-              }
-              |> Map.ofSeq
-          Rules = 
-              seq { 
                   yield "Bounding Leap", 
                         Description { Name = "Bounding Leap"
                                       Description = "Run(CharacteristicValue 3) extra inches" }
@@ -99,5 +92,5 @@ module ImplTest =
               { Turn = Top GameTurn.Begin
                 Mission = 
                     { MaxRounds = (fun gs -> Bottom(Six(Phase.End)))
-                      Rules = Map.empty<string, Rule<obj>>
+                      Rules = Map.empty<string, Rule>
                       EndCondition = (fun gs -> gs.Game.Turn = Bottom(GameTurn.End)) } } }
