@@ -29,9 +29,6 @@ module WarhammerImpl =
         | h :: t -> h :: removeFirst pred t
         | _ -> []
     
-    //
-    //    let getDisplayInfo (gameState:GameState) =
-    //        {DisplayInfo.Board = gameState.Board}
     let rec isRunnable = 
         function 
         | Function _ -> true
@@ -101,19 +98,19 @@ module WarhammerImpl =
         match gameState, foundPlayer, newPlayer with
         | (gs, Some p, Some np) -> replaceGameStatePlayers gs p np
         | (gs, _, _) -> gs
-    
+    //| PositionAsker of ((GameState -> Position<px>) -> GameState)
     let deploy u gameState positionAsker = 
         let foundPlayer = findPlayer gameState u
         let newUnit = { u with Deployment = Deployed }
         match foundPlayer with
         | Some p -> 
             Some newUnit, 
-                { gameState with Board = 
-                                 { gameState.Board with Models = 
+               { gameState with Board = 
+                                    { gameState.Board with Models = 
                                                             [ for m in u.UnitModels do
-                                                                  yield { Model = m
-                                                                          Player = p.Player
-                                                                          Position = gameState |> positionAsker } ]
+                                                                    yield { Model = m
+                                                                            Player = p.Player
+                                                                            Position = gameState |> positionAsker } ]
                                                             @ gameState.Board.Models } }
             |> updatePlayerInGameState u newUnit
         | None -> failwith "Couldn't find player"
@@ -200,21 +197,21 @@ module WarhammerImpl =
                   Players = gs |> enableDeactivatedRules }
     let replaceRuleOnUnit gameState (unit : Unit) replace = 
         let newUnit = { unit with Rules = unit.Rules |> replace }
-        Some newUnit, updatePlayerInGameState unit newUnit gameState
-    let rec eval fs positionAsker moveAsker u gameState = 
+        updatePlayerInGameState unit newUnit gameState
+    let rec eval fs (u:Unit option) gameState = 
         match fs with
-        | [] -> u, gameState
+        | [] -> GameState gameState
         | h :: tail -> 
             (h, u)
             |> (function 
-            | Function(EndPhase), _ -> None, advancePhase gameState
-            | Function(Deploy), Some u -> deploy u gameState positionAsker
-            | Function(Move maxMove), Some u -> move u gameState maxMove moveAsker
+            | Function(EndPhase), _ -> GameState (advancePhase gameState)
+            | Function(Deploy), Some u ->  PositionAsker (fun positionAsker -> deploy u gameState positionAsker)
+            | Function(Move maxMove), Some u -> MoveAsker (fun moveAsker -> move u gameState maxMove moveAsker)
             | Function(SetCharacteristicUnit(name, r)), Some u -> 
                 u.Rules 
                 |> Map.find name
                 |> Map.replace (Rule.CreateNested r) <| name
-                |> replaceRuleOnUnit gameState u 
+                |> replaceRuleOnUnit gameState u |> GameState
             | DeactivatedUntilEndOfPhaseOnFirstUse(r) as dr, Some u -> 
                 u.Rules 
                 |> Map.pickKeyOfItem dr 
@@ -279,7 +276,7 @@ module WarhammerImpl =
     
     let rec playerMove positionAsker moveAsker player unit thingToDo gameState = 
         let (_, newGameState) = 
-            eval (collectRules thingToDo) positionAsker moveAsker unit gameState
+            eval (collectRules thingToDo) unit gameState
         
         let newPlayer = 
             match gameState.Game.Turn, newGameState.Game.Turn with
