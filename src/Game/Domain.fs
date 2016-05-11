@@ -63,7 +63,7 @@ module WarhammerDomain =
         member this.ToString = toString this
         static member FromString s = fromString s
     
-
+    type DiceRoll = DiceRoll of int
     type Phase = Begin | Movement | Psychic | Shooting | Assault | End
     type GameTurn = | Begin
                     | One    of Phase
@@ -118,11 +118,6 @@ module WarhammerDomain =
 
     type Player = Player1 | Player2
 
-    
-
- 
-    
-
     let drawingResolution = 26.0<dpi>
     let characterResolution = 15.0<dpi>
     type Dimensions = {Width:int<ft>; Height:int<ft>}
@@ -154,7 +149,12 @@ module WarhammerDomain =
        MaxRounds:GameState->PlayerTurn
        Rules : Map<string,Rule>
        EndCondition:GameState->bool
-    }
+    } 
+    and Game = 
+        | GameState of GameState
+        | PositionAsker of ((GameState -> Position<px>) -> GameState)
+        | MoveAsker of ((Position<px>[] -> Position<px>) -> GameState)
+        | DiceRollAsker of ((unit -> DiceRoll) -> GameState)
     type UnitRule = {
         Unit: Unit 
         Rule: Rule 
@@ -164,14 +164,13 @@ module WarhammerDomain =
         Capability: MoveCapability}
     and MoveCapability = 
         unit -> RuleResult
-
     and NextMoveInfo = 
         | UnitRule of UnitRule
         | EndRule of EndRule
     /// The result of a move. Do displayInfo later.
     and RuleResult = 
-        | Player1ToMove of GameState * NextMoveInfo list
-        | Player2ToMove of GameState * NextMoveInfo list
+        | Player1ToMove of Game * NextMoveInfo list
+        | Player2ToMove of Game * NextMoveInfo list
         | GameWon of GameState * Player 
         | GameTied of GameState 
     
