@@ -8,7 +8,7 @@ module WarhammerDomain =
         match FSharpValue.GetUnionFields(x, typeof<'a>) with
         | case, _ -> case.Name
 
-    let fromString<'a> (s:string) =
+    let fromString (s:string) =
         match FSharpType.GetUnionCases typeof<'a> |> Array.filter (fun case -> case.Name = s) with
         |[|case|] -> Some(FSharpValue.MakeUnion(case,[||]) :?> 'a)
         |_ -> None
@@ -61,7 +61,7 @@ module WarhammerDomain =
         | InvSaves        of CharacteristicValue
         | Saves           of CharacteristicValue with
         member this.ToString = toString this
-        static member FromString s = fromString<Characteristic> s
+        static member FromString s = fromString s
     
 
     type Phase = Begin | Movement | Psychic | Shooting | Assault | End
@@ -88,32 +88,31 @@ module WarhammerDomain =
         | EndPhase
         | Move of float<inch>
         | Deploy
-        | SetCharacteristic of string * Rule<Characteristic>
+        | SetCharacteristicUnit of string * Rule
         member this.ToString = toString this
         static member FromString s = fromString<RuleImpl> s
-    and Rule<'a> = 
+    and Rule = 
         | Function of RuleImpl
-        | Characteristic of 'a
-        | Nested of Rule<'a>  * Rule<'a>
-        | Overwritten of Rule<'a>  * Rule<'a> 
-        | DeactivatedUntilEndOfPhaseOnFirstUse of Rule<'a>
-        | DeactivatedUntilEndOfGameOnFirstUse of Rule<'a>
-        | DeactivatedUntilEndOfPhase of Rule<'a>
-        | DeactivatedUntilEndOfGame of Rule<'a>
+        | Characteristic of Characteristic
+        | Nested of Rule  * Rule
+        | Overwritten of Rule  * Rule 
+        | DeactivatedUntilEndOfPhaseOnFirstUse of Rule
+        | DeactivatedUntilEndOfGameOnFirstUse of Rule
+        | DeactivatedUntilEndOfPhase of Rule
+        | DeactivatedUntilEndOfGame of Rule
         | Description of RuleDescription with
-        static member CreateNested = (fun (newR:Rule<'a>) (x:Rule<'a>) -> Nested(newR,x)) 
+        static member CreateNested = (fun (newR:Rule) (x:Rule) -> Nested(newR,x)) 
     and Model = {
       Name : string;
       Id : Guid;
-      Rules : Map<string,Rule<obj>>
+      Rules : Map<string,Rule>
       Base: Base
     } 
     
     and Unit = { 
       UnitModels  : Model list
       UnitName    : string
-      Characteristics : Map<string,Rule<Characteristic>>
-      Rules : Map<string,Rule<obj>>
+      Rules : Map<string,Rule>
       Deployment : Deployment
     } 
 
@@ -153,26 +152,26 @@ module WarhammerDomain =
     }
     and Mission = {
        MaxRounds:GameState->PlayerTurn
-       Rules : Map<string,Rule<obj>>
+       Rules : Map<string,Rule>
        EndCondition:GameState->bool
     }
-    type UnitRule<'a> = {
+    type UnitRule = {
         Unit: Unit 
-        Rule: Rule<'a> 
+        Rule: Rule 
         Capability: MoveCapability}
-    and EndRule<'a> = {
-        Rule: Rule<'a> 
+    and EndRule = {
+        Rule: Rule 
         Capability: MoveCapability}
     and MoveCapability = 
         unit -> RuleResult
 
-    and NextMoveInfo<'a> = 
-        | UnitRule of UnitRule<'a>
-        | EndRule of EndRule<'a>
+    and NextMoveInfo = 
+        | UnitRule of UnitRule
+        | EndRule of EndRule
     /// The result of a move. Do displayInfo later.
     and RuleResult = 
-        | Player1ToMove of GameState * NextMoveInfo<obj> list
-        | Player2ToMove of GameState * NextMoveInfo<obj> list
+        | Player1ToMove of GameState * NextMoveInfo list
+        | Player2ToMove of GameState * NextMoveInfo list
         | GameWon of GameState * Player 
         | GameTied of GameState 
     

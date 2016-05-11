@@ -201,9 +201,6 @@ module WarhammerImpl =
     let replaceRuleOnUnit gameState (unit : Unit) replace = 
         let newUnit = { unit with Rules = unit.Rules |> replace }
         Some newUnit, updatePlayerInGameState unit newUnit gameState
-    let replaceCharacteristicOnUnit gameState (unit : Unit) replace = 
-        let newUnit = { unit with Characteristics = unit.Characteristics |> replace }
-        Some newUnit, updatePlayerInGameState unit newUnit gameState
     let rec eval fs positionAsker moveAsker u gameState = 
         match fs with
         | [] -> u, gameState
@@ -213,11 +210,11 @@ module WarhammerImpl =
             | Function(EndPhase), _ -> None, advancePhase gameState
             | Function(Deploy), Some u -> deploy u gameState positionAsker
             | Function(Move maxMove), Some u -> move u gameState maxMove moveAsker
-            | Function(SetCharacteristic(name, r)), Some u -> 
-                u.Characteristics 
+            | Function(SetCharacteristicUnit(name, r)), Some u -> 
+                u.Rules 
                 |> Map.find name
                 |> Map.replace (Rule.CreateNested r) <| name
-                |> replaceCharacteristicOnUnit gameState u 
+                |> replaceRuleOnUnit gameState u 
             | DeactivatedUntilEndOfPhaseOnFirstUse(r) as dr, Some u -> 
                 u.Rules 
                 |> Map.pickKeyOfItem dr 
