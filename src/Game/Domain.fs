@@ -3,6 +3,7 @@ namespace Domain
 module WarhammerDomain =
     open System
     open Microsoft.FSharp.Reflection
+    open Equals
 
     let toString (x:'a) = 
         match FSharpValue.GetUnionFields(x, typeof<'a>) with
@@ -102,15 +103,15 @@ module WarhammerDomain =
         | DeactivatedUntilEndOfGame of Rule
         | Description of RuleDescription with
         static member CreateNested = (fun (newR:Rule) (x:Rule) -> Nested(newR,x)) 
-    and Model = {
-      Name : string;
-      Id : Guid;
+    and [<ReferenceEquality>]  Model = {
+      Name : string
+      Id : Guid
       Rules : Map<string,Rule>
       Base: Base
     } 
-    
-    and Unit = { 
-      UnitModels  : Model list
+    and [<ReferenceEquality>] Unit = { 
+      Id : Guid
+      UnitModels  : Map<Guid,Model>
       UnitName    : string
       Rules : Map<string,Rule>
       Deployment : Deployment
@@ -124,7 +125,7 @@ module WarhammerDomain =
     
 
     let drawingResolution = 26.0<dpi>
-    let characterResolution = 15.0<dpi>
+    let characterResolution = 6.0<dpi>
     type Dimensions = {Width:int<ft>; Height:int<ft>}
     type Score = Score of int
     type GameState = {
@@ -134,11 +135,11 @@ module WarhammerDomain =
         }
     and PlayerInfo = {
         Player: Player
-        Units: Unit list
+        Units: Map<Guid,Unit>
         Score: Score
     }
     and BoardInfo = {
-        Models : ModelInfo list
+        Models : Map<Guid,ModelInfo>
         Dimensions : Dimensions
     }
     and ModelInfo = {

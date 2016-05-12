@@ -19,14 +19,14 @@ type ``Given a Example state with Single Rules`` () =
     ``Player should have units and rules to test`` ()=
            gameState.Players 
             |> List.filter (fun p -> p.Player = gameState.Players.Head.Player)
-            |> List.collect (fun p -> p.Units)
+            |> List.collect (fun p -> p.Units |> Map.toList |> List.map (snd))
             |> List.collect (fun u -> u.Rules |> Map.toList |> List.map (snd)) |> should not' (be Empty)
 
    [<Test>] member test.
     ``Expect isRunnable will be true`` ()=
            gameState.Players 
             |> List.filter (fun p -> p.Player = gameState.Players.Head.Player) 
-            |> List.collect (fun p -> p.Units)
+            |> List.collect (fun p -> p.Units |> Map.toList |> List.map (snd))
             |> List.collect (fun u -> u.Rules |> Map.toList |> List.map (snd) |> List.filter isRunnable) |> should not' (be Empty)
 
    [<Test>] member test.

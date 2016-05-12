@@ -85,36 +85,38 @@ module WarhammerImpl =
         let pred z = x = z
         y :: (removeFirst pred xs)
     
-    let replacePlayerUnits p u nu = { p with Units = replace p.Units u nu }
+    let replacePlayerUnits p u nu = { p with Units = Map.replace id nu u.Id p.Units }
     let replaceGameStatePlayers s p np = { s with Players = replace s.Players p np }
-    
-    let findPlayer gameState unit = 
+    let tryFindNewUnit (unitId: Guid option) gameState = 
+        gameState.Players |> List.tryPick (fun p -> unitId |> Option.bind(fun unitId -> p.Units |> Map.tryFind unitId))
+    let tryFindPlayer gameState unit = 
         gameState.Players |> List.tryPick (fun p -> 
-                                 p.Units
-                                 |> List.tryFind (fun u -> u = unit)
-                                 |> Option.bind (fun _ -> Some p))
-    let findModel gameState model = 
-        gameState.Board.Models |> List.find (fun m -> m.Model = model)
+                                                     p.Units
+                                                     |> Map.tryFind unit.Id
+                                                     |> Option.bind (fun _ -> Some p))
+    let findModel (model:Model) gameState  = 
+        gameState.Board.Models |> Map.find model.Id
     let updatePlayerInGameState unit newUnit gameState = 
-        let foundPlayer = findPlayer gameState unit
+        let foundPlayer = tryFindPlayer gameState unit
         let newPlayer = foundPlayer |> Option.map (fun p -> replacePlayerUnits p unit newUnit)
         match gameState, foundPlayer, newPlayer with
         | (gs, Some p, Some np) -> replaceGameStatePlayers gs p np
         | (gs, _, _) -> gs
-    
+
+    let forAllModels f newUnit gameState = 
+        [ for m in newUnit.UnitModels do
+                yield f m.Value ]
+        |> List.fold (fun acc m -> match Map.tryFind m.Model.Id acc with
+                                    | Some oldM -> Map.replace id m m.Model.Id acc
+                                    | None -> Map.add m.Model.Id m acc) gameState.Board.Models
     let deploy u gameState positionAsker = 
-        let foundPlayer = findPlayer gameState u
+        let foundPlayer = tryFindPlayer gameState u
         let newUnit = { u with Deployment = Deployed }
         match foundPlayer with
         | Some p -> 
-            Some newUnit, 
-                { gameState with Board = 
-                                 { gameState.Board with Models = 
-                                                            [ for m in u.UnitModels do
-                                                                  yield { Model = m
-                                                                          Player = p.Player
-                                                                          Position = gameState |> positionAsker } ]
-                                                            @ gameState.Board.Models } }
+            { gameState with Board = { gameState.Board with Models = forAllModels (fun m -> { Model = m
+                                                                                              Player = p.Player
+                                                                                              Position = gameState |> positionAsker }) newUnit gameState} }
             |> updatePlayerInGameState u newUnit
         | None -> failwith "Couldn't find player"
 
@@ -136,16 +138,12 @@ module WarhammerImpl =
                 else newPick ps
             newPick ps
 
-        match findPlayer gameState u with
+        match tryFindPlayer gameState u with
         | Some p -> 
-            Some u, 
-                { gameState with Board = 
-                                 { gameState.Board with Models = 
-                                                            [ for m in u.UnitModels do
-                                                                  yield { Model = m
-                                                                          Player = p.Player
-                                                                          Position = m |> findModel gameState |> newPosition } ]
-                                                            @ (gameState.Board.Models |> List.filter (fun mi -> u.UnitModels |> List.contains mi.Model |> not ))} }
+            { gameState with Board = 
+                                { gameState.Board with Models = forAllModels (fun m -> { Model = m
+                                                                                         Player = p.Player
+                                                                                         Position = findModel m gameState |> newPosition }) u gameState} }
         | None -> failwith "Couldn't find player"
     
     let advancePhase gs = 
@@ -168,12 +166,12 @@ module WarhammerImpl =
                 | DeactivatedUntilEndOfPhase r -> r
                 | r -> r
             
-            let newUnit (unit : Unit) = { unit with Rules = Map.map (fun k t -> enableRule t) unit.Rules }
+            let createNewUnit (unit : Unit) = { unit with Rules = Map.map (fun k t -> enableRule t) unit.Rules }
             let newGameState = 
                 gameState.Players 
                 |> List.fold 
                        (fun acc p -> 
-                       p.Units |> List.fold (fun acc2 unit -> updatePlayerInGameState unit (newUnit unit) acc2) acc) 
+                       p.Units |> Map.fold (fun acc2 _ unit -> updatePlayerInGameState unit (createNewUnit unit) acc2) acc) 
                        gameState
             newGameState.Players
         
@@ -200,35 +198,35 @@ module WarhammerImpl =
                   Players = gs |> enableDeactivatedRules }
     let replaceRuleOnUnit gameState (unit : Unit) replace = 
         let newUnit = { unit with Rules = unit.Rules |> replace }
-        Some newUnit, updatePlayerInGameState unit newUnit gameState
-    let rec eval fs positionAsker moveAsker u gameState = 
+        updatePlayerInGameState unit newUnit gameState
+    let rec eval fs positionAsker moveAsker (u:Guid option) gameState = 
         match fs with
-        | [] -> u, gameState
+        | [] -> gameState
         | h :: tail -> 
-            (h, u)
+            (h, tryFindNewUnit u gameState)
             |> (function 
-            | Function(EndPhase), _ -> None, advancePhase gameState
+            | Function(EndPhase), _ -> advancePhase gameState
             | Function(Deploy), Some u -> deploy u gameState positionAsker
             | Function(Move maxMove), Some u -> move u gameState maxMove moveAsker
             | Function(SetCharacteristicUnit(name, r)), Some u -> 
                 u.Rules 
-                |> Map.find name
+                |> Map.find name 
                 |> Map.replace (Rule.CreateNested r) <| name
-                |> replaceRuleOnUnit gameState u 
+                |> replaceRuleOnUnit gameState u
             | DeactivatedUntilEndOfPhaseOnFirstUse(r) as dr, Some u -> 
                 u.Rules 
                 |> Map.pickKeyOfItem dr 
                 |> Map.replace DeactivatedUntilEndOfPhase dr
                 |> replaceRuleOnUnit gameState u 
-                ||> eval (collectRules r) positionAsker moveAsker
+                |> eval (collectRules r) positionAsker moveAsker (Some u.Id)
             | DeactivatedUntilEndOfGameOnFirstUse(r) as dr, Some u ->  
                 u.Rules 
                 |> Map.pickKeyOfItem dr 
                 |> Map.replace DeactivatedUntilEndOfGame dr
                 |> replaceRuleOnUnit gameState u 
-                ||> eval (collectRules r) positionAsker moveAsker
-            | _ -> None, gameState)
-            ||> eval tail positionAsker moveAsker 
+                |> eval (collectRules r) positionAsker moveAsker (Some u.Id)
+            | _ -> gameState)
+            |> eval tail positionAsker moveAsker u
     
     
     let endPhase = Function(EndPhase)
@@ -236,7 +234,7 @@ module WarhammerImpl =
     let availableRuleCapabilities player gs = 
         gs.Players
         |> List.filter (fun p -> p.Player = player)
-        |> List.collect (fun p -> p.Units)
+        |> List.collect (fun p -> p.Units |> Map.toList |> List.unzip |> snd)
         |> List.collect (fun u -> 
                u.Rules
                |> Map.toList
@@ -277,9 +275,10 @@ module WarhammerImpl =
         | Some ruleResult -> ruleResult
         | None -> playerMove currentPlayer None endPhase gs
     
-    let rec playerMove positionAsker moveAsker player unit thingToDo gameState = 
-        let (_, newGameState) = 
-            eval (collectRules thingToDo) positionAsker moveAsker unit gameState
+    let rec playerMove positionAsker moveAsker player (unit:Unit option) thingToDo gameState = 
+        let newGameState = 
+            let uId = unit |> Option.map (fun unit -> unit.Id)
+            eval (collectRules thingToDo) positionAsker moveAsker uId gameState
         
         let newPlayer = 
             match gameState.Game.Turn, newGameState.Game.Turn with
