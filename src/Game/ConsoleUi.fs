@@ -77,10 +77,10 @@ module ConsoleWarhammer =
                 
             
             board.Models 
-                |> List.map (fun x -> (x.Position.X |> toCharacterWidth, 
+                |> Map.map (fun k x -> (x.Position.X |> toCharacterWidth, 
                                         x.Position.Y |> toCharacterHeight), 
                                         x.Player)
-                |> List.iter (fun ((x,y), player) -> boardDisplay.Item((x,y)) <- (playerToStr player))
+                |> Map.iter (fun k ((x,y), player) -> boardDisplay.Item((x,y)) <- (playerToStr player))
             seq { for y in 0 .. (int maxHeight) do
                     yield seq { for x in 0 .. (int maxWidth) do
                                     yield  boardDisplay.Item((x * 1<WidthChars>,y*1<HeightChars>))}}
