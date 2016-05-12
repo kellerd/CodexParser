@@ -2,6 +2,7 @@
 namespace ConsoleApplication
 module ConsoleApplication = 
 #else
+    #load "Equals.fs"
     #load "Domain.fs"
     #load "ImplTest.fs"
     #load "GameImpl.fs"

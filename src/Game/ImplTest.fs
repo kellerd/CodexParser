@@ -17,7 +17,8 @@ module ImplTest =
               |> Map.ofSeq }
     
     let TermUnit = 
-        { UnitModels = [ Termagant(Guid "666D7AF7-D74B-49B8-B7B9-EFFF44D77ACE") ]
+        { Id = Guid "155143C3-C1FD-46BE-B41C-02A992F16FB2" 
+          UnitModels = [ Termagant(Guid "666D7AF7-D74B-49B8-B7B9-EFFF44D77ACE") ] |> List.map(fun m -> m.Id, m) |> Map.ofList
           UnitName = "Termagaunts"
           Rules = 
               seq { 
@@ -52,7 +53,8 @@ module ImplTest =
               |> Map.ofSeq }
     
     let HormagauntUnit = 
-        { UnitModels = [ Hormagaunt(Guid "666D7AF7-D74B-49B8-B7B9-EFFF44D77ACE") ]
+        { Id = Guid "A4F2493F-08BA-44EA-B813-0F3E5E53110B"
+          UnitModels = [ Hormagaunt(Guid "2D5045C8-0427-4C6D-B0A4-371F46DAF844") ] |> List.map(fun m -> m.Id, m) |> Map.ofList
           UnitName = "Hormagaunts"
           Rules = 
               seq { 
@@ -77,16 +79,16 @@ module ImplTest =
     
     let initial = 
         { Board = 
-              { Models = []
+              { Models = Map.empty<Guid,ModelInfo>
                 Dimensions = 
                     { Width = 6<ft>
                       Height = 4<ft> } }
           Players = 
               [ { Player = Player1
-                  Units = [ TermUnit ]
+                  Units = [ TermUnit ] |> List.map (fun u -> u.Id, u) |> Map.ofList
                   Score = Score 0 }
                 { Player = Player2
-                  Units = [ HormagauntUnit ]
+                  Units = [ HormagauntUnit ] |> List.map (fun u -> u.Id, u) |> Map.ofList
                   Score = Score 0 } ]
           Game = 
               { Turn = Top GameTurn.Begin
