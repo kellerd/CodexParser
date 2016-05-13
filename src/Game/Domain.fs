@@ -156,6 +156,7 @@ module WarhammerDomain =
         | PositionAsker of ((GameState -> Position<px>) -> GameState)
         | MoveAsker of ((Position<px>[] -> Position<px>) -> GameState)
         | DiceRollAsker of ((unit -> DiceRoll) -> GameState)
+        | Chain of (GameState -> Game)
     type UnitRule = {
         Unit: Unit 
         Rule: Rule 
