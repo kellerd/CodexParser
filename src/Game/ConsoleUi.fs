@@ -26,6 +26,44 @@ module ConsoleWarhammer =
         else
             None
 
+    [<Measure>] 
+    type HeightChars 
+    [<Measure>] 
+    type WidthChars
+        /// Display the cells on the console in a grid
+
+    let ftToPx x = x * inch.perFootI |> inch.ToPixelsI (int characterResolution * 1<dpi>)
+
+    
+    let (|IntPx|_|) str =
+       match System.Int32.TryParse(str) with
+       | (true,int) -> Some(int * 1<px>)
+       | _ -> None
+
+    let rec positionAsker gameState =
+        printfn "Give X coordinates"
+        let x = Console.ReadLine()
+        printfn "Give Y coordinates"
+        let y = Console.ReadLine()
+        match x, y, gameState.Board.Dimensions.Width, gameState.Board.Dimensions.Height with
+            | IntPx xp, IntPx yp, maxX, maxY when xp >= 0<px> && yp >= 0<px> && xp <= ftToPx maxX && yp <= ftToPx maxY -> {X=xp; Y=yp}
+            | _,_, maxX, maxY-> printfn "Please enter numbers within 0-%i wide and 0-%i tall" (ftToPx maxX) (ftToPx maxY)
+                                positionAsker gameState
+
+    let rec moveAsker positions =
+        positions |> Array.iteri (fun i p -> printfn "%i) %i %i" i p.X p.Y)
+        printfn "Enter an int corresponding to a displayed move or q to quit:" 
+        match Console.ReadLine() |> Int32.TryParse with
+        // TryParse will output a tuple (parsed?,int)
+        | true, inputIndex ->
+            match Array.tryItem inputIndex positions with
+                | Some p -> p
+                | None -> moveAsker positions
+        | false, _ -> moveAsker positions
+    let diceRollAsker = 
+        let rnd = System.Random()
+        fun () -> DiceRoll (rnd.Next(1,7))
+
     let processMoveIndex inputStr availableMoves processInputAgain = 
         match Int32.TryParse inputStr with
         // TryParse will output a tuple (parsed?,int)
@@ -46,13 +84,6 @@ module ConsoleWarhammer =
             printfn "...Please enter an int corresponding to a displayed move."             
             // try again
             processInputAgain()
-    [<Measure>] 
-    type HeightChars 
-    [<Measure>] 
-    type WidthChars
-        /// Display the cells on the console in a grid
-
-    let ftToPx x = x * inch.perFootI |> inch.ToPixelsI (int characterResolution * 1<dpi>)
 
     let displayBoard gameState = 
         
@@ -113,7 +144,11 @@ module ConsoleWarhammer =
         | "n" -> 
             ExitGame
         | _ -> askToPlayAgain api 
-
+    let gameToGameState = function 
+        | GameState gameState -> gameState
+        | PositionAsker asker -> positionAsker |> asker
+        | MoveAsker asker -> moveAsker |> asker
+        | DiceRollAsker asker -> diceRollAsker |> asker
     let rec gameLoop api userAction = 
         printfn "\n------------------------------\n"  // a separator between moves
         
@@ -138,14 +173,16 @@ module ConsoleWarhammer =
                 printfn ""             
                 let nextUserAction = askToPlayAgain api 
                 gameLoop api nextUserAction
-            | Player1ToMove (gameState,nextMoves) -> 
+            | Player1ToMove (game,nextMoves) -> 
+                let gameState = gameToGameState game
                 gameState |> displayBoard
                 printfn "Player 1 to move" 
                 printfn "Turn: %A" gameState.Game.Turn     
                 displayNextMoves nextMoves
                 let newResult = processInput nextMoves
                 gameLoop api newResult 
-            | Player2ToMove (gameState,nextMoves) -> 
+            | Player2ToMove (game,nextMoves) -> 
+                let gameState = gameToGameState game
                 gameState |> displayBoard
                 printfn "Player 2 to move" 
                 printfn "Turn: %A" gameState.Game.Turn     
@@ -157,29 +194,3 @@ module ConsoleWarhammer =
     let startGame api =
         let userAction = ContinuePlay (api.NewGame())
         gameLoop api userAction 
-
-    let (|IntPx|_|) str =
-       match System.Int32.TryParse(str) with
-       | (true,int) -> Some(int * 1<px>)
-       | _ -> None
-
-    let rec positionAsker gameState =
-        printfn "Give X coordinates"
-        let x = Console.ReadLine()
-        printfn "Give Y coordinates"
-        let y = Console.ReadLine()
-        match x, y, gameState.Board.Dimensions.Width, gameState.Board.Dimensions.Height with
-            | IntPx xp, IntPx yp, maxX, maxY when xp >= 0<px> && yp >= 0<px> && xp <= ftToPx maxX && yp <= ftToPx maxY -> {X=xp; Y=yp}
-            | _,_, maxX, maxY-> printfn "Please enter numbers within 0-%i wide and 0-%i tall" (ftToPx maxX) (ftToPx maxY)
-                                positionAsker gameState
-
-    let rec moveAsker positions =
-        positions |> Array.iteri (fun i p -> printfn "%i) %i %i" i p.X p.Y)
-        printfn "Enter an int corresponding to a displayed move or q to quit:" 
-        match Console.ReadLine() |> Int32.TryParse with
-        // TryParse will output a tuple (parsed?,int)
-        | true, inputIndex ->
-            match Array.tryItem inputIndex positions with
-                | Some p -> p
-                | None -> moveAsker positions
-        | false, _ -> moveAsker positions
