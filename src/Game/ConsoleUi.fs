@@ -10,7 +10,7 @@ module ConsoleWarhammer =
     let nextMovesToRulesList nextMoves = 
         nextMoves 
         |> List.map (function 
-                            | UnitRule nextMove -> sprintf "%s - %A" nextMove.Unit.UnitName nextMove.Rule
+                            | UnitRule nextMove -> sprintf "%s - %A" nextMove.UnitName nextMove.Rule
                             | EndRule nextMove ->  sprintf "%A" nextMove.Rule)
     /// Print the rules on the console.
     let displayNextMoves nextMoves = 
@@ -108,10 +108,10 @@ module ConsoleWarhammer =
                 
             
             board.Models 
-                |> Map.map (fun k x -> (x.Position.X |> toCharacterWidth, 
+                |> Map.map (fun _ x -> (x.Position.X |> toCharacterWidth, 
                                         x.Position.Y |> toCharacterHeight), 
                                         x.Player)
-                |> Map.iter (fun k ((x,y), player) -> boardDisplay.Item((x,y)) <- (playerToStr player))
+                |> Map.iter (fun _ ((x,y), player) -> boardDisplay.Item((x,y)) <- (playerToStr player))
             seq { for y in 0 .. (int maxHeight) do
                     yield seq { for x in 0 .. (int maxWidth) do
                                     yield  boardDisplay.Item((x * 1<WidthChars>,y*1<HeightChars>))}}
@@ -144,11 +144,15 @@ module ConsoleWarhammer =
         | "n" -> 
             ExitGame
         | _ -> askToPlayAgain api 
-    let gameToGameState = function 
-        | GameState gameState -> gameState
-        | PositionAsker asker -> positionAsker |> asker
-        | MoveAsker asker -> moveAsker |> asker
-        | DiceRollAsker asker -> diceRollAsker |> asker
+    let print a = 
+        match a with  
+            | PositionAsker _ -> printfn "Choose a Position: " ; a
+            | MoveAsker _     -> printfn "Choose a Move: "     ; a
+            | DiceRollAsker _ -> printfn "Roll a dice: "       ; a
+    let tell = function 
+        | PositionAsker asker -> Asker.Run (asker,positionAsker)
+        | MoveAsker asker -> Asker.Run (asker,moveAsker)
+        | DiceRollAsker asker -> Asker.Run(asker,diceRollAsker)
     let rec gameLoop api userAction = 
         printfn "\n------------------------------\n"  // a separator between moves
         
@@ -173,23 +177,30 @@ module ConsoleWarhammer =
                 printfn ""             
                 let nextUserAction = askToPlayAgain api 
                 gameLoop api nextUserAction
-            | Player1ToMove (game,nextMoves) -> 
-                let gameState = gameToGameState game
+            | Player1ToMove (gameState,Next nextMoves) -> 
                 gameState |> displayBoard
                 printfn "Player 1 to move" 
                 printfn "Turn: %A" gameState.Game.Turn     
                 displayNextMoves nextMoves
                 let newResult = processInput nextMoves
                 gameLoop api newResult 
-            | Player2ToMove (game,nextMoves) -> 
-                let gameState = gameToGameState game
+            | Player2ToMove (gameState,Next nextMoves) -> 
                 gameState |> displayBoard
                 printfn "Player 2 to move" 
                 printfn "Turn: %A" gameState.Game.Turn     
                 displayNextMoves nextMoves
                 let newResult = processInput nextMoves
                 gameLoop api newResult 
-
+            | Player1ToMove (gameState,Ask asker) ->
+                gameState |> displayBoard
+                printfn "Player 1 to choose:" 
+                let newResult = asker |> print |> tell |> ContinuePlay
+                gameLoop api newResult 
+            | Player2ToMove (gameState,Ask asker) ->
+                gameState |> displayBoard
+                printfn "Player 2 to choose:" 
+                let newResult = asker |> print |> tell |> ContinuePlay
+                gameLoop api newResult 
     /// start the game with the given API
     let startGame api =
         let userAction = ContinuePlay (api.NewGame())
