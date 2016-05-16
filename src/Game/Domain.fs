@@ -151,28 +151,34 @@ module WarhammerDomain =
        Rules : Map<string,Rule>
        EndCondition:GameState->bool
     } 
-    and Game = 
-        | GameState of GameState
-        | PositionAsker of ((GameState -> Position<px>) -> GameState)
-        | MoveAsker of ((Position<px>[] -> Position<px>) -> GameState)
-        | DiceRollAsker of ((unit -> DiceRoll) -> GameState)
-        | Chain of (GameState -> Game)
+    type Asker<'a> = Asker of ('a -> GameState)
+        with static member Run (a:Asker<'a>, input:'a) = let (Asker asker') = a 
+                                                         asker' input
+    type Asker = 
+        | PositionAsker of Asker<GameState -> Position<px>>
+        | MoveAsker of Asker<Position<px>[] -> Position<px>>
+        | DiceRollAsker of Asker<unit -> DiceRoll>
+    type EvalResult<'a> = 
+        | GameStateResult of GameState
+        | AskResult of Asker * Rule list * Guid option
     type UnitRule = {
-        Unit: Unit 
-        Rule: Rule 
-        Capability: MoveCapability}
+        UnitId: Guid 
+        Rule: Rule list
+        Capability: MoveCapability<unit>}
     and EndRule = {
-        Rule: Rule 
-        Capability: MoveCapability}
-    and MoveCapability = 
-        unit -> RuleResult
+        Rule: Rule list
+        Capability: MoveCapability<unit>}
+    and MoveCapability<'a> = 
+        'a -> RuleResult<unit>
     and NextMoveInfo = 
         | UnitRule of UnitRule
         | EndRule of EndRule
-    /// The result of a move. Do displayInfo later.
-    and RuleResult = 
-        | Player1ToMove of Game * NextMoveInfo list
-        | Player2ToMove of Game * NextMoveInfo list
+    and NextResult<'a> = 
+        | Next of NextMoveInfo list
+        | Ask of ('a -> RuleResult<'a>)
+    and RuleResult<'a> = 
+        | Player1ToMove of GameState * NextResult<'a>
+        | Player2ToMove of GameState * NextResult<'a>
         | GameWon of GameState * Player 
         | GameTied of GameState 
     
@@ -180,5 +186,5 @@ module WarhammerDomain =
     // all other functions come from the results of the previous move
     type WarhammerAPI  = 
         {
-        NewGame : MoveCapability
+        NewGame : MoveCapability<unit>
         }
