@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="12.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <Import Project="$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props" Condition="Exists('$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props')" />
   <PropertyGroup>
@@ -47,7 +47,13 @@
     <Reference Include="System.Numerics" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="OCR.fs" />
+    <None Include="paket.references" />
+    <Compile Include="Distribution.fs" />
+    <Compile Include="Probability.fs" />
+    <Compile Include="Rules.fs" />
+    <Compile Include="HtmlAgilityPack.FSharp.fs" />
+    <None Include="Epub.fsx" />
+    <None Include="OCR.fsx" />
     <None Include="App.config" />
   </ItemGroup>
   <PropertyGroup>
