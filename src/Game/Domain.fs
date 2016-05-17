@@ -64,7 +64,7 @@ module WarhammerDomain =
         member this.ToString = toString this
         static member FromString s = fromString s
     
-
+    type DiceRoll = DiceRoll of int
     type Phase = Begin | Movement | Psychic | Shooting | Assault | End
     type GameTurn = | Begin
                     | One    of Phase
@@ -119,11 +119,6 @@ module WarhammerDomain =
 
     type Player = Player1 | Player2
 
-    
-
- 
-    
-
     let drawingResolution = 26.0<dpi>
     let characterResolution = 6.0<dpi>
     type Dimensions = {Width:int<ft>; Height:int<ft>}
@@ -155,24 +150,36 @@ module WarhammerDomain =
        MaxRounds:GameState->PlayerTurn
        Rules : Map<string,Rule>
        EndCondition:GameState->bool
-    }
-    type UnitRule = {
-        Unit: Unit 
-        Rule: Rule 
+    } 
+    type Asker<'a,'b> = Asker of ('a -> 'b)
+        with static member Run (a:Asker<'a,'b>, input:'a) = let (Asker asker') = a 
+                                                            asker' input
+    and Asker = 
+        | PositionAsker of Asker<GameState -> Position<px>, RuleResult>
+        | MoveAsker of Asker<Position<px>[] -> Position<px>, RuleResult>
+        | DiceRollAsker of Asker<unit -> DiceRoll, RuleResult>
+    and EvalResult = 
+        | GameStateResult of GameState
+        | AskResult of Asker
+    and UnitRule = {
+        UnitId: Guid 
+        UnitName: string
+        Rule: Rule list
         Capability: MoveCapability}
     and EndRule = {
-        Rule: Rule 
+        Rule: Rule list
         Capability: MoveCapability}
     and MoveCapability = 
         unit -> RuleResult
-
     and NextMoveInfo = 
         | UnitRule of UnitRule
         | EndRule of EndRule
-    /// The result of a move. Do displayInfo later.
+    and NextResult= 
+        | Next of NextMoveInfo list
+        | Ask of Asker
     and RuleResult = 
-        | Player1ToMove of GameState * NextMoveInfo list
-        | Player2ToMove of GameState * NextMoveInfo list
+        | Player1ToMove of GameState * NextResult
+        | Player2ToMove of GameState * NextResult
         | GameWon of GameState * Player 
         | GameTied of GameState 
     

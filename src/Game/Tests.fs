@@ -59,7 +59,7 @@ type ``Given a mission in top, at the end of phase`` () =
             (advancePhase gameState).Game.Turn |> should equal bottomOf
     [<Test>] member test.
         ``Turn should go to other player if ending last phase``() =
-            match (playerMove positionAsker moveAsker Player1 None endPhase gameState) with
+            match (playerMove Player1 None [endPhase] gameState) with
                 | Player1ToMove _ -> failwith "Player should swap"
                 | Player2ToMove _ -> true |> should be True
                 | GameWon _ -> failwith "Tied not enough capabilities" 
