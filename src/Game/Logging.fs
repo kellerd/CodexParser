@@ -18,7 +18,7 @@ module Logger =
         match move with 
             | UnitRule ur -> 
                 let rule = ur.Rule 
-                let unit = Some ur.Unit
+                let unit = Some ur.UnitId
                 let cap = ur.Capability
                 UnitRule({ur with Capability = transformCapability transformMR player rule unit cap})
             | EndRule er ->
@@ -27,16 +27,20 @@ module Logger =
                 EndRule({er with Capability = transformCapability transformMR player rule None cap})
     /// Transform a MoveResult into a logged version
     let rec transformMoveResult (moveResult:RuleResult) :RuleResult =
-        
-        let tmr = transformMoveResult // abbreviate!
-
+        let tmr = transformMoveResult
         match moveResult with
-        | Player1ToMove (display,nextMoves) ->
+        | Player1ToMove (display,Next nextMoves) ->
             let nextMoves' = nextMoves |> List.map (transformNextMove tmr Player1) 
-            Player1ToMove (display,nextMoves') 
-        | Player2ToMove (display,nextMoves) ->
+            Player1ToMove (display,Next nextMoves') 
+        | Player2ToMove (display,Next nextMoves) ->
             let nextMoves' = nextMoves |> List.map (transformNextMove tmr Player2)
-            Player2ToMove (display,nextMoves') 
+            Player2ToMove (display,Next nextMoves') 
+        | Player1ToMove (display,Ask asker) ->
+            printfn "LOGINFO: Player1 Asking question"
+            moveResult
+        | Player2ToMove (display,Ask asker) ->
+            printfn "LOGINFO: Player2 Asking question"
+            moveResult
         | GameWon (display,player) ->
             printfn "LOGINFO: Game won by %A" player 
             moveResult
