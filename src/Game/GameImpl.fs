@@ -205,8 +205,11 @@ module WarhammerImpl =
     let rec eval playerMove fs uId gameState = 
         //Continue more stuff after you ask the user to do something
         let (|>!) f g = 
-            (fun a -> f a |> g) |> Asker 
-
+            f >> g |> Asker 
+        let either def op  = 
+            match op with 
+            | Some x -> x
+            | None -> def
         match fs with
         | [] -> GameStateResult gameState
         | h :: tail -> 
@@ -217,9 +220,10 @@ module WarhammerImpl =
                 | Function(Move maxMove), Some unit -> move unit gameState maxMove |>! playerMove uId tail |> MoveAsker |> AskResult
                 | Function(SetCharacteristicUnit(name, r)), Some u -> 
                     u.Rules 
-                    |> Map.find name 
-                    |> Map.replace (Rule.CreateNested r) <| name
-                    |> replaceRuleOnUnit gameState u |> GameStateResult
+                    |> Map.tryFind name 
+                    |> Option.map(fun r -> r |> Map.replace (Rule.CreateNested r) <| name
+                                                |> replaceRuleOnUnit gameState u |> GameStateResult)
+                    |> either (GameStateResult gameState)
                 | DeactivatedUntilEndOfPhaseOnFirstUse(r) as dr, Some u -> 
                     u.Rules 
                     |> Map.pickKeyOfItem dr 
