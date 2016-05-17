@@ -1,2 +1,3 @@
 nuget FSharpx.Extras
 nuget FsUnit.Sample
+nuget FSharp.Core

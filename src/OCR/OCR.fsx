@@ -1,6 +1,6 @@
 ﻿open System.IO
 
-#r "../packages/FSharp.Data.2.2.0/lib/net40/FSharp.Data.dll"
+#r "../../packages/FSharp.Data/lib/net40/FSharp.Data.dll"
 open FSharp.Data
 
 let Dir = new DirectoryInfo(@"C:\CodexWolves\OEBPS\image")
