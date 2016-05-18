@@ -10,8 +10,8 @@ module ConsoleWarhammer =
     let nextMovesToRulesList nextMoves = 
         nextMoves 
         |> List.map (function 
-                            | UnitRule nextMove -> sprintf "%s - %A" nextMove.UnitName nextMove.Rule
-                            | EndRule nextMove ->  sprintf "%A" nextMove.Rule)
+                            | UnitRule (unitRule, rs,_) -> sprintf "%s - %A" unitRule.UnitName rs
+                            | EndRule (rs,_) ->  sprintf "%A" rs)
     /// Print the rules on the console.
     let displayNextMoves nextMoves = 
         nextMoves |> nextMovesToRulesList
@@ -21,8 +21,8 @@ module ConsoleWarhammer =
     let getCapability selectedIndex (nextMoves:NextMoveInfo list) = 
         if selectedIndex < List.length nextMoves then
             match List.item selectedIndex nextMoves with
-                | EndRule r -> Some r.Capability
-                | UnitRule r -> Some r.Capability
+                | EndRule (_,mc) -> Some mc
+                | UnitRule (_,_,mc) -> Some mc
         else
             None
 

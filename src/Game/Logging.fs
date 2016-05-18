@@ -16,15 +16,15 @@ module Logger =
     /// Transform a NextMove into a logged version
     let transformNextMove transformMR player move = 
         match move with 
-            | UnitRule ur -> 
-                let rule = ur.Rule 
+            | UnitRule (ur,rs,mc) -> 
+                let rule = rs 
                 let unit = Some ur.UnitId
-                let cap = ur.Capability
-                UnitRule({ur with Capability = transformCapability transformMR player rule unit cap})
-            | EndRule er ->
-                let rule = er.Rule 
-                let cap = er.Capability
-                EndRule({er with Capability = transformCapability transformMR player rule None cap})
+                let cap = mc
+                UnitRule(ur,rs,transformCapability transformMR player rule unit cap)
+            | EndRule (rs,mc) ->
+                let rule = rs
+                let cap = mc
+                EndRule(rs, transformCapability transformMR player rule None cap)
     /// Transform a MoveResult into a logged version
     let rec transformMoveResult (moveResult:RuleResult) :RuleResult =
         let tmr = transformMoveResult
