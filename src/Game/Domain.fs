@@ -151,29 +151,27 @@ module WarhammerDomain =
        Rules : Map<string,Rule>
        EndCondition:GameState->bool
     } 
+    
+    type UnitRule = {
+        UnitId: Guid 
+        UnitName: string}
+
     type Asker<'a,'b> = Asker of ('a -> 'b)
         with static member Run (a:Asker<'a,'b>, input:'a) = let (Asker asker') = a 
                                                             asker' input
-    and Asker = 
+    
+    type Asker = 
         | PositionAsker of Asker<GameState -> Position<px>, RuleResult>
         | MoveAsker of Asker<Position<px>[] -> Position<px>, RuleResult>
         | DiceRollAsker of Asker<unit -> DiceRoll, RuleResult>
     and EvalResult = 
         | GameStateResult of GameState
         | AskResult of Asker
-    and UnitRule = {
-        UnitId: Guid 
-        UnitName: string
-        Rule: Rule list
-        Capability: MoveCapability}
-    and EndRule = {
-        Rule: Rule list
-        Capability: MoveCapability}
     and MoveCapability = 
         unit -> RuleResult
     and NextMoveInfo = 
-        | UnitRule of UnitRule
-        | EndRule of EndRule
+        | UnitRule of UnitRule * Rule: Rule list * Capability: MoveCapability
+        | EndRule of Rule: Rule list * Capability: MoveCapability
     and NextResult= 
         | Next of NextMoveInfo list
         | Ask of Asker
