@@ -259,12 +259,10 @@ module WarhammerImpl =
         match uId with
         | Some u -> 
             UnitRule({ UnitId = u
-                       Rule = rules
                        UnitName = tryFindNewUnit uId gameState |> Option.fold (fun _ o -> o.UnitName) ""
-                       Capability = capability })
+                       },rules,capability)
         | None -> 
-            EndRule { Rule = rules
-                      Capability = capability }
+            EndRule (rules,capability)
     
     let gameResultFor player gs nextMoves  = 
         match player with
