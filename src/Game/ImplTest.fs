@@ -90,9 +90,9 @@ module ImplTest =
                 { Player = Player2
                   Units = [ HormagauntUnit ] |> List.map (fun u -> u.Id, u) |> Map.ofList
                   Score = Score 0 } ]
+          Rules = Map.empty<string, Rule>
           Game = 
               { Turn = Top GameTurn.Begin
                 Mission = 
                     { MaxRounds = (fun gs -> Bottom(Six(Phase.End)))
-                      Rules = Map.empty<string, Rule>
                       EndCondition = (fun gs -> gs.Game.Turn = Bottom(GameTurn.End)) } } }
