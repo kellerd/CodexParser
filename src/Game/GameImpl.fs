@@ -1,6 +1,4 @@
-﻿
-    
-namespace GameImpl
+﻿namespace GameImpl
 module Map =
     let pickKeyOfItem item map = Map.pick (fun k ur -> if item = ur then Some k  else None) map
     let replace f x oldKey = (Map.remove oldKey >> Map.add oldKey (f x))
@@ -25,47 +23,43 @@ module WarhammerImpl =
                                                 | [] -> None
                                                 | x :: _ -> Some x
     
+    let tryFindNewUnit gameState unitId = 
+        gameState.Players |> List.tryPick (fun p -> unitId |> Option.bind(fun unitId -> p.Units |> Map.tryFind unitId))
+    let tryFindPlayer gameState unit = 
+        gameState.Players |> List.tryPick (fun p -> 
+                                                     p.Units
+                                                     |> Map.tryFind unit.Id
+                                                     |> Option.bind (fun _ -> Some p))
+    let findModel mId gameState  = gameState.Board.Models |> Map.find mId
+
     let rec removeFirst pred lst = 
         match lst with
         | h :: t when pred h -> t
         | h :: t -> h :: removeFirst pred t
         | _ -> []
     
-    //
-    //    let getDisplayInfo (gameState:GameState) =
-    //        {DisplayInfo.Board = gameState.Board}
-    let rec isRunnable = 
-        function 
-        | Function _ -> true
-        | Nested(r, r2) -> 
-            seq { 
-                yield r
-                yield r2
-            }
-            |> Seq.exists isRunnable
-        | Overwritten(r, _) -> isRunnable r
-        | DeactivatedUntilEndOfPhase _ -> false
-        | DeactivatedUntilEndOfGame _ -> false
-        | Description _ -> false
-        | DeactivatedUntilEndOfPhaseOnFirstUse _ -> true
-        | DeactivatedUntilEndOfGameOnFirstUse _ -> true
-        | Characteristic _ -> false
-    
-    let rec collectRules = 
-        function 
-        | Function e -> [ Function e ]
-        | Characteristic _ -> []
-        | Nested(r, r2) -> 
-            [ r; r2 ]
-            |> List.map collectRules
-            |> List.collect id
-        | Overwritten(r, _) -> collectRules r
-        | DeactivatedUntilEndOfPhase _ -> []
-        | DeactivatedUntilEndOfGame _ -> []
-        | Description _ -> []
-        | DeactivatedUntilEndOfPhaseOnFirstUse r -> [DeactivatedUntilEndOfPhaseOnFirstUse r]
-        | DeactivatedUntilEndOfGameOnFirstUse r -> [DeactivatedUntilEndOfGameOnFirstUse r]
-    
+    let collectRules (gs:GameState) = 
+        let isActive = function
+            ///Todo find nested rules -> Depends on how they are nested.
+            | UnitApplication (r, ug) -> tryFindNewUnit gs (Some ug) |> Option.bind (fun u -> u.Rules |> Map.tryFind r.ToString)
+            | ModelApplication (r, mg) -> findModel mg gs |> fun mi -> mi.Model.Rules |> Map.tryFind r.ToString
+            | GameStateApplication r -> gs.Rules |> Map.tryFind r.ToString
+        let rec collectRest = function
+            | Function e -> [ Function e ]
+            | Nested(r, r2) -> 
+                [ r; r2 ]
+                |> List.collect collectRest
+            | Overwritten(r, _) -> collectRest r
+            | DeactivatedUntilEndOfPhase _ -> []
+            | DeactivatedUntilEndOfGame _ -> []
+            | Description _ -> []
+            | DeactivatedUntilEndOfPhaseOnFirstUse _ as r -> [r]
+            | DeactivatedUntilEndOfGameOnFirstUse _ as r -> [r]
+            | Characteristic _ -> []
+            | ActiveWhen (ra,r) -> match isActive ra with
+                                    | Some r -> [r]
+                                    | None -> []
+        collectRest
     let splitPt = 
         function 
         | Top(x) -> Top, x
@@ -89,15 +83,7 @@ module WarhammerImpl =
     
     let replacePlayerUnits p u nu = { p with Units = Map.replace id nu u.Id p.Units }
     let replaceGameStatePlayers s p np = { s with Players = replace s.Players p np }
-    let tryFindNewUnit (unitId: Guid option) gameState = 
-        gameState.Players |> List.tryPick (fun p -> unitId |> Option.bind(fun unitId -> p.Units |> Map.tryFind unitId))
-    let tryFindPlayer gameState unit = 
-        gameState.Players |> List.tryPick (fun p -> 
-                                                     p.Units
-                                                     |> Map.tryFind unit.Id
-                                                     |> Option.bind (fun _ -> Some p))
-    let findModel (model:Model) gameState  = 
-        gameState.Board.Models |> Map.find model.Id
+
     let updatePlayerInGameState unit newUnit gameState = 
         let foundPlayer = tryFindPlayer gameState unit
         let newPlayer = foundPlayer |> Option.map (fun p -> replacePlayerUnits p unit newUnit)
@@ -146,7 +132,7 @@ module WarhammerImpl =
                 { gameState with Board = 
                                     { gameState.Board with Models = forAllModels (fun m -> { Model = m
                                                                                              Player = p.Player
-                                                                                             Position = findModel m gameState |> newPosition }) u gameState} }
+                                                                                             Position = findModel m.Id gameState |> newPosition }) u gameState} }
             | None -> failwith "Couldn't find player"
     
     let advancePhase gs = 
@@ -213,7 +199,7 @@ module WarhammerImpl =
         match fs with
         | [] -> GameStateResult gameState
         | h :: tail -> 
-            (h, tryFindNewUnit uId gameState)
+            (h, tryFindNewUnit gameState uId )
             |> function 
                 | Function(EndPhase), _ -> GameStateResult (advancePhase gameState)
                 | Function(Deploy), Some unit -> deploy unit gameState |>! playerMove uId tail |> PositionAsker |> AskResult              
@@ -225,17 +211,19 @@ module WarhammerImpl =
                                                 |> replaceRuleOnUnit gameState u |> GameStateResult)
                     |> either (GameStateResult gameState)
                 | DeactivatedUntilEndOfPhaseOnFirstUse(r) as dr, Some u -> 
-                    u.Rules 
-                    |> Map.pickKeyOfItem dr 
-                    |> Map.replace DeactivatedUntilEndOfPhase dr
-                    |> replaceRuleOnUnit gameState u 
-                    |> eval playerMove (collectRules r) (Some u.Id)
+                    let newGameState = 
+                        u.Rules 
+                        |> Map.pickKeyOfItem dr 
+                        |> Map.replace DeactivatedUntilEndOfPhase dr
+                        |> replaceRuleOnUnit gameState u 
+                    eval playerMove (collectRules newGameState r) (Some u.Id) newGameState
                 | DeactivatedUntilEndOfGameOnFirstUse(r) as dr, Some u ->  
-                    u.Rules 
-                    |> Map.pickKeyOfItem dr 
-                    |> Map.replace DeactivatedUntilEndOfGame dr
-                    |> replaceRuleOnUnit gameState u 
-                    |> eval playerMove (collectRules r) (Some u.Id)
+                    let newGameState = 
+                        u.Rules 
+                        |> Map.pickKeyOfItem dr 
+                        |> Map.replace DeactivatedUntilEndOfGame dr
+                        |> replaceRuleOnUnit gameState u 
+                    eval playerMove (collectRules newGameState r) (Some u.Id) newGameState
                 | _ -> GameStateResult gameState
             |> function
                 | GameStateResult gs -> eval playerMove tail uId gs
@@ -251,15 +239,14 @@ module WarhammerImpl =
         |> List.collect (fun u -> 
                u.Rules
                |> Map.toList
-               |> List.filter (fun (_,t) -> isRunnable t)
-               |> List.map (fun (_,r) -> collectRules r, Some u.Id))
+               |> List.map (fun (_,r) -> collectRules gs r, Some u.Id))
 
     let makeNextMoveInfo f player gameState (rules, uId) = 
         let capability() = f player uId rules gameState
         match uId with
         | Some u -> 
             UnitRule({ UnitId = u
-                       UnitName = tryFindNewUnit uId gameState |> Option.fold (fun _ o -> o.UnitName) ""
+                       UnitName = tryFindNewUnit gameState uId |> Option.fold (fun _ o -> o.UnitName) ""
                        },rules,capability)
         | None -> 
             EndRule (rules,capability)
@@ -273,7 +260,7 @@ module WarhammerImpl =
         match rulesAndUnits with
         | [] -> None
         | rulesAndUnits -> 
-            ((collectRules endPhase), None) :: rulesAndUnits
+            ((collectRules newGameState endPhase), None) :: rulesAndUnits
             |> List.map (makeNextMoveInfo f player newGameState)
             |> Next 
             |> gameResultFor player newGameState 
@@ -286,7 +273,7 @@ module WarhammerImpl =
             |> makegameResultWithCapabilities playerMove currentPlayer gs
         match result with
         | Some ruleResult -> ruleResult
-        | None -> playerMove currentPlayer None (collectRules endPhase) gs
+        | None -> playerMove currentPlayer None (collectRules gs endPhase) gs
         
     let rec playerMove player uId thingsToDo (gameState:GameState) = 
         let evalResult = 

@@ -1,5 +1,4 @@
-﻿
-namespace Domain
+﻿namespace Domain
 module WarhammerDomain =
     open System
     open Microsoft.FSharp.Reflection
@@ -66,6 +65,9 @@ module WarhammerDomain =
     
     type DiceRoll = DiceRoll of int
     type Phase = Begin | Movement | Psychic | Shooting | Assault | End
+    type ModelGuid = Guid
+    type UnitGuid = Guid
+    
     type GameTurn = | Begin
                     | One    of Phase
                     | Two    of Phase
@@ -97,20 +99,26 @@ module WarhammerDomain =
         | Characteristic of Characteristic
         | Nested of Rule  * Rule
         | Overwritten of Rule  * Rule 
+        | ActiveWhen of RuleApplication * Rule
         | DeactivatedUntilEndOfPhaseOnFirstUse of Rule
         | DeactivatedUntilEndOfGameOnFirstUse of Rule
         | DeactivatedUntilEndOfPhase of Rule
         | DeactivatedUntilEndOfGame of Rule
         | Description of RuleDescription with
         static member CreateNested = (fun (newR:Rule) (x:Rule) -> Nested(newR,x)) 
-    and [<ReferenceEquality>]  Model = {
+    and RuleApplication =
+        | UnitApplication of RuleImpl * UnitGuid
+        | ModelApplication of RuleImpl * ModelGuid
+        | GameStateApplication of RuleImpl
+        
+    type [<ReferenceEquality>]  Model = {
       Name : string
-      Id : Guid
+      Id : ModelGuid
       Rules : Map<string,Rule>
       Base: Base
     } 
     and [<ReferenceEquality>] Unit = { 
-      Id : Guid
+      Id : UnitGuid
       UnitModels  : Map<Guid,Model>
       UnitName    : string
       Rules : Map<string,Rule>
@@ -126,6 +134,7 @@ module WarhammerDomain =
     type GameState = {
         Board : BoardInfo
         Players : PlayerInfo list
+        Rules : Map<string,Rule>
         Game:GameInfo
         }
     and PlayerInfo = {
@@ -134,7 +143,7 @@ module WarhammerDomain =
         Score: Score
     }
     and BoardInfo = {
-        Models : Map<Guid,ModelInfo>
+        Models : Map<ModelGuid,ModelInfo>
         Dimensions : Dimensions
     }
     and ModelInfo = {
@@ -148,12 +157,11 @@ module WarhammerDomain =
     }
     and Mission = {
        MaxRounds:GameState->PlayerTurn
-       Rules : Map<string,Rule>
        EndCondition:GameState->bool
     } 
     
     type UnitRule = {
-        UnitId: Guid 
+        UnitId: UnitGuid 
         UnitName: string}
 
     type Asker<'a,'b> = Asker of ('a -> 'b)
