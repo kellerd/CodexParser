@@ -4,7 +4,6 @@ module Map =
     let replace f x oldKey = (Map.remove oldKey >> Map.add oldKey (f x))
 module WarhammerImpl = 
     open Domain.WarhammerDomain
-    open System    
     let other player = 
         player |> function 
         | Player1 -> Player2
@@ -57,7 +56,7 @@ module WarhammerImpl =
             | DeactivatedUntilEndOfGameOnFirstUse _ as r -> [r]
             | Characteristic _ -> []
             | ActiveWhen (ra,r) -> match isActive ra with
-                                    | Some r -> [r]
+                                    | Some _ -> [r]
                                     | None -> []
         collectRest
     let splitPt = 
@@ -118,7 +117,7 @@ module WarhammerImpl =
                         yield newPos
         }    
 
-        fun moveAsker -> 
+        let createMove moveAsker =
             let newPosition m = 
                 let ps = pixelsInCircle ((inch.ToPixels characterResolution maxMove / 1.<px> |> System.Math.Round |> int) * 1<px>) m.Position |> Seq.toArray
                 let rec newPick ps = 
@@ -134,7 +133,8 @@ module WarhammerImpl =
                                                                                              Player = p.Player
                                                                                              Position = findModel m.Id gameState |> newPosition }) u gameState} }
             | None -> failwith "Couldn't find player"
-    
+        createMove
+
     let advancePhase gs = 
         let nextGt x = 
             match x with
@@ -155,7 +155,7 @@ module WarhammerImpl =
                 | DeactivatedUntilEndOfPhase r -> r
                 | r -> r
             
-            let createNewUnit (unit : Unit) = { unit with Rules = Map.map (fun k t -> enableRule t) unit.Rules }
+            let createNewUnit (unit : Unit) = { unit with Rules = Map.map (fun _ t -> enableRule t) unit.Rules }
             let newGameState = 
                 gameState.Players 
                 |> List.fold 
@@ -204,10 +204,10 @@ module WarhammerImpl =
                 | Function(EndPhase), _ -> GameStateResult (advancePhase gameState)
                 | Function(Deploy), Some unit -> deploy unit gameState |>! playerMove uId tail |> PositionAsker |> AskResult              
                 | Function(Move maxMove), Some unit -> move unit gameState maxMove |>! playerMove uId tail |> MoveAsker |> AskResult
-                | Function(SetCharacteristicUnit(name, r)), Some u -> 
+                | Function(SetCharacteristicUnit(name, newRule)), Some u -> 
                     u.Rules 
                     |> Map.tryFind name 
-                    |> Option.map(fun r -> r |> Map.replace (Rule.CreateNested r) <| name
+                    |> Option.map(fun r -> r |> Map.replace (Rule.CreateNested newRule) <| name
                                                 |> replaceRuleOnUnit gameState u |> GameStateResult)
                     |> either (GameStateResult gameState)
                 | DeactivatedUntilEndOfPhaseOnFirstUse(r) as dr, Some u -> 
@@ -240,6 +240,7 @@ module WarhammerImpl =
                u.Rules
                |> Map.toList
                |> List.map (fun (_,r) -> collectRules gs r, Some u.Id))
+        |> List.filter (fst >> List.isEmpty >> not)
 
     let makeNextMoveInfo f player gameState (rules, uId) = 
         let capability() = f player uId rules gameState
