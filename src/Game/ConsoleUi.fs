@@ -8,21 +8,20 @@ module ConsoleWarhammer =
         | ExitGame
     
     let nextMovesToRulesList nextMoves = 
-        nextMoves 
-        |> List.map (function 
-                            | UnitRule (unitRule, rs,_) -> sprintf "%s - %A" unitRule.UnitName rs
-                            | EndRule (rs,_) ->  sprintf "%A" rs)
+        nextMoves
+        |> List.map (fst >> function 
+                            | UnitRuleInfo ri -> sprintf "%s - %A" ri.UnitName ri.Rule
+                            | ModelRuleInfo ri -> sprintf "Model Rule - %A - %A" ri.ModelId ri.Rule
+                            | GameStateRuleInfo ri ->  sprintf "%A" ri)
     /// Print the rules on the console.
     let displayNextMoves nextMoves = 
         nextMoves |> nextMovesToRulesList
         |> List.iteri (fun i r -> 
             printfn "%i) %s" i r)
 
-    let getCapability selectedIndex (nextMoves:NextMoveInfo list) = 
+    let getCapability selectedIndex (nextMoves:(RuleInfo * MoveCapability) list) = 
         if selectedIndex < List.length nextMoves then
-            match List.item selectedIndex nextMoves with
-                | EndRule (_,mc) -> Some mc
-                | UnitRule (_,_,mc) -> Some mc
+            List.item selectedIndex nextMoves |> snd |> Some 
         else
             None
 
@@ -166,28 +165,24 @@ module ConsoleWarhammer =
             | GameTied gameState -> 
                 gameState |> displayBoard
                 printfn "GAME OVER - Tie"       
-                printfn "Turn: %A" gameState.Game.Turn      
                 printfn ""             
                 let nextUserAction = askToPlayAgain api 
                 gameLoop api nextUserAction
             | GameWon (gameState,player) -> 
                 gameState |> displayBoard
                 printfn "GAME WON by %A" player    
-                printfn "Turn: %A" gameState.Game.Turn          
                 printfn ""             
                 let nextUserAction = askToPlayAgain api 
                 gameLoop api nextUserAction
             | Player1ToMove (gameState,Next nextMoves) -> 
                 gameState |> displayBoard
                 printfn "Player 1 to move" 
-                printfn "Turn: %A" gameState.Game.Turn     
                 displayNextMoves nextMoves
                 let newResult = processInput nextMoves
                 gameLoop api newResult 
             | Player2ToMove (gameState,Next nextMoves) -> 
                 gameState |> displayBoard
                 printfn "Player 2 to move" 
-                printfn "Turn: %A" gameState.Game.Turn     
                 displayNextMoves nextMoves
                 let newResult = processInput nextMoves
                 gameLoop api newResult 
