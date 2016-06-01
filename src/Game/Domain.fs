@@ -8,7 +8,7 @@ module WarhammerDomain =
         match FSharpValue.GetUnionFields(x, typeof<'a>) with
         | case, _ -> case.Name
 
-    let fromString (s:string) =
+    let fromString<'a> (s:string) =
         match FSharpType.GetUnionCases typeof<'a> |> Array.filter (fun case -> case.Name = s) with
         |[|case|] -> Some(FSharpValue.MakeUnion(case,[||]) :?> 'a)
         |_ -> None
@@ -61,14 +61,14 @@ module WarhammerDomain =
         | InvSaves        of CharacteristicValue
         | Saves           of CharacteristicValue with
         member this.ToString = toString this
-        static member FromString s = fromString s
+        static member FromString s = fromString<Characteristic> s
     
     type DiceRoll = DiceRoll of int
     type Phase = Begin | Movement | Psychic | Shooting | Assault | End
     type ModelGuid = Guid
     type UnitGuid = Guid
     
-    type GameTurn = | Begin
+    type Round = | Begin
                     | One    of Phase
                     | Two    of Phase
                     | Three  of Phase
@@ -77,39 +77,58 @@ module WarhammerDomain =
                     | Six    of Phase
                     | Seven  of Phase
                     | End
-    type PlayerTurn = Top of GameTurn | Bottom of GameTurn
+    type PlayerTurn = Top | Bottom 
     
 
-    type Deployment = 
-        | Deployed
+    type DeploymentType = 
         | Destroyed
         | OngoingReserves
         | Reserves
-        | NotDeployed
+        | Deployed
+        | Start
+    type LogicalOperator = And | Or
 
-    type RuleImpl = 
-        | EndPhase
+    type ModelRuleImpl = 
+        | MCharacteristic of Characteristic
+        member this.ToString = toString this
+        static member FromString s = fromString<ModelRuleImpl> s
+    and UnitRuleImpl = 
         | Move of float<inch>
+        | DeploymentState of DeploymentType
         | Deploy
+        | UCharacteristic of Characteristic
         | SetCharacteristicUnit of string * Rule
         member this.ToString = toString this
-        static member FromString s = fromString<RuleImpl> s
+        static member FromString s = fromString<UnitRuleImpl> s
+    and GameRuleImpl = 
+        | Noop
+        | EndPhase
+        | EndTurn
+        | EndGame
+        | PlayerTurn of PlayerTurn
+        | GameRound of Round
+        | Phase of Phase
+        member this.ToString = toString this
+        static member FromString s = fromString<GameRuleImpl> s
+    and LogicalExpression =
+        | Logical of LogicalExpression * LogicalOperator * LogicalExpression
+        | Not of LogicalExpression
+        | Rule of RuleApplication
+    and RuleApplication = 
+        | UnitRule of UnitRuleImpl * UnitGuid
+        | ModelRule of ModelRuleImpl * ModelGuid
+        | GameStateRule of GameRuleImpl
     and Rule = 
-        | Function of RuleImpl
-        | Characteristic of Characteristic
-        | Nested of Rule  * Rule
-        | Overwritten of Rule  * Rule 
-        | ActiveWhen of RuleApplication * Rule
-        | DeactivatedUntilEndOfPhaseOnFirstUse of Rule
-        | DeactivatedUntilEndOfGameOnFirstUse of Rule
-        | DeactivatedUntilEndOfPhase of Rule
-        | DeactivatedUntilEndOfGame of Rule
-        | Description of RuleDescription with
-        static member CreateNested = (fun (newR:Rule) (x:Rule) -> Nested(newR,x)) 
-    and RuleApplication =
-        | UnitApplication of RuleImpl * UnitGuid
-        | ModelApplication of RuleImpl * ModelGuid
-        | GameStateApplication of RuleImpl
+        | Function of RuleApplication
+        | UserActivated of Rule
+        | ActiveWhen of LogicalExpression * Rule
+        | Description of RuleDescription 
+        | Overwritten of Rule * Rule 
+//        | Nested of Rule  * Rule
+//        | OnceUntil of LogicalExpression  * Rule 
+       with static member Overwrite = (fun (newR:Rule) (x:Rule) -> Overwritten(newR,x)) 
+//       with static member CreateNested = (fun (newR:Rule) (x:Rule) -> Nested(newR,x)) 
+    
         
     type [<ReferenceEquality>]  Model = {
       Name : string
@@ -119,10 +138,9 @@ module WarhammerDomain =
     } 
     and [<ReferenceEquality>] Unit = { 
       Id : UnitGuid
-      UnitModels  : Map<Guid,Model>
+      UnitModels  : Map<UnitGuid,Model>
       UnitName    : string
       Rules : Map<string,Rule>
-      Deployment : Deployment
     } 
 
     type Player = Player1 | Player2
@@ -139,7 +157,7 @@ module WarhammerDomain =
         }
     and PlayerInfo = {
         Player: Player
-        Units: Map<Guid,Unit>
+        Units: Map<UnitGuid,Unit>
         Score: Score
     }
     and BoardInfo = {
@@ -152,17 +170,12 @@ module WarhammerDomain =
         Position: Position<px>
     }
     and GameInfo = {
-        Turn : PlayerTurn
         Mission:Mission
     }
-    and Mission = {
-       MaxRounds:GameState->PlayerTurn
-       EndCondition:GameState->bool
-    } 
+    and Mission = unit
     
-    type UnitRule = {
-        UnitId: UnitGuid 
-        UnitName: string}
+    type UnitRuleInfo = { UnitId: UnitGuid; UnitName: string; Rule: Rule}
+    type ModelRuleInfo = { ModelId: ModelGuid; Rule: Rule}
 
     type Asker<'a,'b> = Asker of ('a -> 'b)
         with static member Run (a:Asker<'a,'b>, input:'a) = let (Asker asker') = a 
@@ -177,11 +190,12 @@ module WarhammerDomain =
         | AskResult of Asker
     and MoveCapability = 
         unit -> RuleResult
-    and NextMoveInfo = 
-        | UnitRule of UnitRule * Rule: Rule list * Capability: MoveCapability
-        | EndRule of Rule: Rule list * Capability: MoveCapability
+    and RuleInfo = 
+        | UnitRuleInfo of UnitRuleInfo
+        | ModelRuleInfo of ModelRuleInfo 
+        | GameStateRuleInfo of Rule: Rule
     and NextResult= 
-        | Next of NextMoveInfo list
+        | Next of (RuleInfo * MoveCapability) list
         | Ask of Asker
     and RuleResult = 
         | Player1ToMove of GameState * NextResult
