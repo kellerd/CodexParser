@@ -2,21 +2,19 @@ FRAMEWORK: >= NET45
 NUGET
   remote: https://www.nuget.org/api/v2
   specs:
-    FAKE (4.26.0)
+    FAKE (4.28)
     FSharp.Control.AsyncSeq (2.0.8)
     FSharp.Core (4.0.0.1)
-    FSharp.Data (2.2.0)
-    FSharpx.Async (1.12.0)
+    FSharp.Data (2.2)
+    FSharpx.Async (1.12)
       FSharp.Control.AsyncSeq
-    FSharpx.Collections (1.14.0)
-      FSharp.Core (>= 3.0.0)
+    FSharpx.Collections (1.15.1)
+      FSharp.Core
     FSharpx.Extras (1.10.3)
       FSharpx.Async (>= 1.12)
       FSharpx.Collections (>= 1.10.1)
-    FsUnit (2.1.0)
+    FsUnit (2.2)
       FSharp.Core (>= 3.1.2.5)
-      NUnit (3.2.0)
-    FsUnit.Sample (1.4.0)
-      FsUnit
+      NUnit (3.2.1)
     HtmlAgilityPack (1.4.9)
-    NUnit (3.2.0)
+    NUnit (3.2.1)
