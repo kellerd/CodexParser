@@ -2,10 +2,12 @@
 #r "./packages/FAKE/tools/FakeLib.dll"
 
 open Fake
+open Fake.Testing.NUnit3
 
 // Directories
 let buildDir  = "./build/"
 let deployDir = "./deploy/"
+let testDir = "./test/"
 
 
 // Filesets
@@ -33,9 +35,18 @@ Target "Deploy" (fun _ ->
         |> Zip buildDir (deployDir + "ApplicationName." + version + ".zip")
 )
 
+// define test dlls
+let testDlls = !! (testDir + "/bin/Tests.dll")
+ 
+Target "NUnitTest" (fun _ ->
+    testDlls
+        |> NUnit3 id
+)
+
 // Build order
 "Clean"
   ==> "Build"
+  ==> "NUnitTest"
   ==> "Deploy"
 
 // start build

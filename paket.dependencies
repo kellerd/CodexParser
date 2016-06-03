@@ -4,5 +4,5 @@ framework >= net45
 nuget FAKE
 nuget FSharp.Data 2.2.0
 nuget FSharpx.Extras 1.10.3
-nuget FsUnit.Sample 1.4.0.0
 nuget HtmlAgilityPack 1.4.9
+nuget FsUnit
