@@ -2,7 +2,6 @@
 module WarhammerDomain =
     open System
     open Microsoft.FSharp.Reflection
-    open Equals
 
     let toString (x:'a) = 
         match FSharpValue.GetUnionFields(x, typeof<'a>) with
