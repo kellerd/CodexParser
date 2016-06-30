@@ -96,12 +96,7 @@ module WarhammerImpl =
 //        | ActiveWhen(logic, rule) -> contains logic rule
 //        | Description(_) -> Active r
 
-//    let collectRules (gs:GameState) = 
-//        let isActive = function
-//            ///Todo find nested rules -> Depends on how they are nested.
-//            | UnitApplication (r, ug) -> tryFindUnit gs ug |> Option.bind (fun u -> u.Rules |> Map.tryFind r.ToString)
-//            | ModelApplication (r, mg) -> findModel mg gs |> fun mi -> mi.Model.Rules |> Map.tryFind r.ToString
-//            | GameStateApplication r -> gs.Rules |> Map.tryFind r.ToString
+//    let collectRules (gs:GameState) : RuleApplication list = 
 //        let rec collectRest = function
 //            | Function e -> [ Function e ]
 //            | Nested(r, r2) -> 
@@ -298,8 +293,8 @@ module WarhammerImpl =
     
     
     let availableRules player gs = 
-        let optionalRules =  Map.toSeq >> Seq.choose (fun (_,r) -> match r,gs with Optional _, Active r _ -> Some r | _ -> None) >> Seq.toList
-        let gameRules = optionalRules gs.Rules |> List.map GameStateRuleInfo
+        let optionalRules =  Map.toSeq >> Seq.choose (fun (_,r) -> match r,gs with Optional _, Active r ra -> Some ra | _ -> None) >> Seq.toList
+        let gameRules = optionalRules gs.Rules
         
         let unitRules = 
             gs.Players
@@ -307,22 +302,23 @@ module WarhammerImpl =
             |> List.map (fun p -> p.Units) 
             |> List.exactlyOne
             |> Map.toList
-            |> List.collect (fun (k,item) ->  optionalRules item.Rules |> List.map (fun r -> UnitRuleInfo { UnitId = k; UnitName = item.UnitName; Rule = r }))
+            |> List.collect (fun (k,item) ->  optionalRules item.Rules)
 
         let modelRules = 
             gs.Board.Models 
             |> Map.filter (fun _ item -> item.Player = player) 
             |> Map.toList
-            |> List.collect (fun (k,item) -> optionalRules item.Model.Rules |> List.map (fun r -> ModelRuleInfo { ModelId = k; Rule = r }))
+            |> List.collect (fun (k,item) -> optionalRules item.Model.Rules)
 
         gameRules @ unitRules @ modelRules
         
-    let makeNextMoveInfo f player gameState ruleInfo = 
+    let makeNextMoveInfo f player gameState ruleApplication = 
         let capability rule () = f player rule gameState
-        match ruleInfo with
-                        | GameStateRuleInfo ri -> (ruleInfo, Some ri |> capability)
-                        | UnitRuleInfo ri -> (ruleInfo, Some ri.Rule |> capability)
-                        | ModelRuleInfo ri -> (ruleInfo, Some ri.Rule |> capability)
+        let unitName unit = tryFindUnit gameState unit |> Option.map (fun u -> u.UnitName) |> defaultArg <| ""
+        match ruleApplication with
+            | UnitRule (_, uguid) as ra -> UnitRuleInfo({UnitId=uguid; UnitName=""; Rule=Function(ra)}), (capability ra)
+            | ModelRule (_, mguid) as ra -> ModelRuleInfo({ModelId=mguid; Rule=Function(ra)}), (capability ra)
+            | GameStateRule _ as ra -> GameStateRuleInfo(Function(ra)), (capability ra)
     
     let gameResultFor player gs nextMoves  = 
         match player with
@@ -332,7 +328,7 @@ module WarhammerImpl =
     let makeResultWithCapabilities f player newGameState rules = 
         let rules = 
             if List.isEmpty rules then
-                [GameStateRuleInfo(UserActivated(Function(GameStateRule(EndPhase))))]
+                [GameStateRule(EndPhase)]
             else
                 rules
         rules |> List.map (makeNextMoveInfo f player newGameState) |> Next |> gameResultFor player newGameState
@@ -342,11 +338,11 @@ module WarhammerImpl =
             |> availableRules currentPlayer
             |> makeResultWithCapabilities playerMove currentPlayer gs
         
-    let rec playerMove player rule gameState = 
+    let rec playerMove player (rule:RuleApplication list) gameState = 
         
         let evalResult = 
             match rule with
-            | Some rule -> eval (playerMove player) rule gameState
+            | Some rule -> eval (playerMove player) rule gameState // List.fold
             | None _ -> GameStateResult gameState
         
         let newPlayer = 
