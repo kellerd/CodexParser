@@ -31,7 +31,7 @@ type ``Given a Example state with Single Rules`` () =
 
    [<Test>] member test.
     ``Capabilities should not be empty`` ()=
-           availableRules gameState.Players.Head.Player gameState |> should not' (be Empty)
+           availableRules (activeRules gameState) activeRulesMap Player1 |> should not' (be Empty)
 //type ``Given a mission in top, at the end of phase`` () =
 //    let gameState = { Impl.ImplTest.initial with Game = {Impl.ImplTest.initial.Game with Turn = Top(One(Phase.End))}}
 //    let positionAsker gs = 
