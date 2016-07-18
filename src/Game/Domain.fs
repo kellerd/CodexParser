@@ -89,7 +89,7 @@ module WarhammerDomain =
 
     type ModelRuleImpl = 
         | MCharacteristic of Characteristic
-        member this.ToString = toString this
+        override this.ToString() = toString this
         static member FromString s = fromString<ModelRuleImpl> s
     and UnitRuleImpl = 
         | Move of float<inch>
@@ -97,7 +97,7 @@ module WarhammerDomain =
         | Deploy
         | UCharacteristic of Characteristic
         | SetCharacteristicUnit of string * Rule
-        member this.ToString = toString this
+        override  this.ToString() = toString this
         static member FromString s = fromString<UnitRuleImpl> s
     and GameRuleImpl = 
         | Noop
@@ -107,7 +107,7 @@ module WarhammerDomain =
         | PlayerTurn of PlayerTurn
         | GameRound of Round
         | Phase of Phase
-        member this.ToString = toString this
+        override this.ToString() = toString this
         static member FromString s = fromString<GameRuleImpl> s
     and LogicalExpression =
         | Logical of LogicalExpression * LogicalOperator * LogicalExpression
