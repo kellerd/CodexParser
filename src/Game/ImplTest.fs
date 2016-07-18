@@ -7,9 +7,9 @@ module ImplTest =
     let makeRule r = 
         let makeApp = 
             function 
-            | GameStateRule impl -> impl.ToString
-            | ModelRule(impl, _) -> impl.ToString
-            | UnitRule(impl, _) -> impl.ToString
+            | GameStateRule impl -> impl.ToString()
+            | ModelRule(impl, _) -> impl.ToString()
+            | UnitRule(impl, _) -> impl.ToString()
         
         let rec makeText = 
             function 

@@ -17,6 +17,8 @@ module WarhammerImpl =
 
     let tryFindUnit gameState unitId = 
         gameState.Players |> List.tryPick (fun p -> p.Units |> Map.tryFind unitId)
+    let tryFindUnitByModel gameState (model:Model) = 
+        gameState.Players |> List.choose(fun p -> p.Units |> Map.tryPick (fun _ u  -> u.UnitModels |> Map.tryFind model.Id |> Option.bind(fun _ -> Some u))) |> List.tryHead
     let tryFindPlayer gameState unit = 
         gameState.Players |> List.tryPick (fun p -> 
                                                      p.Units
@@ -49,9 +51,9 @@ module WarhammerImpl =
 
     and findInRuleList (gameState:GameState) ruleApplication rl = 
         rl |> Option.bind (Map.tryFindKey (fun k foundRule -> match ruleApplication with 
-                                                                | GameStateRule impl ->  k = impl.ToString && match gameState with Active foundRule r -> r = ruleApplication | _ -> false
-                                                                | ModelRule (impl, _) ->  k = impl.ToString && match gameState with Active foundRule r -> r = ruleApplication | _ -> false
-                                                                | UnitRule(impl, _) ->  k = impl.ToString && match gameState with Active foundRule r -> r = ruleApplication | _ -> false
+                                                                | GameStateRule impl ->  k = impl.ToString() && match gameState with Active foundRule r -> r = ruleApplication | _ -> false
+                                                                | ModelRule (impl, _) ->  k = impl.ToString() && match gameState with Active foundRule r -> r = ruleApplication | _ -> false
+                                                                | UnitRule(impl, _) ->  k = impl.ToString() && match gameState with Active foundRule r -> r = ruleApplication | _ -> false
                                                                 ))
     and contains (gameState:GameState) logic rule = 
             match logic with 
@@ -134,6 +136,8 @@ module WarhammerImpl =
         let pred z = x = z
         y :: (removeFirst pred xs)
     
+    
+    let replaceUnitModels u (m:Model) nm = { u with UnitModels = Map.replace id nm m.Id u.UnitModels }
     let replacePlayerUnits p u nu = { p with Units = Map.replace id nu u.Id p.Units }
     let replaceGameStatePlayers s p np = { s with Players = replace s.Players p np }
  
@@ -143,9 +147,18 @@ module WarhammerImpl =
         match gameState, foundPlayer, newPlayer with
         | (gs, Some p, Some np) -> replaceGameStatePlayers gs p np
         | (gs, _, _) -> gs   
+    let updateUnitInGameState (model:Model) newmodel gameState = 
+        let foundUnit = tryFindUnitByModel gameState model
+        let newUnit = foundUnit |> Option.map (fun p -> replaceUnitModels p model newmodel)
+        match gameState, foundUnit, newUnit with
+        | (gs, Some u, Some nu) -> updatePlayerInGameState u nu gs
+        | (gs, _, _) -> gs   
     let replaceRuleOnUnit gameState (unit : Unit) replace = 
         let newUnit = { unit with Rules = unit.Rules |> replace }
         updatePlayerInGameState unit newUnit gameState
+    let replaceRuleOnModel gameState (model : Model) replace = 
+        let newmodel = { model with Rules = model.Rules |> replace }
+        updateUnitInGameState model newmodel gameState
 
     let forAllModels f newUnit gameState = 
         [ for m in newUnit.UnitModels do
@@ -253,48 +266,69 @@ module WarhammerImpl =
 //                  Players = gs |> enableDeactivatedRules }
 
 
-    
-    let rec eval playerMove rule gameState = 
-        let (|>!)  f g =
-            f >> g |> Asker
-        //Continue more stuff after you ask the user to do something
-
-        rule |> function 
+    let rec eval moveNextPlayer rules gameState = 
+        match rules with
+        | [] -> GameStateResult gameState
+        | rule::rest -> 
+            rule |> function 
 //                | Function(GameStateApplication(EndPhase)) -> GameStateResult (advancePhase gameState)
-                | Function(UnitRule(Deploy,uId)) -> deploy uId gameState |>! playerMove None |> PositionAsker |> AskResult              
-                | Function(UnitRule(Move maxMove,uId)) -> move uId gameState maxMove |>! playerMove None |> MoveAsker |> AskResult
-                | Function(UnitRule(SetCharacteristicUnit(name, newRule), uId)) -> 
+                | UnitRule(Deploy,uId) -> deploy uId gameState >> eval moveNextPlayer rest >> moveNextPlayer gameState |> Asker  |> PositionAsker |> AskResult              
+                | UnitRule(Move maxMove,uId) -> move uId gameState maxMove >> eval moveNextPlayer rest >> moveNextPlayer gameState |> Asker  |> MoveAsker |> AskResult
+                | UnitRule(SetCharacteristicUnit(name, newRule), uId) -> 
                     uId |> tryFindUnit gameState
                     |> Option.bind (fun u -> u.Rules 
                                                 |> Map.tryFind name
                                                 |> Option.map (fun r -> r |> Map.replace (Rule.Overwrite newRule) <| name
                                                                           |> replaceRuleOnUnit gameState u |> GameStateResult))
                     |> defaultArg <| (GameStateResult gameState)
-                | UserActivated r -> eval playerMove r gameState
-                | ActiveWhen (_,r) -> eval playerMove r gameState
-                | Description _ -> GameStateResult gameState
-                | Overwritten (r, _) -> eval playerMove r gameState
-//                | _ -> GameStateResult gameState
-//                | DeactivatedUntilEndOfPhaseOnFirstUse(r) as dr -> 
-//                    let newGameState = 
-//                        u.Rules 
-//                        |> Map.pickKeyOfItem dr 
-//                        |> Map.replace DeactivatedUntilEndOfPhase dr
-//                        |> replaceRuleOnUnit gameState u 
-//                    eval playerMove (collectRules newGameState r) (Some u.Id) newGameState
-//                | DeactivatedUntilEndOfGameOnFirstUse(r) as dr ->  
-//                    let newGameState = 
-//                        u.Rules 
-//                        |> Map.pickKeyOfItem dr 
-//                        |> Map.replace DeactivatedUntilEndOfGame dr
-//                        |> replaceRuleOnUnit gameState u 
-//                    eval playerMove (collectRules newGameState r) (Some u.Id) newGameState
-//                | _ -> GameStateResult gameState
+//                | UserActivated r -> eval (r::rest) gameState
+//                | ActiveWhen (_,r) -> eval (r::rest) gameState
+//                | Description _ -> GameStateResult gameState
+//                | Overwritten (r, _) -> eval (r::rest) gameState
+
+    //                | _ -> GameStateResult gameState
+    //                | DeactivatedUntilEndOfPhaseOnFirstUse(r) as dr -> 
+    //                    let newGameState = 
+    //                        u.Rules 
+    //                        |> Map.pickKeyOfItem dr 
+    //                        |> Map.replace DeactivatedUntilEndOfPhase dr
+    //                        |> replaceRuleOnUnit gameState u 
+    //                    eval playerMove (collectRules newGameState r) (Some u.Id) newGameState
+    //                | DeactivatedUntilEndOfGameOnFirstUse(r) as dr ->  
+    //                    let newGameState = 
+    //                        u.Rules 
+    //                        |> Map.pickKeyOfItem dr 
+    //                        |> Map.replace DeactivatedUntilEndOfGame dr
+    //                        |> replaceRuleOnUnit gameState u 
+    //                    eval playerMove (collectRules newGameState r) (Some u.Id) newGameState
+    //                | _ -> GameStateResult gameState
     
     
-    let availableRules player gs = 
-        let optionalRules =  Map.toSeq >> Seq.choose (fun (_,r) -> match r,gs with Optional _, Active r ra -> Some ra | _ -> None) >> Seq.toList
-        let gameRules = optionalRules gs.Rules
+    let optionalRules gs (k,r) = match r,gs with Optional _, Active r ra -> Some ra | _ -> None
+    let activeRules gs (k,r) = match gs with Active r ra -> Some ra | _ -> None
+    let activateRule r rules = 
+        let matchName = function
+            | UnitRule(r,_) -> r.ToString()
+            | ModelRule(r,_) -> r.ToString()
+            | GameStateRule(r) -> r.ToString()
+        let name = matchName r
+        let original = Map.find name rules
+        Map.replace (Rule.Overwrite original) (Function(r)) name rules
+
+    type AvailableRulesMap<'a> = {GameStateMap : GameState->RuleApplication->'a
+                                  UnitMap : GameState->Unit->RuleApplication->'a 
+                                  ModelMap: GameState->ModelInfo->RuleApplication->'a }
+
+    let optionalRulesMap = {GameStateMap = (fun gs r -> {gs with Rules = activateRule r gs.Rules })
+                            UnitMap = (fun gs item r -> activateRule r |> replaceRuleOnUnit gs item)
+                            ModelMap = (fun gs item r -> activateRule r |> replaceRuleOnModel gs item.Model)}
+    let activeRulesMap = {GameStateMap = (fun _ _ -> ())
+                          UnitMap = (fun _ _ _ -> ())
+                          ModelMap = (fun _ _ _ -> ())}
+    let availableRules predicate (mapper:AvailableRulesMap<'a>) player gs = 
+        let captureRules =  Map.toSeq >> Seq.choose predicate >> Seq.toList
+
+        let gameRules = captureRules gs.Rules |> List.map (fun r -> r, mapper.GameStateMap gs r)
         
         let unitRules = 
             gs.Players
@@ -302,49 +336,45 @@ module WarhammerImpl =
             |> List.map (fun p -> p.Units) 
             |> List.exactlyOne
             |> Map.toList
-            |> List.collect (fun (k,item) ->  optionalRules item.Rules)
+            |> List.collect (fun (_,item) ->  captureRules item.Rules |> List.map (fun r -> r, mapper.UnitMap gs item r ))
 
         let modelRules = 
             gs.Board.Models 
             |> Map.filter (fun _ item -> item.Player = player) 
             |> Map.toList
-            |> List.collect (fun (k,item) -> optionalRules item.Model.Rules)
+            |> List.collect (fun (_,item) -> captureRules item.Model.Rules |> List.map (fun r -> r,mapper.ModelMap gs item r))
 
-        gameRules @ unitRules @ modelRules
+        match gameRules @ unitRules @ modelRules with
+        | [] -> 
+            let ra = GameStateRule(EndPhase)
+            [ra,mapper.GameStateMap {gs with Rules = gs.Rules.Add(EndPhase.ToString(),Function(ra))} ra]
+        | rules -> rules
+
         
-    let makeNextMoveInfo f player gameState ruleApplication = 
-        let capability rule () = f player rule gameState
-        let unitName unit = tryFindUnit gameState unit |> Option.map (fun u -> u.UnitName) |> defaultArg <| ""
+    let makeNextMoveInfo f player (ruleApplication,gameState) = 
+        let capability () = 
+            let predicate = activeRules gameState
+            let activeRules = availableRules predicate activeRulesMap player gameState |> List.map fst
+            f player activeRules gameState
         match ruleApplication with
-            | UnitRule (_, uguid) as ra -> UnitRuleInfo({UnitId=uguid; UnitName=""; Rule=Function(ra)}), (capability ra)
-            | ModelRule (_, mguid) as ra -> ModelRuleInfo({ModelId=mguid; Rule=Function(ra)}), (capability ra)
-            | GameStateRule _ as ra -> GameStateRuleInfo(Function(ra)), (capability ra)
+            | UnitRule (_, uguid) as ra -> UnitRuleInfo({UnitId=uguid; UnitName=""; Rule=Function(ra)}), capability
+            | ModelRule (_, mguid) as ra -> ModelRuleInfo({ModelId=mguid; Rule=Function(ra)}), capability
+            | GameStateRule _ as ra -> GameStateRuleInfo(Function(ra)), capability
     
     let gameResultFor player gs nextMoves  = 
         match player with
         | Player1 -> Player1ToMove(gs, nextMoves)
         | Player2 -> Player2ToMove(gs, nextMoves)
     
-    let makeResultWithCapabilities f player newGameState rules = 
-        let rules = 
-            if List.isEmpty rules then
-                [GameStateRule(EndPhase)]
-            else
-                rules
-        rules |> List.map (makeNextMoveInfo f player newGameState) |> Next |> gameResultFor player newGameState
+    let makeResultWithCapabilities f player currentState rules= 
+        rules |> List.map (makeNextMoveInfo f player) |> Next |> gameResultFor player currentState
     
-    let gameResult gs playerMove currentPlayer = 
+    let doNextTick gs playerMove currentPlayer = 
         gs
-            |> availableRules currentPlayer
+            |> availableRules (optionalRules gs) optionalRulesMap currentPlayer
             |> makeResultWithCapabilities playerMove currentPlayer gs
         
-    let rec playerMove player (rule:RuleApplication list) gameState = 
-        
-        let evalResult = 
-            match rule with
-            | Some rule -> eval (playerMove player) rule gameState // List.fold
-            | None _ -> GameStateResult gameState
-        
+    let rec moveNextPlayer player gameState evalResult  = 
         let newPlayer = 
             match (gameState, evalResult) with
                 | Active (ActiveWhen(Rule(GameStateRule(Domain.WarhammerDomain.PlayerTurn(Top))), Function(GameStateRule(Noop)))) _,
@@ -358,14 +388,22 @@ module WarhammerImpl =
                 match gs with 
                     | Leader player -> GameWon(gs, player)
                     | Tied -> GameTied gs
-            | GameStateResult gs -> gameResult gs playerMove newPlayer
+            | GameStateResult gs -> doNextTick gs playerMove newPlayer
             | AskResult a -> Ask a |> gameResultFor newPlayer gameState
+    and  playerMove player (rules:RuleApplication list) gameState = 
+        
+        let evalResult = 
+            match rules with
+            | [] -> GameStateResult gameState
+            | rules -> eval (moveNextPlayer player) rules gameState 
+        moveNextPlayer player gameState evalResult 
+
 
     
     let newGame  () = 
         // create initial game state
         let gameState = Impl.ImplTest.initial
-        gameResult gameState playerMove Player1
+        doNextTick gameState playerMove Player1
     
     /// export the API to the application
     let api = { NewGame = newGame }
