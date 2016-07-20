@@ -67,15 +67,16 @@ module WarhammerDomain =
     type ModelGuid = Guid
     type UnitGuid = Guid
     
-    type Round = | Begin
-                    | One    of Phase
-                    | Two    of Phase
-                    | Three  of Phase
-                    | Four   of Phase
-                    | Five   of Phase
-                    | Six    of Phase
-                    | Seven  of Phase
-                    | End
+    type Round = 
+        | Begin
+        | One    of Phase
+        | Two    of Phase
+        | Three  of Phase
+        | Four   of Phase
+        | Five   of Phase
+        | Six    of Phase
+        | Seven  of Phase
+        | End
     type PlayerTurn = Top | Bottom 
     
 
@@ -106,7 +107,6 @@ module WarhammerDomain =
         | EndGame
         | PlayerTurn of PlayerTurn
         | GameRound of Round
-        | Phase of Phase
         override this.ToString() = toString this
         static member FromString s = fromString<GameRuleImpl> s
     and LogicalExpression =
