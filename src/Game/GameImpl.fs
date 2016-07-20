@@ -81,57 +81,8 @@ module WarhammerImpl =
             | Active (ActiveWhen(Rule(GameStateRule(Domain.WarhammerDomain.EndGame)), Function(GameStateRule(Noop)))) _ -> Some gameState
             | _ -> None 
         | _ -> None
-//    let rec (|Active|NotActive|Optional|) (gameState:GameState,r:Rule) =
-//        
-//
-//        
-//            
-//        match r with 
-////        | UnitRule (_) -> [Active r]
-////        | ModelRule of ModelRuleImpl * ModelGuid
-////        | GameStateRule of GameRuleImpl
-////        | Nested(Active(r),Active(r)) 
-////        | Overwritten of Rule * Rule 
-////        | OnceUntil of LogicalExpression  * Rule
-//        | UserActivated rule -> Optional rule
-//        | Function(_) -> Active r
-//        | ActiveWhen(logic, rule) -> contains logic rule
-//        | Description(_) -> Active r
 
-//    let collectRules (gs:GameState) : RuleApplication list = 
-//        let rec collectRest = function
-//            | Function e -> [ Function e ]
-//            | Nested(r, r2) -> 
-//                [ r; r2 ]
-//                |> List.collect collectRest
-//            | Overwritten(r, _) -> collectRest r
-//            | DeactivatedUntilEndOfPhase _ -> []
-//            | DeactivatedUntilEndOfGame _ -> []
-//            | Description _ -> []
-//            | DeactivatedUntilEndOfPhaseOnFirstUse _ as r -> [r]
-//            | DeactivatedUntilEndOfGameOnFirstUse _ as r -> [r]
-//            | Characteristic _ -> []
-//            | ActiveWhen (ra,r) -> match isActive ra with
-//                                    | Some _ -> [r]
-//                                    | None -> []
-//        collectRest
-//    let splitPt = 
-//        function 
-//        | Top(x) -> Top, x
-//        | Bottom(x) -> Bottom, x
-//    
-//    let splitGt = 
-//        function 
-//        | Begin -> (fun _ -> Begin), None
-//        | One x -> One, Some x
-//        | Two x -> Two, Some x
-//        | Three x -> Three, Some x
-//        | Four x -> Four, Some x
-//        | Five x -> Five, Some x
-//        | Six x -> Six, Some x
-//        | Seven x -> Seven, Some x
-//        | End -> (fun _ -> End), None
-    
+   
     let replace xs x y = 
         let pred z = x = z
         y :: (removeFirst pred xs)
@@ -153,6 +104,9 @@ module WarhammerImpl =
         match gameState, foundUnit, newUnit with
         | (gs, Some u, Some nu) -> updatePlayerInGameState u nu gs
         | (gs, _, _) -> gs   
+    let replaceRuleOnGameState  replace (gameState:GameState)  = 
+        let newGameState = { gameState with Rules = gameState.Rules |> replace }
+        newGameState
     let replaceRuleOnUnit gameState (unit : Unit) replace = 
         let newUnit = { unit with Rules = unit.Rules |> replace }
         updatePlayerInGameState unit newUnit gameState
@@ -214,73 +168,73 @@ module WarhammerImpl =
             | _, None -> failwith "Couldn't find unit"
         createMove
 
-//    let advancePhase gs = 
-//        let nextGt x = 
-//            match x with
-//            | Begin -> (Turn.One Phase.Begin)
-//            | One _ -> (Turn.Two Phase.Begin)
-//            | Two _ -> (Turn.Three Phase.Begin)
-//            | Three _ -> (Turn.Four Phase.Begin)
-//            | Four _ -> (Turn.Five Phase.Begin)
-//            | Five _ -> (Turn.Six Phase.Begin)
-//            | Six _ -> (Turn.Seven Phase.Begin)
-//            | Seven _ -> (Turn.End)
-//            | End -> (Turn.End)
-//        
-//        let enableDeactivatedRules gameState = 
-//            let rec enableRule = 
-//                function 
-//                | Nested(r, r2) -> Nested(enableRule r, enableRule r2)
-//                | DeactivatedUntilEndOfPhase r -> r
-//                | r -> r
-//            
-//            let createNewUnit (unit : Unit) = { unit with Rules = Map.map (fun _ t -> enableRule t) unit.Rules }
-//            let newGameState = 
-//                gameState.Players 
-//                |> List.fold 
-//                       (fun acc p -> 
-//                       p.Units |> Map.fold (fun acc2 _ unit -> updatePlayerInGameState unit (createNewUnit unit) acc2) acc) 
-//                       gameState
-//            newGameState.Players
-//        
-//        let otherPt = 
-//            function 
-//            | Top(x) -> 
-//                Phase.Begin
-//                |> (splitGt x |> fst)
-//                |> Bottom
-//            | Bottom(x) -> Top(nextGt x)
-//        
-//        let changePhase turn = 
-//            let (PtMaker, gt) = splitPt turn
-//            let (GtMaker, phase) = splitGt gt
-//            match phase with
-//            | Some Phase.Begin -> PtMaker(GtMaker Phase.Movement)
-//            | Some Phase.Movement -> PtMaker(GtMaker Phase.Psychic)
-//            | Some Phase.Psychic -> PtMaker(GtMaker Phase.Shooting)
-//            | Some Phase.Shooting -> PtMaker(GtMaker Phase.Assault)
-//            | Some Phase.Assault -> PtMaker(GtMaker Phase.End)
-//            | Some Phase.End | None -> otherPt turn
-//        
-//        { gs with Game = { gs.Game with Turn = changePhase gs.Game.Turn }
-//                  Players = gs |> enableDeactivatedRules }
 
+        
 
+    let advancePhase gs = 
+        let nextGameTurn = function
+            | Begin -> One Phase.Begin
+            | One _ -> Two Phase.Begin
+            | Two _ -> Three Phase.Begin
+            | Three _ -> Four Phase.Begin
+            | Four _ -> Five Phase.Begin
+            | Five _ -> Six Phase.Begin
+            | Six _ -> Seven Phase.Begin
+            | Seven _ -> End
+            | End -> End
+        let splitRound = 
+            function 
+            | Begin -> (fun _ -> Begin), None
+            | One x -> One, Some x
+            | Two x -> Two, Some x
+            | Three x -> Three, Some x
+            | Four x -> Four, Some x
+            | Five x -> Five, Some x
+            | Six x -> Six, Some x
+            | Seven x -> Seven, Some x
+            | End -> (fun _ -> End), None     
+        let otherPlayerTurn = function
+            | Top,x -> Bottom, Phase.Begin |> (splitRound x|> fst) 
+            | Bottom,x -> Top,nextGameTurn x
+        let changeRound (round,turn) = 
+            let (GtMaker, phase) = splitRound round
+            let (newTurn,newRound) =
+                match phase with
+                | Some Phase.Begin -> turn, GtMaker Phase.Movement
+                | Some Phase.Movement ->  turn, GtMaker Phase.Psychic
+                | Some Phase.Psychic ->  turn, GtMaker Phase.Shooting
+                | Some Phase.Shooting ->  turn, GtMaker Phase.Assault
+                | Some Phase.Assault ->  turn, GtMaker Phase.End
+                | Some Phase.End | None -> otherPlayerTurn (turn,round)
+                |> (fun (turn,round) -> Function(GameStateRule(PlayerTurn(turn))), Function(GameStateRule(GameRound(round))))
+            [replaceRuleOnGameState <| Map.replace id newTurn (PlayerTurn(Top).ToString()) ;
+            replaceRuleOnGameState <| Map.replace id newRound (GameRound(Begin).ToString())]
+            |> List.reduce (>>)
+        match Map.tryFind (GameRound(Begin).ToString()) gs.Rules,Map.tryFind (PlayerTurn(Top).ToString()) gs.Rules with
+        | Some(Function(GameStateRule(GameRound(round)))), Some(Function(GameStateRule(PlayerTurn(turn)))) -> changeRound(round,turn) gs
+        | _ -> failwith <| sprintf "Couldn't find game round or playerturn %A" gs.Rules
     let rec eval moveNextPlayer rules gameState = 
         match rules with
         | [] -> GameStateResult gameState
         | rule::rest -> 
             rule |> function 
-//                | Function(GameStateApplication(EndPhase)) -> GameStateResult (advancePhase gameState)
-                | UnitRule(Deploy,uId) -> deploy uId gameState >> eval moveNextPlayer rest >> moveNextPlayer gameState |> Asker  |> PositionAsker |> AskResult              
+                | UnitRule(Deploy,uId) -> deploy uId gameState >> eval moveNextPlayer rest |> Asker  |> PositionAsker |> AskResult              
                 | UnitRule(Move maxMove,uId) -> move uId gameState maxMove >> eval moveNextPlayer rest >> moveNextPlayer gameState |> Asker  |> MoveAsker |> AskResult
                 | UnitRule(SetCharacteristicUnit(name, newRule), uId) -> 
                     uId |> tryFindUnit gameState
                     |> Option.bind (fun u -> u.Rules 
                                                 |> Map.tryFind name
                                                 |> Option.map (fun r -> r |> Map.replace (Rule.Overwrite newRule) <| name
-                                                                          |> replaceRuleOnUnit gameState u |> GameStateResult))
-                    |> defaultArg <| (GameStateResult gameState)
+                                                                          |> replaceRuleOnUnit gameState u))
+                    |> defaultArg <| gameState
+                    |> eval  moveNextPlayer rest
+                | GameStateRule(GameRound(_))    -> eval  moveNextPlayer rest gameState
+                | GameStateRule(PlayerTurn(_))   -> eval  moveNextPlayer rest gameState
+                | UnitRule(DeploymentState(_),_) -> eval  moveNextPlayer rest gameState
+                | UnitRule(UCharacteristic(_),_) -> eval  moveNextPlayer rest gameState 
+                | GameStateRule(Noop)            -> eval  moveNextPlayer rest gameState
+                | GameStateRule(EndPhase) -> advancePhase gameState |> eval moveNextPlayer rest
+                | xs -> failwith <| sprintf "%A" xs
 //                | UserActivated r -> eval (r::rest) gameState
 //                | ActiveWhen (_,r) -> eval (r::rest) gameState
 //                | Description _ -> GameStateResult gameState
@@ -304,8 +258,8 @@ module WarhammerImpl =
     //                | _ -> GameStateResult gameState
     
     
-    let optionalRules gs (k,r) = match r,gs with Optional _, Active r ra -> Some ra | _ -> None
-    let activeRules gs (k,r) = match gs with Active r ra -> Some ra | _ -> None
+    let optionalRules gs (_,r) = match r,gs with Optional _, Active r ra -> Some ra | _ -> None
+    let activeRules gs (_,r) = match gs with Active r ra -> Some ra | _ -> None
     let activateRule r rules = 
         let matchName = function
             | UnitRule(r,_) -> r.ToString()
