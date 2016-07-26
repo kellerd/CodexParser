@@ -56,7 +56,19 @@ module ImplTest =
                   yield Function(UnitRule(UCharacteristic(Saves(CharacteristicValue 3)), uguid))
                   yield UserActivated
                                  (ActiveWhen
-                                      (Rule(GameStateRule(Phase(Movement))), (Function(UnitRule(Move 6.<inch>, uguid)))))
+                                    (Logical
+                                           (Rule(GameStateRule(GameRound(One(Movement)))), Or, 
+                                            Logical
+                                           (Rule(GameStateRule(GameRound(Two(Movement)))), Or, 
+                                            Logical
+                                           (Rule(GameStateRule(GameRound(Three(Movement)))), Or, 
+                                            Logical
+                                           (Rule(GameStateRule(GameRound(Four(Movement)))), Or, 
+                                            Logical
+                                           (Rule(GameStateRule(GameRound(Five(Movement)))), Or, 
+                                            Logical
+                                           (Rule(GameStateRule(GameRound(Six(Movement)))), Or, 
+                                            Rule(GameStateRule(GameRound(Seven(Movement)))))))))), (Function(UnitRule(Move 6.<inch>, uguid)))))
                   yield Function(UnitRule(DeploymentState(Start), uguid))
                   yield UserActivated
                                  (ActiveWhen
@@ -107,7 +119,19 @@ module ImplTest =
                   yield Function(UnitRule(UCharacteristic(Saves(CharacteristicValue 3)), uguid))
                   yield UserActivated
                                  (ActiveWhen
-                                      (Rule(GameStateRule(Phase(Movement))), (Function(UnitRule(Move 6.<inch>, uguid)))))
+                                      (Logical
+                                           (Rule(GameStateRule(GameRound(One(Movement)))), Or, 
+                                            Logical
+                                           (Rule(GameStateRule(GameRound(Two(Movement)))), Or, 
+                                            Logical
+                                           (Rule(GameStateRule(GameRound(Three(Movement)))), Or, 
+                                            Logical
+                                           (Rule(GameStateRule(GameRound(Four(Movement)))), Or, 
+                                            Logical
+                                           (Rule(GameStateRule(GameRound(Five(Movement)))), Or, 
+                                            Logical
+                                           (Rule(GameStateRule(GameRound(Six(Movement)))), Or, 
+                                            Rule(GameStateRule(GameRound(Seven(Movement)))))))))), (Function(UnitRule(Move 6.<inch>, uguid)))))
                   yield Function(UnitRule(DeploymentState(Start), uguid))
                   yield UserActivated
                                  (ActiveWhen
