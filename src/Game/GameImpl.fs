@@ -129,8 +129,8 @@ module WarhammerImpl =
                 let newRule = Function(UnitRule(DeploymentState(Deployed), uId))
                 let newGs = 
                     u.Rules 
-                    |> Map.tryFind (DeploymentState.ToString()) |> defaultArg <| newRule 
-                    |> Map.replace (Rule.Overwrite newRule) <| DeploymentState.ToString() 
+                    |> Map.tryFind (DeploymentState(Deployed).ToString()) |> defaultArg <| newRule 
+                    |> Map.replace (Rule.Overwrite newRule) <| DeploymentState(Deployed).ToString() 
                     |> replaceRuleOnUnit gameState u
                 let newUnit = tryFindUnit newGs uId |> defaultArg <| u
                 { newGs with Board = { newGs.Board with Models = forAllModels (fun m -> { Model = m; Player = p.Player; Position = newGs |> positionAsker }) newUnit newGs} }
@@ -213,13 +213,13 @@ module WarhammerImpl =
         match Map.tryFind (GameRound(Begin).ToString()) gs.Rules,Map.tryFind (PlayerTurn(Top).ToString()) gs.Rules with
         | Some(Function(GameStateRule(GameRound(round)))), Some(Function(GameStateRule(PlayerTurn(turn)))) -> changeRound(round,turn) gs
         | _ -> failwith <| sprintf "Couldn't find game round or playerturn %A" gs.Rules
-    let rec eval moveNextPlayer rules gameState = 
+    let rec eval rules gameState = 
         match rules with
         | [] -> GameStateResult gameState
         | rule::rest -> 
             rule |> function 
-                | UnitRule(Deploy,uId) -> deploy uId gameState >> eval moveNextPlayer rest >> moveNextPlayer gameState |> Asker  |> PositionAsker |> AskResult              
-                | UnitRule(Move maxMove,uId) -> move uId gameState maxMove >> eval moveNextPlayer rest >> moveNextPlayer gameState |> Asker  |> MoveAsker |> AskResult
+                | UnitRule(Deploy,uId) -> deploy uId gameState >> eval rest |> Asker  |> PositionAsker |> AskResult              
+                | UnitRule(Move maxMove,uId) -> move uId gameState maxMove >> eval rest |> Asker  |> MoveAsker |> AskResult
                 | UnitRule(SetCharacteristicUnit(name, newRule), uId) -> 
                     uId |> tryFindUnit gameState
                     |> Option.bind (fun u -> u.Rules 
@@ -227,13 +227,13 @@ module WarhammerImpl =
                                                 |> Option.map (fun r -> r |> Map.replace (Rule.Overwrite newRule) <| name
                                                                           |> replaceRuleOnUnit gameState u))
                     |> defaultArg <| gameState
-                    |> eval  moveNextPlayer rest
-                | GameStateRule(GameRound(_))    -> eval  moveNextPlayer rest gameState
-                | GameStateRule(PlayerTurn(_))   -> eval  moveNextPlayer rest gameState
-                | UnitRule(DeploymentState(_),_) -> eval  moveNextPlayer rest gameState
-                | UnitRule(UCharacteristic(_),_) -> eval  moveNextPlayer rest gameState 
-                | GameStateRule(Noop)            -> eval  moveNextPlayer rest gameState
-                | GameStateRule(EndPhase) -> advancePhase gameState |> eval moveNextPlayer rest
+                    |> eval  rest
+                | GameStateRule(GameRound(_))    -> eval  rest gameState
+                | GameStateRule(PlayerTurn(_))   -> eval  rest gameState
+                | UnitRule(DeploymentState(_),_) -> eval  rest gameState
+                | UnitRule(UCharacteristic(_),_) -> eval  rest gameState 
+                | GameStateRule(Noop)            -> eval  rest gameState
+                | GameStateRule(EndPhase) -> advancePhase gameState |> eval rest
                 | xs -> failwith <| sprintf "%A" xs
 //                | UserActivated r -> eval (r::rest) gameState
 //                | ActiveWhen (_,r) -> eval (r::rest) gameState
@@ -268,6 +268,7 @@ module WarhammerImpl =
         let name = matchName r
         let original = Map.find name rules
         Map.replace (Rule.Overwrite original) (Function(r)) name rules
+
 
     type AvailableRulesMap<'a> = {GameStateMap : GameState->RuleApplication->'a
                                   UnitMap : GameState->Unit->RuleApplication->'a 
@@ -343,13 +344,14 @@ module WarhammerImpl =
                     | Leader player -> GameWon(gs, player)
                     | Tied -> GameTied gs
             | GameStateResult gs -> doNextTick gs playerMove newPlayer
-            | AskResult a -> Ask a |> gameResultFor newPlayer gameState
+            | AskResult a -> a.Map(moveNextPlayer newPlayer gameState) |> Ask |> gameResultFor newPlayer gameState
+   
     and  playerMove player (rules:RuleApplication list) gameState = 
         
         let evalResult = 
             match rules with
             | [] -> GameStateResult gameState
-            | rules -> eval (moveNextPlayer player) rules gameState 
+            | rules -> eval rules gameState 
         moveNextPlayer player gameState evalResult 
 
 
