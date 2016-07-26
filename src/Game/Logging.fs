@@ -2,6 +2,9 @@
 module Logger = 
     open Domain.WarhammerDomain
     /// Transform a MoveCapability into a logged version
+
+
+
     let transformCapability transformMR player rule unit (cap:MoveCapability) :MoveCapability  =
         // create a new capability that logs the player & cellPos when run
         let newCap() =
@@ -27,6 +30,9 @@ module Logger =
                 let rule = ur.Rule  
                 uri, transformCapability transformMR player rule None cap
     /// Transform a MoveResult into a logged version
+
+
+
     let rec transformMoveResult (moveResult:RuleResult) :RuleResult =
         let tmr = transformMoveResult
         match moveResult with
@@ -36,10 +42,10 @@ module Logger =
         | Player2ToMove (display,Next nextMoves) ->
             let nextMoves' = nextMoves |> List.map (transformNextMove tmr Player2)
             Player2ToMove (display,Next nextMoves') 
-        | Player1ToMove (display,Ask asker) ->
+        | Player1ToMove (display,Ask _) ->
             printfn "LOGINFO: Player1 Asking question"
             moveResult
-        | Player2ToMove (display,Ask asker) ->
+        | Player2ToMove (display,Ask _) ->
             printfn "LOGINFO: Player2 Asking question"
             moveResult
         | GameWon (display,player) ->
@@ -48,6 +54,7 @@ module Logger =
         | GameTied display ->
             printfn "LOGINFO: Game tied" 
             moveResult
+
 
     /// inject logging into the API
     let injectLogging api =

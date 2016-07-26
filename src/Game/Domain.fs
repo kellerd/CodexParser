@@ -33,6 +33,10 @@ module WarhammerDomain =
       px =
         static member ToInches  (resolution : float<dpi>) (pixels : float<px>) =
           LanguagePrimitives.FloatWithMeasure<inch> (float pixels / float resolution)
+    
+    let characterResolution = 6.0<dpi>
+    let ftToPx x = x * inch.perFootI |> inch.ToPixelsI (int characterResolution * 1<dpi>)
+
     [<Measure>]
     type mm =
         static member perInch = 25.4<mm/inch>
@@ -145,7 +149,6 @@ module WarhammerDomain =
     type Player = Player1 | Player2
 
     let drawingResolution = 26.0<dpi>
-    let characterResolution = 6.0<dpi>
     type Dimensions = {Width:int<ft>; Height:int<ft>}
     type Score = Score of int
     type GameState = {
@@ -176,17 +179,22 @@ module WarhammerDomain =
     type UnitRuleInfo = { UnitId: UnitGuid; UnitName: string; Rule: Rule}
     type ModelRuleInfo = { ModelId: ModelGuid; Rule: Rule}
 
-    type Asker<'a,'b> = Asker of ('a -> 'b)
-        with static member Run (a:Asker<'a,'b>, input:'a) = let (Asker asker') = a 
-                                                            asker' input
-    
-    type Asker = 
-        | PositionAsker of Asker<GameState -> Position<px>, RuleResult>
-        | MoveAsker of Asker<Position<px>[] -> Position<px>, RuleResult>
-        | DiceRollAsker of Asker<unit -> DiceRoll, RuleResult>
-    and EvalResult = 
+    type GenAsker<'a,'b> = Asker of ('a -> 'b)
+        with static member Run (a:GenAsker<'a,'b>, input:'a) =  let (Asker asker') = a 
+                                                                asker' input
+
+    type Asker<'a> = 
+        | PositionAsker of GenAsker<GameState -> Position<px>, 'a>
+        | MoveAsker of GenAsker<Position<px>[] -> Position<px>, 'a>
+        | DiceRollAsker of GenAsker<unit -> DiceRoll, 'a>
+        with member this.Map(f) = 
+                match this with
+                    | PositionAsker(Asker(a)) -> a >> f |> Asker |> PositionAsker
+                    | MoveAsker(Asker(a)) ->  a >> f |> Asker |> MoveAsker
+                    | DiceRollAsker(Asker(a)) ->  a >> f |> Asker |> DiceRollAsker
+    type EvalResult = 
         | GameStateResult of GameState
-        | AskResult of Asker
+        | AskResult of Asker<EvalResult>
     and MoveCapability = 
         unit -> RuleResult
     and RuleInfo = 
@@ -195,13 +203,17 @@ module WarhammerDomain =
         | GameStateRuleInfo of Rule: Rule
     and NextResult= 
         | Next of (RuleInfo * MoveCapability) list
-        | Ask of Asker
+        | Ask of Asker<RuleResult>
     and RuleResult = 
         | Player1ToMove of GameState * NextResult
         | Player2ToMove of GameState * NextResult
         | GameWon of GameState * Player 
         | GameTied of GameState 
     
+
+
+
+
     // Only the newGame function is exported from the implementation
     // all other functions come from the results of the previous move
     type WarhammerAPI  = 
