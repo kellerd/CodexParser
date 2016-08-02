@@ -75,7 +75,14 @@ module ImplTest =
                                       (Logical
                                            (Rule(GameStateRule(GameRound(Begin))), And, 
                                             Rule(UnitRule(DeploymentState(Start), uguid))), 
-                                       (Function(UnitRule(Deploy, uguid)))))
+                                        
+                                        Sequence [
+                                                    UnitRule(Deploy, uguid)
+                                                    GameStateRule(Deactivate(UnitRule(Deploy, uguid)))
+                                                    GameStateRule(Activate(Rule(GameStateRule(EndPhase),UnitRule(Deploy, uguid))))
+                                                ]
+                                        )
+                                    )
               }
               //                  yield "WeakenResolve", Nested(Description { Name = "Lurker"; Description = "Termagant Lurks when outside synapse" },
               //                                                 OnceUntil(GameStateApplication(EndPhase), Function(UnitApplication(SetCharacteristicUnit(Strength.ToString(),Characteristic(Strength(CharacteristicValue 1))),uguid))))
