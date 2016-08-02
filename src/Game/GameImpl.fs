@@ -41,14 +41,16 @@ module WarhammerImpl =
         | Function(_) -> None
         | Description(_) -> None
         | Overwritten(_) -> None
+        | Nested(_) as rule -> Some rule 
     let rec (|Active|_|) r gameState = 
         match r with 
-        | ActiveWhen(logic, innerRule) -> contains gameState logic innerRule |> Option.bind (fun _ -> match gameState with Active innerRule rule -> Some rule | _ -> None)
-        | UserActivated (userActivated) ->  match gameState with Active userActivated rule -> Some rule | _ -> None
-        | Function app -> Some app
-        | Description _ -> Some (GameStateRule Noop)
-        | Overwritten (overwrite,_) -> match gameState with Active overwrite rule -> Some rule | _ -> None
-
+        | ActiveWhen(logic, innerRule) -> contains gameState logic innerRule |> Option.bind (fun _ -> match gameState with Active innerRule rule -> Some [rule] | _ -> None)
+        | UserActivated (userActivated) ->  match gameState with Active userActivated rule -> Some [rule] | _ -> None
+        | Function app -> Some [app]
+        | Nested 
+        | Description _ -> Some [GameStateRule Noop]
+        | Overwritten (overwrite,_) -> match gameState with Active overwrite rule -> Some [rule] | _ -> None
+        | Nested (apps) -> Some apps 
     and findInRuleList (gameState:GameState) ruleApplication rl = 
         rl |> Option.bind (Map.tryFindKey (fun k foundRule -> match ruleApplication with 
                                                                 | GameStateRule impl ->  k = impl.ToString() && match gameState with Active foundRule r -> r = ruleApplication | _ -> false
@@ -234,6 +236,9 @@ module WarhammerImpl =
                 | UnitRule(UCharacteristic(_),_) -> eval  rest gameState 
                 | GameStateRule(Noop)            -> eval  rest gameState
                 | GameStateRule(EndPhase) -> advancePhase gameState |> eval rest
+                
+                | GameStateRule(Deactivate(ruleApplication)) -> deactivate ruleApplication gameState |> eval rest
+                | GameStateRule(Activate(activateWhen,ruleApplication)) -> activate activateWhen ruleApplication gameState |> eval rest
                 | xs -> failwith <| sprintf "%A" xs
 //                | UserActivated r -> eval (r::rest) gameState
 //                | ActiveWhen (_,r) -> eval (r::rest) gameState
