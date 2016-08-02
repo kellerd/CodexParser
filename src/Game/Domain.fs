@@ -111,6 +111,8 @@ module WarhammerDomain =
         | EndGame
         | PlayerTurn of PlayerTurn
         | GameRound of Round
+        | Deactivate of RuleApplication
+        | Activate of LogicalExpression * RuleApplication
         override this.ToString() = toString this
         static member FromString s = fromString<GameRuleImpl> s
     and LogicalExpression =
@@ -127,9 +129,9 @@ module WarhammerDomain =
         | ActiveWhen of LogicalExpression * Rule
         | Description of RuleDescription 
         | Overwritten of Rule * Rule 
-//        | Nested of Rule  * Rule
+        | Sequence of RuleApplication list
 //        | OnceUntil of LogicalExpression  * Rule 
-       with static member Overwrite = (fun (newR:Rule) (x:Rule) -> Overwritten(newR,x)) 
+       with static member Overwrite = (fun (newR:Rule) (x:Rule) -> Overwritten(newR,x))
 //       with static member CreateNested = (fun (newR:Rule) (x:Rule) -> Nested(newR,x)) 
     
         
