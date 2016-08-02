@@ -10,8 +10,8 @@ module ParseGlossary =
     type Rule(name : string, descriptions : string list) = 
         member this.Name = name
         member this.Descriptions = descriptions 
-    type Rules(rules : seq<string*Rule>) = 
-        member this.Rules = dict rules
+    type Rules(rules : seq<string>) = 
+        member this.Rules = rules |> Seq.toList
 
 //    type ExecutedRule<'a>(name : string, descriptions : string list, Execute: 'a option) = 
 //        inherit Rule(name,descriptions) 
@@ -37,6 +37,7 @@ module ParseGlossary =
                 |> Seq.takeWhile (notHasClass "x3-Left") 
                 |> Seq.choose (fun x -> (extractImageOrText x) |> NullOrWhiteSpaceToOption )
                 |> Seq.toList
+                |> String.concat "\n"
             )
         )
     let LoadEpubPages path = 

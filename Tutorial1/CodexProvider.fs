@@ -43,16 +43,30 @@ type public CheckedCodexProvider() as this =
                         typeName, 
                         baseType = Some baseTy)
 
-            let rules = [filepath] |> LoadEpubPages |> Seq.collect ParseSixthEditionGlossary |> Seq.map (fun (name, descriptions) -> (name, Rule(name, descriptions)))
-            for name, rule in rules do
-                let prop = ProvidedTypeDefinition(rule.Name,baseType = Some typeof<obj>)
-                prop.AddMember(ProvidedProperty(name, typeof<string>))
-                let ctor = ProvidedConstructor([], InvokeCode = fun args -> <@@ (name) :> obj @@>)
-                prop.AddMember(ctor)
-                
+            let rules = [filepath] |> LoadEpubPages |> Seq.collect ParseSixthEditionGlossary 
+            for name, description in rules do
+                let prop = ProvidedTypeDefinition(name,baseType = Some typeof<obj>)
+                prop.AddMembersDelayed(fun () -> [ProvidedProperty("Name", typeof<string>, IsStatic=true, GetterCode = fun args -> <@@ name @@>)])
+                prop.AddMembersDelayed(fun () -> [ProvidedProperty("Description", typeof<string>, IsStatic=true, GetterCode = fun args -> <@@ description @@>)])
+//                let ctor = ProvidedConstructor([] 
+//                        ,InvokeCode = fun args -> <@@ () @@>
+//                        )
+//                prop.AddMember(ctor)
                 ty.AddMember prop
-            ty.AddMember(ProvidedProperty("Rules", typeof<System.Collections.Generic.Dictionary<string,Rule>>))
-            let ctor = ProvidedConstructor([], InvokeCode = fun args -> <@@ Rules(rules) @@>)
+
+            
+            //let prop = ProvidedTypeDefinition("RuleList",baseType = Some typeof<obj>)
+            let ruleNames = rules |> Seq.map (fun (name, descriptions) -> name) |> Seq.toList
+            ty.AddMembersDelayed(fun () -> [ProvidedProperty("Rules", typeof<string list>, IsStatic=true, GetterCode = fun args -> <@@ ruleNames @@>)])
+//            let ctor = ProvidedConstructor([] 
+//                        ,InvokeCode = fun args -> <@@ () @@>
+//                        )
+//            prop.AddMember(ctor)
+//
+//            ty.AddMember prop
+//            let ctor = ProvidedConstructor([], InvokeCode = fun args -> <@@ Rules(rules |> Seq.map (fun (name,descriptions) -> name)) :> obj @@>)
+//            prop.AddMember ctor
+            //ty.AddMember prop
             ty
           | _ -> failwith "unexpected parameter values")) 
 
