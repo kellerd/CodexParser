@@ -79,7 +79,7 @@ module ImplTest =
                                         Sequence [
                                                     UnitRule(Deploy, uguid)
                                                     GameStateRule(Deactivate(UnitRule(Deploy, uguid)))
-                                                    GameStateRule(Activate(Rule(GameStateRule(EndPhase),UnitRule(Deploy, uguid))))
+                                                    GameStateRule(Activate(Rule(GameStateRule(EndPhase)),UnitRule(Deploy, uguid)))
                                                 ]
                                         )
                                     )
