@@ -41,21 +41,20 @@ module WarhammerImpl =
         | Function(_) -> None
         | Description(_) -> None
         | Overwritten(_) -> None
-        | Nested(_) as rule -> Some rule 
+        | Sequence(_) as rule -> Some rule 
     let rec (|Active|_|) r gameState = 
         match r with 
-        | ActiveWhen(logic, innerRule) -> contains gameState logic innerRule |> Option.bind (fun _ -> match gameState with Active innerRule rule -> Some [rule] | _ -> None)
-        | UserActivated (userActivated) ->  match gameState with Active userActivated rule -> Some [rule] | _ -> None
+        | ActiveWhen(logic, innerRule) -> contains gameState logic innerRule |> Option.bind (fun _ -> match gameState with Active innerRule rule -> Some rule | _ -> None)
+        | UserActivated (userActivated) ->  match gameState with Active userActivated rule -> Some rule | _ -> None
         | Function app -> Some [app]
-        | Nested 
         | Description _ -> Some [GameStateRule Noop]
-        | Overwritten (overwrite,_) -> match gameState with Active overwrite rule -> Some [rule] | _ -> None
-        | Nested (apps) -> Some apps 
+        | Overwritten (overwrite,_) -> match gameState with Active overwrite rule -> Some rule | _ -> None
+        | Sequence apps -> Some apps 
     and findInRuleList (gameState:GameState) ruleApplication rl = 
         rl |> Option.bind (Map.tryFindKey (fun k foundRule -> match ruleApplication with 
-                                                                | GameStateRule impl ->  k = impl.ToString() && match gameState with Active foundRule r -> r = ruleApplication | _ -> false
-                                                                | ModelRule (impl, _) ->  k = impl.ToString() && match gameState with Active foundRule r -> r = ruleApplication | _ -> false
-                                                                | UnitRule(impl, _) ->  k = impl.ToString() && match gameState with Active foundRule r -> r = ruleApplication | _ -> false
+                                                                | GameStateRule impl ->  k = impl.ToString() && match gameState with Active foundRule r -> (Seq.head r) = ruleApplication | _ -> false
+                                                                | ModelRule (impl, _) ->  k = impl.ToString() && match gameState with Active foundRule r -> (Seq.head r) = ruleApplication | _ -> false
+                                                                | UnitRule(impl, _) ->  k = impl.ToString() && match gameState with Active foundRule r -> (Seq.head r) = ruleApplication | _ -> false
                                                                 ))
     and contains (gameState:GameState) logic rule = 
             match logic with 
@@ -170,9 +169,6 @@ module WarhammerImpl =
             | _, None -> failwith "Couldn't find unit"
         createMove
 
-
-        
-
     let advancePhase gs = 
         let nextGameTurn = function
             | Begin -> One Phase.Begin
@@ -215,6 +211,13 @@ module WarhammerImpl =
         match Map.tryFind (GameRound(Begin).ToString()) gs.Rules,Map.tryFind (PlayerTurn(Top).ToString()) gs.Rules with
         | Some(Function(GameStateRule(GameRound(round)))), Some(Function(GameStateRule(PlayerTurn(turn)))) -> changeRound(round,turn) gs
         | _ -> failwith <| sprintf "Couldn't find game round or playerturn %A" gs.Rules
+
+    let activate activateWhen ruleApplication gameState : GameState = 
+        let newRule = ruleApplication |> Function |> contains gameState activateWhen 
+        match ruleApplication with 
+        | UnitRule(rule,uguid) -> gameState
+        
+
     let rec eval rules gameState = 
         match rules with
         | [] -> GameStateResult gameState
@@ -240,6 +243,7 @@ module WarhammerImpl =
                 | GameStateRule(Deactivate(ruleApplication)) -> deactivate ruleApplication gameState |> eval rest
                 | GameStateRule(Activate(activateWhen,ruleApplication)) -> activate activateWhen ruleApplication gameState |> eval rest
                 | xs -> failwith <| sprintf "%A" xs
+    
 //                | UserActivated r -> eval (r::rest) gameState
 //                | ActiveWhen (_,r) -> eval (r::rest) gameState
 //                | Description _ -> GameStateResult gameState
