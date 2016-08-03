@@ -92,6 +92,7 @@ module WarhammerDomain =
         | Start
     type LogicalOperator = And | Or
 
+
     type ModelRuleImpl = 
         | MCharacteristic of Characteristic
         override this.ToString() = toString this
@@ -111,8 +112,9 @@ module WarhammerDomain =
         | EndGame
         | PlayerTurn of PlayerTurn
         | GameRound of Round
-        | Deactivate of RuleApplication
-        | Activate of LogicalExpression * RuleApplication
+        // | Deactivate of RuleApplication
+        | DeactivateUntil of LogicalExpression * RuleApplication
+        | Revert of RuleApplication
         override this.ToString() = toString this
         static member FromString s = fromString<GameRuleImpl> s
     and LogicalExpression =
@@ -123,17 +125,42 @@ module WarhammerDomain =
         | UnitRule of UnitRuleImpl * UnitGuid
         | ModelRule of ModelRuleImpl * ModelGuid
         | GameStateRule of GameRuleImpl
+        | Sequence of RuleApplication list
     and Rule = 
         | Function of RuleApplication
         | UserActivated of Rule
         | ActiveWhen of LogicalExpression * Rule
         | Description of RuleDescription 
         | Overwritten of Rule * Rule 
-        | Sequence of RuleApplication list
-//        | OnceUntil of LogicalExpression  * Rule 
-       with static member Overwrite = (fun (newR:Rule) (x:Rule) -> Overwritten(newR,x))
-//       with static member CreateNested = (fun (newR:Rule) (x:Rule) -> Nested(newR,x)) 
-    
+
+    [<CompilationRepresentation (CompilationRepresentationFlags.ModuleSuffix)>]
+    module Rule =
+        let overwrite newR x = Overwritten(newR,x)
+        let unoverwrite = function
+                                | Overwritten(newR,r) -> r
+                                | r -> r
+        let userActivated rule =
+            let rec userActivated' = function
+                    | ActiveWhen(logic,r) -> 
+                        ActiveWhen(logic,userActivated' r)
+                    | UserActivated(_) as rule -> rule
+                    | Description(_) as rule-> rule
+                    | Function(Sequence(r1::tail)) -> Function(Sequence(r1::GameStateRule(Revert(r1))::tail))
+                    | Function(Sequence([])) as rule -> rule
+                    | Function(r) -> Function(Sequence([r])) |> userActivated'
+                    | Overwritten(newRule,old) -> Overwritten(userActivated' newRule,old)
+            userActivated' rule |> UserActivated
+        let rec afterRunDeactivateUntil activatedWhen = function
+                | ActiveWhen(logic,rule) -> 
+                    ActiveWhen(logic,afterRunDeactivateUntil activatedWhen rule)
+                | UserActivated(rule)   -> afterRunDeactivateUntil activatedWhen rule |> UserActivated
+                | Description(_) as rule-> rule
+                | Function(Sequence(r1::tail)) -> 
+                    Function(Sequence(r1 :: (List.append tail [GameStateRule(DeactivateUntil(activatedWhen,r1))])))
+                | Function(Sequence([])) as rule -> rule
+                | Function(r) -> Function(Sequence([r])) |> afterRunDeactivateUntil activatedWhen
+                | Overwritten(newRule,old) -> Overwritten(afterRunDeactivateUntil activatedWhen newRule,old)
+
         
     type [<ReferenceEquality>]  Model = {
       Name : string

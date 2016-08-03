@@ -19,3 +19,4 @@ module ConsoleApplication =
 #if INTERACTIVE 
     startGame()
 #endif
+;;
