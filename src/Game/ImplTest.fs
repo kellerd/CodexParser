@@ -5,10 +5,11 @@ module ImplTest =
     open System
     
     let makeRule r = 
-        let makeApp = 
+        let rec makeApp = 
             function 
             | GameStateRule impl -> impl.ToString()
             | ModelRule(impl, _) -> impl.ToString()
+            | Sequence(rs) -> makeApp (rs |> Seq.head)
             | UnitRule(impl, _) -> impl.ToString()
         
         let rec makeText = 
@@ -70,19 +71,15 @@ module ImplTest =
                                            (Rule(GameStateRule(GameRound(Six(Movement)))), Or, 
                                             Rule(GameStateRule(GameRound(Seven(Movement)))))))))), (Function(UnitRule(Move 6.<inch>, uguid)))))
                   yield Function(UnitRule(DeploymentState(Start), uguid))
-                  yield UserActivated
+                  yield 
                                  (ActiveWhen
                                       (Logical
                                            (Rule(GameStateRule(GameRound(Begin))), And, 
                                             Rule(UnitRule(DeploymentState(Start), uguid))), 
-                                        
-                                        Sequence [
-                                                    UnitRule(Deploy, uguid)
-                                                    GameStateRule(Deactivate(UnitRule(Deploy, uguid)))
-                                                    GameStateRule(Activate(Rule(GameStateRule(EndPhase)),UnitRule(Deploy, uguid)))
-                                                ]
+                                        Function(UnitRule(Deploy, uguid))
                                         )
                                     )
+                                    |> Rule.userActivated |> Rule.afterRunDeactivateUntil (Rule(GameStateRule(EndPhase)))
               }
               //                  yield "WeakenResolve", Nested(Description { Name = "Lurker"; Description = "Termagant Lurks when outside synapse" },
               //                                                 OnceUntil(GameStateApplication(EndPhase), Function(UnitApplication(SetCharacteristicUnit(Strength.ToString(),Characteristic(Strength(CharacteristicValue 1))),uguid))))
