@@ -55,40 +55,25 @@ module ImplTest =
                   yield Function(UnitRule(UCharacteristic(Leadership(CharacteristicValue 3)), uguid))
                   yield Function(UnitRule(UCharacteristic(InvSaves(CharacteristicValue 3)), uguid))
                   yield Function(UnitRule(UCharacteristic(Saves(CharacteristicValue 3)), uguid))
-                  yield UserActivated
-                                 (ActiveWhen
-                                    (Logical
-                                           (Rule(GameStateRule(GameRound(One(Movement)))), Or, 
-                                            Logical
-                                           (Rule(GameStateRule(GameRound(Two(Movement)))), Or, 
-                                            Logical
-                                           (Rule(GameStateRule(GameRound(Three(Movement)))), Or, 
-                                            Logical
-                                           (Rule(GameStateRule(GameRound(Four(Movement)))), Or, 
-                                            Logical
-                                           (Rule(GameStateRule(GameRound(Five(Movement)))), Or, 
-                                            Logical
-                                           (Rule(GameStateRule(GameRound(Six(Movement)))), Or, 
-                                            Rule(GameStateRule(GameRound(Seven(Movement)))))))))), (Function(UnitRule(Move 6.<inch>, uguid)))))
+                  yield Function(UnitRule(Move 6.<inch>, uguid))
+                        |> Rule.onlyWhen (Rule(GameStateRule(GameRound(One(Movement)))) <|>
+                                            Rule(GameStateRule(GameRound(Two(Movement)))) <|>
+                                            Rule(GameStateRule(GameRound(Three(Movement)))) <|>
+                                            Rule(GameStateRule(GameRound(Four(Movement)))) <|>
+                                            Rule(GameStateRule(GameRound(Five(Movement)))) <|>
+                                            Rule(GameStateRule(GameRound(Six(Movement)))) <|>
+                                            Rule(GameStateRule(GameRound(Seven(Movement)))))
+                        |> Rule.userActivated
+                        |> Rule.afterRunDeactivateUntil (Rule(GameStateRule(EndPhase)))
                   yield Function(UnitRule(DeploymentState(Start), uguid))
-                  yield 
-                                 (ActiveWhen
-                                      (Logical
-                                           (Rule(GameStateRule(GameRound(Begin))), And, 
-                                            Rule(UnitRule(DeploymentState(Start), uguid))), 
-                                        Function(UnitRule(Deploy, uguid))
-                                        )
-                                    )
-                                    |> Rule.userActivated |> Rule.afterRunDeactivateUntil (Rule(GameStateRule(EndPhase)))
+                  yield Function(UnitRule(Deploy, uguid))
+                        |> Rule.onlyWhen (Rule(GameStateRule(GameRound(Begin))) <&> Rule(UnitRule(DeploymentState(Start), uguid))) 
+                        |> Rule.userActivated
+                        |> Rule.afterRunDeactivateUntil (Rule(GameStateRule(EndPhase)))
               }
-              //                  yield "WeakenResolve", Nested(Description { Name = "Lurker"; Description = "Termagant Lurks when outside synapse" },
-              //                                                 OnceUntil(GameStateApplication(EndPhase), Function(UnitApplication(SetCharacteristicUnit(Strength.ToString(),Characteristic(Strength(CharacteristicValue 1))),uguid))))
-              |> Seq.map makeRule |> Map.ofSeq }
-    
-    //                      yield "Move", OnceUntil(GameStateApplication(EndPhase), ActiveWhen(GameStateApplication(MovementPhase),(Function(Move 6.<inch>)))
-    //                  yield "Deploy", OnceUntil(GameStateApplication(EndPhase), ActiveWhen(GameStateApplication(MovementPhase),(Function(Deploy)))
-    //                  yield "WeakenResolve", Nested(Description { Name = "Lurker"; Description = "Termagant Lurks when outside synapse" },
-    //                                                Function(UnitApplication(SetCharacteristicUnit(Strength.ToString(),Characteristic(Strength(CharacteristicValue 1))),))
+              |> Seq.map makeRule
+              |> Map.ofSeq }
+
     let Hormagaunt id = 
         { Name = "Hormagaunt"
           Id = id
@@ -121,29 +106,23 @@ module ImplTest =
                   yield Function(UnitRule(UCharacteristic(Leadership(CharacteristicValue 3)), uguid))
                   yield Function(UnitRule(UCharacteristic(InvSaves(CharacteristicValue 3)), uguid))
                   yield Function(UnitRule(UCharacteristic(Saves(CharacteristicValue 3)), uguid))
-                  yield UserActivated
-                                 (ActiveWhen
-                                      (Logical
-                                           (Rule(GameStateRule(GameRound(One(Movement)))), Or, 
-                                            Logical
-                                           (Rule(GameStateRule(GameRound(Two(Movement)))), Or, 
-                                            Logical
-                                           (Rule(GameStateRule(GameRound(Three(Movement)))), Or, 
-                                            Logical
-                                           (Rule(GameStateRule(GameRound(Four(Movement)))), Or, 
-                                            Logical
-                                           (Rule(GameStateRule(GameRound(Five(Movement)))), Or, 
-                                            Logical
-                                           (Rule(GameStateRule(GameRound(Six(Movement)))), Or, 
-                                            Rule(GameStateRule(GameRound(Seven(Movement)))))))))), (Function(UnitRule(Move 6.<inch>, uguid)))))
+                  yield Function(UnitRule(Move 6.<inch>, uguid))
+                        |> Rule.onlyWhen (Rule(GameStateRule(GameRound(One(Movement)))) <|>
+                                            Rule(GameStateRule(GameRound(Two(Movement)))) <|>
+                                            Rule(GameStateRule(GameRound(Three(Movement)))) <|>
+                                            Rule(GameStateRule(GameRound(Four(Movement)))) <|>
+                                            Rule(GameStateRule(GameRound(Five(Movement)))) <|>
+                                            Rule(GameStateRule(GameRound(Six(Movement)))) <|>
+                                            Rule(GameStateRule(GameRound(Seven(Movement)))))
+                        |> Rule.userActivated
+                        |> Rule.afterRunDeactivateUntil (Rule(GameStateRule(EndPhase)))
                   yield Function(UnitRule(DeploymentState(Start), uguid))
-                  yield UserActivated
-                                 (ActiveWhen
-                                      (Logical
-                                           (Rule(GameStateRule(GameRound(Begin))), And, 
-                                            Rule(UnitRule(DeploymentState(Start), uguid))), 
-                                       (Function(UnitRule(Deploy, uguid)))))
-                  yield Description { Name = "Bounding Leap"; Description = "Run(CharacteristicValue 3) extra inches" }
+                  yield Function(UnitRule(Deploy, uguid))
+                        |> Rule.onlyWhen (Rule(GameStateRule(GameRound(Begin))) <&> Rule(UnitRule(DeploymentState(Start), uguid))) 
+                        |> Rule.userActivated
+                        |> Rule.afterRunDeactivateUntil (Rule(GameStateRule(EndPhase)))
+                  yield Description { Name = "Bounding Leap"
+                                      Description = "Run(CharacteristicValue 3) extra inches" }
               }
               |> Seq.map makeRule
               |> Map.ofSeq }
