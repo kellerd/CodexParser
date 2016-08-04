@@ -134,6 +134,7 @@ module WarhammerDomain =
         | Overwritten of Rule * Rule 
 
     [<CompilationRepresentation (CompilationRepresentationFlags.ModuleSuffix)>]
+    [<AutoOpen>]
     module Rule =
         let overwrite newR x = Overwritten(newR,x)
         let unoverwrite = function
@@ -160,7 +161,10 @@ module WarhammerDomain =
                 | Function(Sequence([])) as rule -> rule
                 | Function(r) -> Function(Sequence([r])) |> afterRunDeactivateUntil activatedWhen
                 | Overwritten(newRule,old) -> Overwritten(afterRunDeactivateUntil activatedWhen newRule,old)
-
+        let onlyWhen l1 r1 = ActiveWhen(l1,r1)
+        let (<&>) l1 l2 = Logical(l1,And,l2)
+        let (<|>) l1 l2 = Logical(l1,And,l2)
+        let (<!>) l1 = Not(l1)
         
     type [<ReferenceEquality>]  Model = {
       Name : string

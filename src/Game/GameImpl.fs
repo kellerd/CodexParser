@@ -245,7 +245,7 @@ module WarhammerImpl =
         | GameStateRule(rule) ->
             let name = rule.ToString()
             tryReplaceRuleOnGameState name Rule.unoverwrite gameState
-        | Sequence(rule::tail) ->
+        | Sequence(rule::_) ->
             revert rule gameState
         | Sequence([]) -> gameState
     let rec deactivateUntil activateWhen ruleApplication gameState  =
