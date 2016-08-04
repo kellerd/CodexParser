@@ -85,7 +85,8 @@ module GameLoop =
             match gameState with
             | Active (ActiveWhen(Rule(GameStateRule(Domain.WarhammerDomain.EndGame)), Function(GameStateRule(Noop)))) _ -> Some gameState
             | _ -> None 
-        | _ -> None    
+        | _ -> None   
+         
     let rec moveNextPlayer player gameState evalResult  = 
         let newPlayer = 
             match (gameState, evalResult) with
@@ -104,15 +105,12 @@ module GameLoop =
             | AskResult a -> a.Map(moveNextPlayer newPlayer gameState) |> Ask |> gameResultFor newPlayer gameState
    
     and  playerMove player (rules:RuleApplication list) gameState = 
-        
         let evalResult = 
             match rules with
             | [] -> GameStateResult gameState
             | rules -> eval rules gameState 
         moveNextPlayer player gameState evalResult 
 
-
-    
     let newGame  () = 
         // create initial game state
         let gameState = Impl.ImplTest.initial
