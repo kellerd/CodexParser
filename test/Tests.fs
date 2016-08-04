@@ -3,7 +3,8 @@
 open NUnit.Framework
 open FsUnit
 open Domain.WarhammerDomain
-open GameImpl.WarhammerImpl
+open GameImpl.GameLoop
+open GameImpl.RulesImpl
 
 [<TestFixture>] 
 type ``Given a Example state with Single Rules`` () =
