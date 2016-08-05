@@ -36,7 +36,7 @@ Target "Deploy" (fun _ ->
 )
 
 // define test dlls
-let testDlls = !! (testDir + "/bin/Tests.dll")
+let testDlls = !! (buildDir + "/Tests.dll")
  
 Target "NUnitTest" (fun _ ->
     testDlls
