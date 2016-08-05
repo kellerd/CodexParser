@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+﻿<?xml version="1.0" encoding="utf-8" standalone="yes"?>
 <Project ToolsVersion="14.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <PropertyGroup>
     <Name>Game</Name>
@@ -42,7 +42,7 @@
     <None Include="App.config" />
     <Compile Include="Equals.fs" />
     <Compile Include="Map.fs" />
-    <Compile Include="Domain.fs" />
+    <Compile Include="Base.fs" />
     <Compile Include="Rule.fs" />
     <Compile Include="Board.fs" />
     <Compile Include="Asker.fs" />

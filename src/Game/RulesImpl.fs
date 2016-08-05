@@ -4,6 +4,7 @@ module RulesImpl =
     open Domain.WarhammerDomain
     open Domain
     open Domain.Board
+    open Domain.Game
     open GameImpl.GameState
     open Microsoft.FSharp.Collections
     let rec (|Optional|_|) r = 
@@ -182,39 +183,22 @@ module RulesImpl =
         | GameStateRule(rule) ->
             let name = rule.ToString()
             tryReplaceRuleOnGameState name (makeNewRule ruleApplication) gameState
-        | Sequence(rule::tail) ->
+        | Sequence(rule::_) ->
             deactivateUntil activateWhen rule gameState
         | Sequence([]) -> gameState
 
-    let deploy uId gameState  = 
-        let foundUnit = tryFindUnit gameState uId
-        let foundPlayer = foundUnit |> Option.bind (tryFindPlayer gameState)
-        match foundPlayer, foundUnit with
-        | Some p, Some u -> 
-            let pa positionAsker =
-                let name = DeploymentState(Deployed).ToString()
-                let newRule = Function(UnitRule(DeploymentState(Deployed), uId))
-                let newGs = tryReplaceRuleOnUnit name (Rule.overwrite newRule) uId gameState
-                let newUnit = tryFindUnit newGs uId |> defaultArg <| u
-                { newGs with Board = { newGs.Board with Models = forAllModels (fun m -> { Model = m; Player = p.Player; Position = newGs |> positionAsker }) newUnit newGs} }
-            pa
-        | None, _ -> failwith "Couldn't find player"
-        | _, None -> failwith "Couldn't find unit"
-    
-
     //let assault = .... //May have to change this to adding a Targetted rule to target, which adds a Melee to model 
     let melee attacks toHit target mId gameState = 
-        let foundModel = tryFindUnit gameState mId
-        let foundTarget = tryFindUnit gameState target
-        match foundTarget, foundModel with 
-        | Some t, Some m ->
+        let foundModel = tryFindModel gameState mId
+        match foundModel with 
+        | Some m ->
             let rollForHits diceAsker = 
-                // let rolls = Seq.init attacks (fun _ -> diceAsker()) |> Seq.filter ((>=) toHit)
-                0
+                let hits = Seq.init attacks (fun _ -> diceAsker()) |> Seq.filter (fun (DiceRoll x) -> x >= toHit) |> Seq.length
+                printfn "Did %d hits" hits
+                let newRule = Function(ModelRule(MeleeHits(hits,target),mId))
+                gameState |> replaceRuleOnModel m.Model (Map.add (MeleeHits.ToString()) newRule)
             rollForHits
-    
-        | None, _ -> failwith "Couldn't find target"
-        | _, None -> failwith "Couldn't find model"
+        | None -> failwith "Couldn't find model"
     let rec eval rules gameState = 
         match rules with
         | [] -> GameStateResult gameState
@@ -232,7 +216,7 @@ module RulesImpl =
                 | GameStateRule(Revert(ruleApplication)) -> revert ruleApplication gameState |> eval rest
                 | GameStateRule(DeactivateUntil(activateWhen,ruleApplication)) -> deactivateUntil activateWhen ruleApplication gameState |> eval rest
                 | Sequence(rules) -> eval (rules @ rest) gameState
-                | ModelRule(Melee(attacks,toHit,target),mId) -> melee attacks target mId 
+                | ModelRule(Melee(attacks,toHit,target),mId) -> melee attacks toHit target mId gameState >> eval rest |> Asker |> DiceRollAsker |> AskResult
                 | xs -> failwith <| sprintf "%A" xs
     
     

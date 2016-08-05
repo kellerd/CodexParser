@@ -1,6 +1,9 @@
 ﻿namespace ConsoleUi
 module ConsoleWarhammer = 
     open Domain.WarhammerDomain
+    open Domain.Board
+    open Domain.Game
+    open Domain
     open System
     /// Track the UI state
     type UserAction<'a> =

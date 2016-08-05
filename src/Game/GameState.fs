@@ -1,6 +1,6 @@
 namespace GameImpl 
 module GameState = 
-    open Domain.WarhammerDomain
+    open Domain.Board
     open Microsoft.FSharp.Collections
     let tryFindUnit gameState unitId = 
         gameState.Players |> List.tryPick (fun p -> p.Units |> Map.tryFind unitId)
@@ -49,7 +49,7 @@ module GameState =
             |> Option.map (fun r -> r |> Map.replace mapf <| name
                                       |> replaceRuleOnGameState <| gameState)
                     |> defaultArg <| gameState
-    let replaceRuleOnUnit gameState (unit : Unit) replace = 
+    let replaceRuleOnUnit  (unit : Unit) replace gameState = 
         let newUnit = { unit with Rules = unit.Rules |> replace }
         updatePlayerInGameState unit newUnit gameState
     let tryReplaceRuleOnUnit name mapf uid gameState = 
@@ -57,9 +57,9 @@ module GameState =
                     |> Option.bind (fun u -> u.Rules 
                                                 |> Map.tryFind name
                                                 |> Option.map (fun r -> r |> Map.replace mapf <| name
-                                                                          |> replaceRuleOnUnit gameState u))
+                                                                          |> replaceRuleOnUnit  u <| gameState))
                     |> defaultArg <| gameState
-    let replaceRuleOnModel gameState (model : Model) replace = 
+    let replaceRuleOnModel  (model : Model) replace gameState = 
         let newmodel = { model with Rules = model.Rules |> replace }
         updateUnitInGameState model newmodel gameState
     let tryReplaceRuleOnModel name mapf mId gameState = 
@@ -67,7 +67,7 @@ module GameState =
                     |> Option.bind (fun m -> m.Model.Rules 
                                                 |> Map.tryFind name
                                                 |> Option.map (fun r -> r |> Map.replace mapf <| name
-                                                                          |> replaceRuleOnModel gameState m.Model))
+                                                                          |> replaceRuleOnModel  m.Model <| gameState))
                     |> defaultArg <| gameState
     let forAllModels f newUnit gameState = 
         [ for m in newUnit.UnitModels do
