@@ -61,24 +61,24 @@ module ImplTest =
           Rules = 
               seq { 
                   yield Function(UnitRule(UCharacteristic(WeaponSkill(CharacteristicValue 3)), tUnitId))
-                  yield Function(UnitRule(UCharacteristic(BallisticSkill(CharacteristicValue 3)), tUnitId))
-                  yield Function(UnitRule(UCharacteristic(Strength(CharacteristicValue 3)), tUnitId))
-                  yield Function(UnitRule(UCharacteristic(Toughness(CharacteristicValue 3)), tUnitId))
-                  yield Function(UnitRule(UCharacteristic(Wounds(CharacteristicValue 3)), tUnitId))
-                  yield Function(UnitRule(UCharacteristic(Initiative(CharacteristicValue 3)), tUnitId))
-                  yield Function(UnitRule(UCharacteristic(Attacks(CharacteristicValue 3)), tUnitId))
-                  yield Function(UnitRule(UCharacteristic(Leadership(CharacteristicValue 3)), tUnitId))
-                  yield Function(UnitRule(UCharacteristic(InvSaves(CharacteristicValue 3)), tUnitId))
-                  yield Function(UnitRule(UCharacteristic(Saves(CharacteristicValue 3)), tUnitId))
-                  yield Function(UnitRule(Move 6.<inch>, tUnitId))
-                        |> Rule.onlyWhen (isSpecificPhase Movement)
-                        |> Rule.userActivated
-                        |> Rule.afterRunDeactivateUntil (Rule(GameStateRule(EndPhase)))
-                  yield Function(UnitRule(DeploymentState(Start), tUnitId))
-                  yield Function(UnitRule(Deploy, tUnitId))
-                        |> Rule.onlyWhen (Rule(GameStateRule(GameRound(Begin))) <&> Rule(UnitRule(DeploymentState(Start), tUnitId))) 
-                        |> Rule.userActivated
-                        |> Rule.afterRunDeactivateUntil (Rule(GameStateRule(EndPhase)))
+                //   yield Function(UnitRule(UCharacteristic(BallisticSkill(CharacteristicValue 3)), tUnitId))
+                //   yield Function(UnitRule(UCharacteristic(Strength(CharacteristicValue 3)), tUnitId))
+                //   yield Function(UnitRule(UCharacteristic(Toughness(CharacteristicValue 3)), tUnitId))
+                //   yield Function(UnitRule(UCharacteristic(Wounds(CharacteristicValue 3)), tUnitId))
+                //   yield Function(UnitRule(UCharacteristic(Initiative(CharacteristicValue 3)), tUnitId))
+                //   yield Function(UnitRule(UCharacteristic(Attacks(CharacteristicValue 3)), tUnitId))
+                //   yield Function(UnitRule(UCharacteristic(Leadership(CharacteristicValue 3)), tUnitId))
+                //   yield Function(UnitRule(UCharacteristic(InvSaves(CharacteristicValue 3)), tUnitId))
+                //   yield Function(UnitRule(UCharacteristic(Saves(CharacteristicValue 3)), tUnitId))
+                //   yield Function(UnitRule(Move 6.<inch>, tUnitId))
+                //         |> Rule.onlyWhen (isSpecificPhase Movement)
+                //         |> Rule.userActivated
+                //         |> Rule.afterRunDeactivateUntil (Rule(GameStateRule(EndPhase)))
+                //   yield Function(UnitRule(DeploymentState(Start), tUnitId))
+                //   yield Function(UnitRule(Deploy, tUnitId))
+                //         |> Rule.onlyWhen (Rule(GameStateRule(GameRound(Begin))) <&> Rule(UnitRule(DeploymentState(Start), tUnitId))) 
+                //         |> Rule.userActivated
+                //         |> Rule.afterRunDeactivateUntil (Rule(GameStateRule(EndPhase)))
               }
               |> Seq.map makeRule
               |> Map.ofSeq }
@@ -105,31 +105,31 @@ module ImplTest =
           UnitName = "Hormagaunts"
           Rules = 
               seq { 
-                  yield Function(UnitRule(UCharacteristic(WeaponSkill(CharacteristicValue 3)), hUnitId))
-                  yield Function(UnitRule(UCharacteristic(BallisticSkill(CharacteristicValue 3)), hUnitId))
-                  yield Function(UnitRule(UCharacteristic(Strength(CharacteristicValue 3)), hUnitId))
-                  yield Function(UnitRule(UCharacteristic(Toughness(CharacteristicValue 3)), hUnitId))
-                  yield Function(UnitRule(UCharacteristic(Wounds(CharacteristicValue 3)), hUnitId))
-                  yield Function(UnitRule(UCharacteristic(Initiative(CharacteristicValue 3)), hUnitId))
-                  yield Function(UnitRule(UCharacteristic(Attacks(CharacteristicValue 3)), hUnitId))
-                  yield Function(UnitRule(UCharacteristic(Leadership(CharacteristicValue 3)), hUnitId))
-                  yield Function(UnitRule(UCharacteristic(InvSaves(CharacteristicValue 3)), hUnitId))
-                  yield Function(UnitRule(UCharacteristic(Saves(CharacteristicValue 3)), hUnitId))
-                  yield Function(UnitRule(Move 6.<inch>, hUnitId))
-                        |> Rule.onlyWhen (Rule(GameStateRule(GameRound(One(Movement)))) <|>
-                                            Rule(GameStateRule(GameRound(Two(Movement)))) <|>
-                                            Rule(GameStateRule(GameRound(Three(Movement)))) <|>
-                                            Rule(GameStateRule(GameRound(Four(Movement)))) <|>
-                                            Rule(GameStateRule(GameRound(Five(Movement)))) <|>
-                                            Rule(GameStateRule(GameRound(Six(Movement)))) <|>
-                                            Rule(GameStateRule(GameRound(Seven(Movement)))))
-                        |> Rule.userActivated
-                        |> Rule.afterRunDeactivateUntil (Rule(GameStateRule(EndPhase)))
-                  yield Function(UnitRule(DeploymentState(Start), hUnitId))
-                  yield Function(UnitRule(Deploy, hUnitId))
-                        |> Rule.onlyWhen (Rule(GameStateRule(GameRound(Begin))) <&> Rule(UnitRule(DeploymentState(Start), hUnitId))) 
-                        |> Rule.userActivated
-                        |> Rule.afterRunDeactivateUntil (Rule(GameStateRule(EndPhase)))
+                //   yield Function(UnitRule(UCharacteristic(WeaponSkill(CharacteristicValue 3)), hUnitId))
+                //   yield Function(UnitRule(UCharacteristic(BallisticSkill(CharacteristicValue 3)), hUnitId))
+                //   yield Function(UnitRule(UCharacteristic(Strength(CharacteristicValue 3)), hUnitId))
+                //   yield Function(UnitRule(UCharacteristic(Toughness(CharacteristicValue 3)), hUnitId))
+                //   yield Function(UnitRule(UCharacteristic(Wounds(CharacteristicValue 3)), hUnitId))
+                //   yield Function(UnitRule(UCharacteristic(Initiative(CharacteristicValue 3)), hUnitId))
+                //   yield Function(UnitRule(UCharacteristic(Attacks(CharacteristicValue 3)), hUnitId))
+                //   yield Function(UnitRule(UCharacteristic(Leadership(CharacteristicValue 3)), hUnitId))
+                //   yield Function(UnitRule(UCharacteristic(InvSaves(CharacteristicValue 3)), hUnitId))
+                //   yield Function(UnitRule(UCharacteristic(Saves(CharacteristicValue 3)), hUnitId))
+                //   yield Function(UnitRule(Move 6.<inch>, hUnitId))
+                //         |> Rule.onlyWhen (Rule(GameStateRule(GameRound(One(Movement)))) <|>
+                //                             Rule(GameStateRule(GameRound(Two(Movement)))) <|>
+                //                             Rule(GameStateRule(GameRound(Three(Movement)))) <|>
+                //                             Rule(GameStateRule(GameRound(Four(Movement)))) <|>
+                //                             Rule(GameStateRule(GameRound(Five(Movement)))) <|>
+                //                             Rule(GameStateRule(GameRound(Six(Movement)))) <|>
+                //                             Rule(GameStateRule(GameRound(Seven(Movement)))))
+                //         |> Rule.userActivated
+                //         |> Rule.afterRunDeactivateUntil (Rule(GameStateRule(EndPhase)))
+                //   yield Function(UnitRule(DeploymentState(Start), hUnitId))
+                //   yield Function(UnitRule(Deploy, hUnitId))
+                //         |> Rule.onlyWhen (Rule(GameStateRule(GameRound(Begin))) <&> Rule(UnitRule(DeploymentState(Start), hUnitId))) 
+                //         |> Rule.userActivated
+                //         |> Rule.afterRunDeactivateUntil (Rule(GameStateRule(EndPhase)))
                   yield Description { Name = "Bounding Leap"
                                       Description = "Run(CharacteristicValue 3) extra inches" }
               }
