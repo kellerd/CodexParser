@@ -1,7 +1,9 @@
 ﻿namespace GameImpl
 
 module GameLoop = 
-    open Domain.WarhammerDomain
+    open Domain
+    open Domain.Board
+    open Domain.Game
     open GameImpl.GameState
     open GameImpl.RulesImpl
     open Microsoft.FSharp.Collections
@@ -15,8 +17,8 @@ module GameLoop =
                                   ModelMap: GameState->ModelInfo->RuleApplication->'a }
 
     let optionalRulesMap = {GameStateMap = (fun gs r -> {gs with Rules = activateRule r gs.Rules })
-                            UnitMap = (fun gs item r -> activateRule r |> replaceRuleOnUnit gs item)
-                            ModelMap = (fun gs item r -> activateRule r |> replaceRuleOnModel gs item.Model)}
+                            UnitMap = (fun gs item r -> replaceRuleOnUnit item (activateRule r) gs)
+                            ModelMap = (fun gs item r -> replaceRuleOnModel item.Model (activateRule r) gs )}
     let activeRulesMap = {GameStateMap = (fun _ _ -> ())
                           UnitMap = (fun _ _ _ -> ())
                           ModelMap = (fun _ _ _ -> ())}
@@ -83,17 +85,17 @@ module GameLoop =
     let private (|EndGame|_|) = function 
         | GameStateResult gameState -> 
             match gameState with
-            | Active (ActiveWhen(Rule(GameStateRule(Domain.WarhammerDomain.EndGame)), Function(GameStateRule(Noop)))) _ -> Some gameState
+            | Active (ActiveWhen(Rule(GameStateRule(Domain.EndGame)), Function(GameStateRule(Noop)))) _ -> Some gameState
             | _ -> None 
         | _ -> None   
          
     let rec moveNextPlayer player gameState evalResult  = 
         let newPlayer = 
             match (gameState, evalResult) with
-                | Active (ActiveWhen(Rule(GameStateRule(Domain.WarhammerDomain.PlayerTurn(Top))), Function(GameStateRule(Noop)))) _,
-                  GameStateResult (Active (ActiveWhen(Rule(GameStateRule(Domain.WarhammerDomain.PlayerTurn(Bottom))), Function(GameStateRule(Noop)))) _) 
-                | Active (ActiveWhen(Rule(GameStateRule(Domain.WarhammerDomain.PlayerTurn(Bottom))), Function(GameStateRule(Noop)))) _, 
-                  GameStateResult (Active (ActiveWhen(Rule(GameStateRule(Domain.WarhammerDomain.PlayerTurn(Top))), Function(GameStateRule(Noop)))) _) -> other player
+                | Active (ActiveWhen(Rule(GameStateRule(Domain.PlayerTurn(Top))), Function(GameStateRule(Noop)))) _,
+                  GameStateResult (Active (ActiveWhen(Rule(GameStateRule(Domain.PlayerTurn(Bottom))), Function(GameStateRule(Noop)))) _) 
+                | Active (ActiveWhen(Rule(GameStateRule(Domain.PlayerTurn(Bottom))), Function(GameStateRule(Noop)))) _, 
+                  GameStateResult (Active (ActiveWhen(Rule(GameStateRule(Domain.PlayerTurn(Top))), Function(GameStateRule(Noop)))) _) -> other player
                 | _ -> player
         
         match evalResult with

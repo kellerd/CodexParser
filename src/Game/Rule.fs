@@ -43,8 +43,8 @@
 
     type ModelRuleImpl = 
         | MCharacteristic of Characteristic
-        | Melee of int * UnitGuid
-        | MeleeHits of int * int * UnitGuid
+        | Melee of int * int * UnitGuid
+        | MeleeHits of int * UnitGuid
         override this.ToString() = toString this
         static member FromString s = fromString<ModelRuleImpl> s
     and UnitRuleImpl = 
@@ -113,5 +113,5 @@
                 | Overwritten(newRule,old) -> Overwritten(afterRunDeactivateUntil activatedWhen newRule,old)
         let onlyWhen l1 r1 = ActiveWhen(l1,r1)
         let (<&>) l1 l2 = Logical(l1,And,l2)
-        let (<|>) l1 l2 = Logical(l1,And,l2)
+        let (<|>) l1 l2 = Logical(l1,Or,l2)
         let (<!>) l1 = Not(l1)

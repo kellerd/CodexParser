@@ -2,7 +2,7 @@
 
 open NUnit.Framework
 open FsUnit
-open Domain.WarhammerDomain
+open Domain.Board
 open GameImpl.GameLoop
 open GameImpl.RulesImpl
 
