@@ -44,7 +44,7 @@ module GameLoop =
         match gameRules @ unitRules @ modelRules with
         | [] -> 
             let ra = GameStateRule(EndPhase)
-            [ra,mapper.GameStateMap {gs with Rules = gs.Rules.Add(EndPhase.ToString(),Function(ra))} ra]
+            [ra,mapper.GameStateMap {gs with Rules = gs.Rules.Add(EndPhase.ToString(),Function(ra) |> Rule.afterRunRemove)} ra]
         | rules -> rules
 
         

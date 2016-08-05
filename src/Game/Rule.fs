@@ -65,6 +65,7 @@
         // | Deactivate of RuleApplication
         | DeactivateUntil of LogicalExpression * RuleApplication
         | Revert of RuleApplication
+        | Remove of RuleApplication
         override this.ToString() = toString this
         static member FromString s = fromString<GameRuleImpl> s
     and LogicalExpression =
@@ -101,16 +102,20 @@
                     | Function(r) -> Function(Sequence([r])) |> userActivated'
                     | Overwritten(newRule,old) -> Overwritten(userActivated' newRule,old)
             userActivated' rule |> UserActivated
-        let rec afterRunDeactivateUntil activatedWhen = function
-                | ActiveWhen(logic,rule) -> 
-                    ActiveWhen(logic,afterRunDeactivateUntil activatedWhen rule)
-                | UserActivated(rule)   -> afterRunDeactivateUntil activatedWhen rule |> UserActivated
+        let rec private after perform = function
+            | ActiveWhen(logic,rule) -> 
+                    ActiveWhen(logic,after perform rule)
+                | UserActivated(rule)   -> after perform  rule |> UserActivated
                 | Description(_) as rule-> rule
                 | Function(Sequence(r1::tail)) -> 
-                    Function(Sequence(r1 :: (List.append tail [GameStateRule(DeactivateUntil(activatedWhen,r1))])))
+                    Function(Sequence(r1 :: (List.append tail [r1 |> perform |> GameStateRule])))//          GameStateRule(DeactivateUntil(activatedWhen,r1))])))
                 | Function(Sequence([])) as rule -> rule
-                | Function(r) -> Function(Sequence([r])) |> afterRunDeactivateUntil activatedWhen
-                | Overwritten(newRule,old) -> Overwritten(afterRunDeactivateUntil activatedWhen newRule,old)
+                | Function(r) -> Function(Sequence([r])) |> after perform 
+                | Overwritten(newRule,old) -> Overwritten(after perform newRule,old)
+        let afterRunDeactivateUntil activatedWhen = 
+            after (fun r -> DeactivateUntil(activatedWhen,r))
+        let afterRunRemove =
+            after Remove
         let onlyWhen l1 r1 = ActiveWhen(l1,r1)
         let (<&>) l1 l2 = Logical(l1,And,l2)
         let (<|>) l1 l2 = Logical(l1,Or,l2)
