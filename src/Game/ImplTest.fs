@@ -2,6 +2,8 @@
 
 module ImplTest = 
     open Domain.WarhammerDomain
+    open Domain
+    open Domain.Board
     open System
     let hUnitId = UnitGuid "A4F2493F-08BA-44EA-B813-0F3E5E53110B"  
     let tUnitId = UnitGuid "155143C3-C1FD-46BE-B41C-02A992F16FB2"

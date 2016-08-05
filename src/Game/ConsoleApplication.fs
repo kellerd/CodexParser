@@ -3,10 +3,17 @@ namespace ConsoleApplication
 module ConsoleApplication = 
 #else
     #load "Equals.fs"
-    #load "Domain.fs"
+    #load "Map.fs"
+    #load "Base.fs"
+    #load "Rule.fs"
+    #load "Board.fs"
+    #load "Asker.fs"
+    #load "Game.fs"
+    #load "GameState.fs"
     #load "ImplTest.fs"
-    #load "GameImpl.fs"
     #load "ConsoleUi.fs"
+    #load "RulesImpl.fs"
+    #load "GameLoop.fs"
     #load "Logging.fs"
 #endif
     open GameImpl
@@ -19,4 +26,3 @@ module ConsoleApplication =
 #if INTERACTIVE 
     startGame()
 #endif
-;;
