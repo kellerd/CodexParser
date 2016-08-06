@@ -89,7 +89,7 @@
     module Rule =
         let overwrite newR x = Overwritten(newR,x)
         let unoverwrite = function
-                                | Overwritten(newR,r) -> r
+                                | Overwritten(_,r) -> r
                                 | r -> r
         let userActivated rule =
             let rec userActivated' = function
