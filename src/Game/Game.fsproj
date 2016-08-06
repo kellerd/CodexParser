@@ -39,23 +39,23 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="AssemblyInfo.fs" />
-    <None Include="App.config" />
-    <Compile Include="Equals.fs" />
-    <Compile Include="Map.fs" />
-    <Compile Include="Base.fs" />
-    <Compile Include="Rule.fs" />
-    <Compile Include="Board.fs" />
-    <Compile Include="Asker.fs" />
-    <Compile Include="Game.fs" />
-    <Compile Include="GameState.fs" />
-    <Compile Include="ImplTest.fs" />
-    <Compile Include="ConsoleUi.fs" />
-    <Compile Include="RulesImpl.fs" />
-    <Compile Include="GameLoop.fs" />
-    <Compile Include="Logging.fs" />
-    <Compile Include="ConsoleApplication.fs" />
-    <Compile Include="Program.fs" />
     <Content Include="paket.references" />
+    <None Include="App.config" />
+    <Compile Include="Base\Equals.fs" />
+    <Compile Include="Base\Map.fs" />
+    <Compile Include="Base\Base.fs" />
+    <Compile Include="Domain\Rule.fs" />
+    <Compile Include="Domain\Board.fs" />
+    <Compile Include="Domain\Asker.fs" />
+    <Compile Include="Domain\Game.fs" />
+    <Compile Include="Impl\GameState.fs" />
+    <Compile Include="Impl\ImplTest.fs" />
+    <Compile Include="Impl\RulesImpl.fs" />
+    <Compile Include="Impl\GameLoop.fs" />
+    <Compile Include="UI\ConsoleUi.fs" />
+    <Compile Include="UI\Logging.fs" />
+    <Compile Include="UI\ConsoleApplication.fs" />
+    <Compile Include="UI\Program.fs" />
   </ItemGroup>
   <Import Project="$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props" Condition="Exists('$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props')" />
   <Choose>
