@@ -45,6 +45,7 @@
         | MCharacteristic of Characteristic
         | Melee of int * int * UnitGuid
         | MeleeHits of int * UnitGuid
+        | MeleeWounds of int * UnitGuid
         override this.ToString() = toString this
         static member FromString s = fromString<ModelRuleImpl> s
     and UnitRuleImpl = 
@@ -83,7 +84,7 @@
         | ActiveWhen of LogicalExpression * Rule
         | Description of RuleDescription 
         | Overwritten of Rule * Rule 
-
+   
     [<CompilationRepresentation (CompilationRepresentationFlags.ModuleSuffix)>]
     [<AutoOpen>]
     module Rule =

@@ -10,7 +10,7 @@ module Board =
     } 
     and [<ReferenceEquality>] Unit = { 
       Id : UnitGuid
-      UnitModels  : Map<UnitGuid,Model>
+      UnitModels  : Map<ModelGuid,Model>
       UnitName    : string
       Rules : Map<string,Rule>
     } 

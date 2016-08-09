@@ -1,5 +1,6 @@
 namespace GameImpl 
 module GameState = 
+    open FSharpx.Collections
     open Domain.Board
     open Microsoft.FSharp.Collections
     let tryFindUnit gameState unitId = 
@@ -23,9 +24,9 @@ module GameState =
         let pred z = x = z
         y :: (removeFirst pred xs)
     
-    
-    let replaceUnitModels u (m:Model) nm = { u with UnitModels = Map.replace id nm m.Id u.UnitModels }
-    let replacePlayerUnits p u nu = { p with Units = Map.replace id nu u.Id p.Units }
+    let def x _ = Some x
+    let replaceUnitModels u (m:Model) nm = { u with UnitModels = Map.updateWith (def nm) m.Id u.UnitModels } 
+    let replacePlayerUnits p u nu = { p with Units = Map.updateWith (def nu) u.Id p.Units }
     let replaceGameStatePlayers s p np = { s with Players = replace s.Players p np }
  
     let updatePlayerInGameState unit newUnit gameState = 
@@ -44,34 +45,24 @@ module GameState =
         let newGameState = { gameState with Rules = gameState.Rules |> replace }
         newGameState
     let tryReplaceRuleOnGameState name mapf gameState = 
-        gameState.Rules 
-            |> Map.tryFind name
-            |> Option.map (fun r -> r |> Map.replace mapf <| name
-                                      |> replaceRuleOnGameState <| gameState)
-                    |> defaultArg <| gameState
+        replaceRuleOnGameState (Map.updateWith mapf name) gameState
     let replaceRuleOnUnit  (unit : Unit) replace gameState = 
         let newUnit = { unit with Rules = unit.Rules |> replace }
         updatePlayerInGameState unit newUnit gameState
     let tryReplaceRuleOnUnit name mapf uid gameState = 
-        tryFindUnit gameState uid 
-                    |> Option.bind (fun u -> u.Rules 
-                                                |> Map.tryFind name
-                                                |> Option.map (fun r -> r |> Map.replace mapf <| name
-                                                                          |> replaceRuleOnUnit  u <| gameState))
-                    |> defaultArg <| gameState
+        tryFindUnit gameState uid
+        |> Option.map (fun u -> replaceRuleOnUnit u (Map.updateWith mapf name) gameState)
+        |> defaultArg <| gameState
     let replaceRuleOnModel  (model : Model) replace gameState = 
         let newmodel = { model with Rules = model.Rules |> replace }
         updateUnitInGameState model newmodel gameState
     let tryReplaceRuleOnModel name mapf mId gameState = 
-        tryFindModel gameState mId 
-                    |> Option.bind (fun m -> m.Model.Rules 
-                                                |> Map.tryFind name
-                                                |> Option.map (fun r -> r |> Map.replace mapf <| name
-                                                                          |> replaceRuleOnModel  m.Model <| gameState))
-                    |> defaultArg <| gameState
+        tryFindModel gameState mId
+        |> Option.map (fun m -> replaceRuleOnModel m.Model (Map.updateWith mapf name) gameState)
+        |> defaultArg <| gameState
     let forAllModels f newUnit gameState = 
         [ for m in newUnit.UnitModels do
                 yield f m.Value ]
         |> List.fold (fun acc m -> match Map.tryFind m.Model.Id acc with
-                                    | Some _ -> Map.replace id m m.Model.Id acc
+                                    | Some _ -> Map.updateWith (def m) m.Model.Id acc
                                     | None -> Map.add m.Model.Id m acc) gameState.Board.Models
