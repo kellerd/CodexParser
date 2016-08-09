@@ -7,6 +7,7 @@ module RulesImpl =
     open Domain.Game
     open GameImpl.GameState
     open Microsoft.FSharp.Collections
+    open FSharpx.Collections
     let rec (|Optional|_|) r = 
         match r with 
         | ActiveWhen(_, Optional rule) -> Some rule
@@ -63,11 +64,15 @@ module RulesImpl =
             | Sequence(r::_) -> r.ToString()
             | Sequence([]) -> ""
         let name = matchName r
-        let original = Map.tryFind name rules
-        match original with 
-        | Some original ->
-            Map.replace (Rule.overwrite original) (Function(r)) name rules
-        | None -> rules 
+        Map.updateWith (Rule.overwrite (Function(r)) >> Some) name rules
+
+ 
+    let (|ACharacteristic|_|)  = function
+        | ModelRule (MCharacteristic(c),_) -> Some c
+        | UnitRule (UCharacteristic(c),_) -> Some c
+        | _ -> None
+
+
     let deploy uId gameState  = 
         let foundUnit = tryFindUnit gameState uId
         let foundPlayer = foundUnit |> Option.bind (tryFindPlayer gameState)
@@ -75,7 +80,7 @@ module RulesImpl =
         | Some p, Some u -> 
             let pa positionAsker =
                 let newRule = UnitRule(DeploymentState(Deployed), uId)
-                let newGs = tryReplaceRuleOnUnit (newRule.ToString()) (Rule.overwrite (Function(newRule))) uId gameState
+                let newGs = tryReplaceRuleOnUnit (newRule.ToString()) (Rule.overwrite (Function(newRule)) >> Some) uId gameState
                 let newUnit = tryFindUnit newGs uId |> defaultArg <| u
                 [newRule],{ newGs with Board = { newGs.Board with Models = forAllModels (fun m -> { Model = m; Player = p.Player; Position = newGs |> positionAsker }) newUnit newGs} }
             pa
@@ -141,7 +146,7 @@ module RulesImpl =
         let changeRound (round,turn) gs = 
             let (GtMaker, phase) = splitRound round
            
-            let mapReplace rule = Map.replace id (Function(GameStateRule(rule))) (rule.ToString())
+            let mapReplace rule = Map.updateWith (def (Function(GameStateRule(rule)))) (rule.ToString())
             let doGameState rule = replaceRuleOnGameState <| mapReplace rule
             
             let (rules,gameStateChanges) =
@@ -164,13 +169,13 @@ module RulesImpl =
         match ruleApplication with 
         | UnitRule(rule,uId) -> 
             let name = rule.ToString()
-            tryReplaceRuleOnUnit name Rule.unoverwrite uId gameState
+            tryReplaceRuleOnUnit name (Rule.unoverwrite >> Some) uId gameState
         | ModelRule(rule,mId) ->
             let name = rule.ToString()
-            tryReplaceRuleOnModel name Rule.unoverwrite mId gameState
+            tryReplaceRuleOnModel name (Rule.unoverwrite >> Some) mId gameState
         | GameStateRule(rule) ->
             let name = rule.ToString()
-            tryReplaceRuleOnGameState name Rule.unoverwrite gameState
+            tryReplaceRuleOnGameState name (Rule.unoverwrite >> Some) gameState
         | Sequence(rule::_) ->
             revert rule gameState 
         | Sequence([]) -> gameState
@@ -178,15 +183,13 @@ module RulesImpl =
         match ruleApplication with 
         | UnitRule(rule,uId) -> 
             let name = rule.ToString()
-            tryFindUnit gameState uId
-            |> Option.map (fun u -> replaceRuleOnUnit u (Map.remove name) gameState) |> defaultArg <| gameState
+            tryReplaceRuleOnUnit name (fun _ -> None) uId gameState
         | ModelRule(rule,mId) ->
             let name = rule.ToString()
-            tryFindModel gameState mId
-            |> Option.map (fun m -> replaceRuleOnModel m.Model (Map.remove name) gameState) |> defaultArg <| gameState
+            tryReplaceRuleOnModel name (fun _ -> None) mId gameState
         | GameStateRule(rule) ->
             let name = rule.ToString()
-            replaceRuleOnGameState (Map.remove name) gameState
+            tryReplaceRuleOnGameState name (fun _ -> None) gameState
         | Sequence(rule::_) ->
             remove rule gameState 
         | Sequence([]) -> gameState
@@ -195,28 +198,65 @@ module RulesImpl =
         match ruleApplication with 
         | UnitRule(rule,uId) -> 
             let name = rule.ToString()
-            tryReplaceRuleOnUnit name (makeNewRule ruleApplication) uId gameState
+            tryReplaceRuleOnUnit name (makeNewRule ruleApplication >> Some) uId gameState
         | ModelRule(rule,mId) ->
             let name = rule.ToString()
-            tryReplaceRuleOnModel name (makeNewRule ruleApplication) mId gameState
+            tryReplaceRuleOnModel name (makeNewRule ruleApplication >> Some) mId gameState
         | GameStateRule(rule) ->
             let name = rule.ToString()
-            tryReplaceRuleOnGameState name (makeNewRule ruleApplication) gameState
+            tryReplaceRuleOnGameState name (makeNewRule ruleApplication >> Some) gameState
         | Sequence(rule::_) ->
             deactivateUntil activateWhen rule gameState
         | Sequence([]) -> gameState
 
     //let assault = .... //May have to change this to adding a Targetted rule to target, which adds a Melee to model 
     let melee attacks toHit target mId gameState = 
+        let rollForHits diceAsker = 
+            let hits = Seq.init attacks (fun _ -> diceAsker()) |> Seq.filter (fun (DiceRoll x) -> x >= toHit) |> Seq.length
+            let newRule = ModelRule(MeleeHits(hits,target),mId)
+            [newRule], tryReplaceRuleOnModel (MeleeHits.ToString()) (def (Function(newRule))) mId gameState
+        rollForHits
+    let woundTable str tough =
+         match str - tough with 
+            | 0 -> 4
+            | 1 -> 3
+            | -1 -> 5
+            | -2 | -3 -> 6
+            | x when x > 0 -> 2
+            | _ -> 0
+    let armourTable saves pen =
+        match pen - saves with
+        | x when x > 0 -> saves
+        | _ -> 2
+
+    let hitAssaultTable ws wsOpponent =
+         match ws,wsOpponent with
+            | x,y when x > y -> 3
+            | x,y when y > x * 2 -> 5
+            | _ -> 4
+    let meleeHits hits uId mId gameState =
         let foundModel = tryFindModel gameState mId
-        match foundModel with 
-        | Some m ->
-            let rollForHits diceAsker = 
-                let hits = Seq.init attacks (fun _ -> diceAsker()) |> Seq.filter (fun (DiceRoll x) -> x >= toHit) |> Seq.length
-                let newRule = ModelRule(MeleeHits(hits,target),mId)
-                [newRule],gameState |> replaceRuleOnModel m.Model (Map.add (MeleeHits.ToString()) (Function(newRule)))
-            rollForHits
-        | None -> failwith <| sprintf "Couldn't find model %A" mId
+        let foundTarget = tryFindUnit gameState uId
+        match foundModel,foundTarget with
+        | Some m, Some u -> 
+            let rollForWounds diceAsker = 
+                let avgToughness = 
+                    u.UnitModels
+                    |> Map.map (fun _ um -> um.Rules |> Map.filter (fun k _ -> k = Toughness.ToString())) 
+                    |> Map.values
+                    |> Seq.collect (Map.values)
+                    |> Seq.choose(fun r -> match gameState with | Active r (ACharacteristic(Toughness(CharacteristicValue(ra)))) -> Some ra | _ -> None)
+                    |> Seq.maxmode 0
+                let str = 
+                    m.Model.Rules |> Map.values
+                    |> Seq.choose(fun r -> match gameState with | Active r (ACharacteristic(Strength(CharacteristicValue(ra)))) -> Some ra | _ -> None)
+                    |> Seq.maxmode 0
+                let toWound = woundTable str avgToughness
+                let wounds = Seq.init hits (fun _ -> diceAsker()) |> Seq.filter (fun (DiceRoll x) -> x >= toWound) |> Seq.length
+                let newRule = ModelRule(MeleeWounds(wounds,uId),mId)
+                [newRule],tryReplaceRuleOnModel (MeleeWounds.ToString()) (def (Function(newRule))) mId gameState
+            rollForWounds
+        | _ -> failwith <| sprintf "Not found %A or %A" uId mId
     let rec eval rules gameState = 
         match rules with
         | [] -> GameStateResult gameState
@@ -225,7 +265,7 @@ module RulesImpl =
             rule |> function 
                 | UnitRule(Deploy,uId) -> deploy uId gameState >> eval' rest |> Asker  |> PositionAsker |> AskResult              
                 | UnitRule(Move maxMove,uId) -> move uId gameState maxMove >> eval rest |> Asker  |> MoveAsker |> AskResult
-                | UnitRule(SetCharacteristicUnit(name, newRule), uId) -> tryReplaceRuleOnUnit name (Rule.overwrite newRule) uId gameState |> eval  rest
+                | UnitRule(SetCharacteristicUnit(name, newRule), uId) -> tryReplaceRuleOnUnit name (Rule.overwrite newRule >> Some) uId gameState |> eval  rest
                 | GameStateRule(GameRound(_))    -> eval  rest gameState
                 | GameStateRule(PlayerTurn(_))   -> eval  rest gameState
                 | UnitRule(DeploymentState(_),_) -> eval  rest gameState
@@ -237,8 +277,6 @@ module RulesImpl =
                 | GameStateRule(DeactivateUntil(activateWhen,ruleApplication)) -> deactivateUntil activateWhen ruleApplication gameState |> eval rest
                 | Sequence(rules) -> eval (rules @ rest) gameState
                 | ModelRule(Melee(attacks,toHit,target),mId) -> melee attacks toHit target mId gameState >> eval' rest |> Asker |> DiceRollAsker |> AskResult
-                | ModelRule(MeleeHits(attacks,uId),mId) -> 
-                    printfn "Hits made: %d" attacks
-                    eval rest gameState
+                | ModelRule(MeleeHits(hits,uId),mId) -> meleeHits hits uId mId gameState >> eval' rest |> Asker |> DiceRollAsker |> AskResult
                 | xs -> failwith <| sprintf "%A" xs
    
