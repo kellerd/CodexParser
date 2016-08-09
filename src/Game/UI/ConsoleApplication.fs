@@ -2,19 +2,21 @@
 namespace ConsoleApplication
 module ConsoleApplication = 
 #else
-    #load "Equals.fs"
-    #load "Map.fs"
-    #load "Base.fs"
-    #load "Rule.fs"
-    #load "Board.fs"
-    #load "Asker.fs"
-    #load "Game.fs"
-    #load "GameState.fs"
-    #load "ImplTest.fs"
-    #load "ConsoleUi.fs"
-    #load "RulesImpl.fs"
-    #load "GameLoop.fs"
-    #load "Logging.fs"
+    #r """..\..\..\packages\FSharpx.Collections\lib\net40\FSharpx.Collections.dll"""
+    #load "..\Base\Equals.fs"
+    #load "..\Base\Map.fs"
+    #load "..\Base\Seq.fs"
+    #load "..\Base\Base.fs"
+    #load "..\Domain\Rule.fs"
+    #load "..\Domain\Board.fs"
+    #load "..\Domain\Asker.fs"
+    #load "..\Domain\Game.fs"
+    #load "..\Impl\GameState.fs"
+    #load "..\Impl\ImplTest.fs"
+    #load "..\Impl\ConsoleUi.fs"
+    #load "..\Impl\RulesImpl.fs"
+    #load "..\UI\GameLoop.fs"
+    #load "..\UI\Logging.fs"
 #endif
     open GameImpl
     open Logging
