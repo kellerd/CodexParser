@@ -13,9 +13,9 @@ module ConsoleApplication =
     #load "..\Domain\Game.fs"
     #load "..\Impl\GameState.fs"
     #load "..\Impl\ImplTest.fs"
-    #load "..\Impl\ConsoleUi.fs"
     #load "..\Impl\RulesImpl.fs"
-    #load "..\UI\GameLoop.fs"
+    #load "..\Impl\GameLoop.fs"
+    #load "..\UI\ConsoleUi.fs"
     #load "..\UI\Logging.fs"
 #endif
     open GameImpl
