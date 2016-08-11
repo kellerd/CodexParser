@@ -46,6 +46,16 @@ module ImplTest =
                         |> Rule.onlyWhen (isSpecificPhase Assault)
                         |> Rule.userActivated
                         |> Rule.afterRunDeactivateUntil (Rule(GameStateRule(EndPhase)))
+                  yield Function(ModelRule(WeaponSkill(CharacteristicValue 3), id))
+                  yield Function(ModelRule(BallisticSkill(CharacteristicValue 3), id))
+                  yield Function(ModelRule(Strength(CharacteristicValue 3), id))
+                  yield Function(ModelRule(Toughness(CharacteristicValue 3), id))
+                  yield Function(ModelRule(Wounds(CharacteristicValue 3), id))
+                  yield Function(ModelRule(Initiative(CharacteristicValue 3), id))
+                  yield Function(ModelRule(Attacks(CharacteristicValue 3), id))
+                  yield Function(ModelRule(Leadership(CharacteristicValue 3), id))
+                  yield Function(ModelRule(InvSaves(CharacteristicValue 3), id))
+                  yield Function(ModelRule(Saves(CharacteristicValue 3), id))
               }
               |> Seq.map makeRule
               |> Map.ofSeq }
@@ -60,25 +70,16 @@ module ImplTest =
           UnitName = "Termagaunts"
           Rules = 
               seq { 
-                  yield Function(UnitRule(UCharacteristic(WeaponSkill(CharacteristicValue 3)), tUnitId))
-                //   yield Function(UnitRule(UCharacteristic(BallisticSkill(CharacteristicValue 3)), tUnitId))
-                //   yield Function(UnitRule(UCharacteristic(Strength(CharacteristicValue 3)), tUnitId))
-                //   yield Function(UnitRule(UCharacteristic(Toughness(CharacteristicValue 3)), tUnitId))
-                //   yield Function(UnitRule(UCharacteristic(Wounds(CharacteristicValue 3)), tUnitId))
-                //   yield Function(UnitRule(UCharacteristic(Initiative(CharacteristicValue 3)), tUnitId))
-                //   yield Function(UnitRule(UCharacteristic(Attacks(CharacteristicValue 3)), tUnitId))
-                //   yield Function(UnitRule(UCharacteristic(Leadership(CharacteristicValue 3)), tUnitId))
-                //   yield Function(UnitRule(UCharacteristic(InvSaves(CharacteristicValue 3)), tUnitId))
-                //   yield Function(UnitRule(UCharacteristic(Saves(CharacteristicValue 3)), tUnitId))
-                //   yield Function(UnitRule(Move 6.<inch>, tUnitId))
-                //         |> Rule.onlyWhen (isSpecificPhase Movement)
-                //         |> Rule.userActivated
-                //         |> Rule.afterRunDeactivateUntil (Rule(GameStateRule(EndPhase)))
-                //   yield Function(UnitRule(DeploymentState(Start), tUnitId))
-                //   yield Function(UnitRule(Deploy, tUnitId))
-                //         |> Rule.onlyWhen (Rule(GameStateRule(GameRound(Begin))) <&> Rule(UnitRule(DeploymentState(Start), tUnitId))) 
-                //         |> Rule.userActivated
-                //         |> Rule.afterRunDeactivateUntil (Rule(GameStateRule(EndPhase)))
+                  
+//                  yield Function(UnitRule(Move 6.<inch>, tUnitId))
+//                        |> Rule.onlyWhen (isSpecificPhase Movement)
+//                        |> Rule.userActivated
+//                        |> Rule.afterRunDeactivateUntil (Rule(GameStateRule(EndPhase)))
+                  yield Function(UnitRule(DeploymentState(Start), tUnitId))
+//                  yield Function(UnitRule(Deploy, tUnitId))
+//                         |> Rule.onlyWhen (Rule(GameStateRule(GameRound(Begin))) <&> Rule(UnitRule(DeploymentState(Start), tUnitId))) 
+//                         |> Rule.userActivated
+//                         |> Rule.afterRunDeactivateUntil (Rule(GameStateRule(EndPhase)))
               }
               |> Seq.map makeRule
               |> Map.ofSeq }
@@ -89,10 +90,20 @@ module ImplTest =
           Base = BaseDiameter 25<mm>
           Rules = 
               seq { 
-                  yield "Lurker", 
-                        Description { Name = "Feeder"
+                  yield Description { Name = "Feeder"
                                       Description = "Hormagaunt gets rage when outside synapse" }
+                  yield Function(ModelRule(WeaponSkill(CharacteristicValue 3), id))
+                  yield Function(ModelRule(BallisticSkill(CharacteristicValue 3), id))
+                  yield Function(ModelRule(Strength(CharacteristicValue 3), id))
+                  yield Function(ModelRule(Toughness(CharacteristicValue 3), id))
+                  yield Function(ModelRule(Wounds(CharacteristicValue 3), id))
+                  yield Function(ModelRule(Initiative(CharacteristicValue 3), id))
+                  yield Function(ModelRule(Attacks(CharacteristicValue 3), id))
+                  yield Function(ModelRule(Leadership(CharacteristicValue 3), id))
+                  yield Function(ModelRule(InvSaves(CharacteristicValue 3), id))
+                  yield Function(ModelRule(Saves(CharacteristicValue 3), id))
               }
+              |> Seq.map makeRule
               |> Map.ofSeq }
     
     let HormagauntUnit = 
@@ -105,16 +116,6 @@ module ImplTest =
           UnitName = "Hormagaunts"
           Rules = 
               seq { 
-                //   yield Function(UnitRule(UCharacteristic(WeaponSkill(CharacteristicValue 3)), hUnitId))
-                //   yield Function(UnitRule(UCharacteristic(BallisticSkill(CharacteristicValue 3)), hUnitId))
-                //   yield Function(UnitRule(UCharacteristic(Strength(CharacteristicValue 3)), hUnitId))
-                //   yield Function(UnitRule(UCharacteristic(Toughness(CharacteristicValue 3)), hUnitId))
-                //   yield Function(UnitRule(UCharacteristic(Wounds(CharacteristicValue 3)), hUnitId))
-                //   yield Function(UnitRule(UCharacteristic(Initiative(CharacteristicValue 3)), hUnitId))
-                //   yield Function(UnitRule(UCharacteristic(Attacks(CharacteristicValue 3)), hUnitId))
-                //   yield Function(UnitRule(UCharacteristic(Leadership(CharacteristicValue 3)), hUnitId))
-                //   yield Function(UnitRule(UCharacteristic(InvSaves(CharacteristicValue 3)), hUnitId))
-                //   yield Function(UnitRule(UCharacteristic(Saves(CharacteristicValue 3)), hUnitId))
                 //   yield Function(UnitRule(Move 6.<inch>, hUnitId))
                 //         |> Rule.onlyWhen (Rule(GameStateRule(GameRound(One(Movement)))) <|>
                 //                             Rule(GameStateRule(GameRound(Two(Movement)))) <|>
@@ -125,7 +126,7 @@ module ImplTest =
                 //                             Rule(GameStateRule(GameRound(Seven(Movement)))))
                 //         |> Rule.userActivated
                 //         |> Rule.afterRunDeactivateUntil (Rule(GameStateRule(EndPhase)))
-                //   yield Function(UnitRule(DeploymentState(Start), hUnitId))
+                  yield Function(UnitRule(DeploymentState(Start), hUnitId))
                 //   yield Function(UnitRule(Deploy, hUnitId))
                 //         |> Rule.onlyWhen (Rule(GameStateRule(GameRound(Begin))) <&> Rule(UnitRule(DeploymentState(Start), hUnitId))) 
                 //         |> Rule.userActivated
