@@ -16,19 +16,6 @@
         | Seven  of Phase
         | End    
     type CharacteristicValue = CharacteristicValue of int
-    type Characteristic = 
-        | WeaponSkill     of CharacteristicValue
-        | BallisticSkill  of CharacteristicValue
-        | Strength        of CharacteristicValue
-        | Toughness       of CharacteristicValue
-        | Wounds          of CharacteristicValue
-        | Initiative      of CharacteristicValue
-        | Attacks         of CharacteristicValue
-        | Leadership      of CharacteristicValue
-        | InvSaves        of CharacteristicValue
-        | Saves           of CharacteristicValue with
-        member this.ToString = toString this
-        static member FromString s = fromString<Characteristic> s
 
     type DiceRoll = DiceRoll of int
 
@@ -42,7 +29,16 @@
         | Start
 
     type ModelRuleImpl = 
-        | MCharacteristic of Characteristic
+        | WeaponSkill     of CharacteristicValue
+        | BallisticSkill  of CharacteristicValue
+        | Strength        of CharacteristicValue
+        | Toughness       of CharacteristicValue
+        | Wounds          of CharacteristicValue
+        | Initiative      of CharacteristicValue
+        | Attacks         of CharacteristicValue
+        | Leadership      of CharacteristicValue
+        | InvSaves        of CharacteristicValue
+        | Saves           of CharacteristicValue
         | Melee of int * int * UnitGuid
         | MeleeHits of int * UnitGuid
         | MeleeWounds of int * UnitGuid
@@ -52,7 +48,6 @@
         | Move of float<inch>
         | DeploymentState of DeploymentType
         | Deploy
-        | UCharacteristic of Characteristic
         | SetCharacteristicUnit of string * Rule
         override  this.ToString() = toString this
         static member FromString s = fromString<UnitRuleImpl> s
