@@ -250,6 +250,36 @@ module RulesImpl =
                 [newRule],tryReplaceRuleOnModel (MeleeWounds.ToString()) (def (Function(newRule))) mId gameState
             rollForWounds
         | _ -> failwith <| sprintf "Not found %A or %A" uId mId
+    let meleeWounds wounds uId mId gameState = 
+        let foundModel = tryFindModel gameState mId
+        let foundTarget = tryFindUnit gameState uId
+        match foundModel,foundTarget with
+        | Some m, Some u -> 
+            let rollForWounds diceAsker getNextTarget = 
+                let save (um:UnitModel) = 
+                    um.Rules 
+                    |> Map.values
+                    |> Seq.collect (Map.values)
+                    |> Seq.choose(fun r -> match gameState with | Active r (ModelRule(Saves(CharacteristicValue(ra)),mId)) 
+                                                                | Active r (ModelRule(InvSaves(CharacteristicValue(ra)),mId))
+                                                                | Active r (ModelRule(CoverSaves(CharacteristicValue(ra)),mId))  -> Some ra 
+                                                                | _ -> None)
+                    |> Seq.sort 
+                    |> Seq.tryNth 0
+                    |> defaultArg <| 7
+                let penetration = 3
+                let saved = diceAsker() >= armourTable (u.UnitModels |> getNextTarget |> save) penetration   
+                
+                // let str = 
+                //     m.Model.Rules |> Map.values
+                //     |> Seq.choose(fun r -> match gameState with | Active r (ModelRule(Strength(CharacteristicValue(ra)),mId)) -> Some ra | _ -> None)
+                //     |> Seq.maxmode 0
+                // let toWound = woundTable str avgToughness
+                // let wounds = Seq.init hits (fun _ -> diceAsker()) |> Seq.filter (fun (DiceRoll x) -> x >= toWound) |> Seq.length
+                // let newRule = ModelRule(MeleeWounds(wounds,uId),mId)
+                // [newRule],tryReplaceRuleOnModel (MeleeWounds.ToString()) (def (Function(newRule))) mId gameState
+            rollForWounds
+        | _ -> failwith <| sprintf "Not found %A or %A" uId mId
     let rec eval rules gameState = 
         match rules with
         | [] -> GameStateResult gameState
@@ -259,10 +289,6 @@ module RulesImpl =
                 | UnitRule(Deploy,uId) -> deploy uId gameState >> eval' rest |> Asker  |> PositionAsker |> AskResult              
                 | UnitRule(Move maxMove,uId) -> move uId gameState maxMove >> eval rest |> Asker  |> MoveAsker |> AskResult
                 | UnitRule(SetCharacteristicUnit(name, newRule), uId) -> tryReplaceRuleOnUnit name (Rule.overwrite newRule >> Some) uId gameState |> eval  rest
-                | GameStateRule(GameRound(_))    -> eval  rest gameState
-                | GameStateRule(PlayerTurn(_))   -> eval  rest gameState
-                | UnitRule(DeploymentState(_),_) -> eval  rest gameState
-                | GameStateRule(Noop)            -> eval  rest gameState
                 | GameStateRule(EndPhase) -> advancePhase gameState |> eval' rest
                 | GameStateRule(Remove(ruleApplication)) -> remove ruleApplication gameState |> eval rest
                 | GameStateRule(Revert(ruleApplication)) -> revert ruleApplication gameState |> eval rest
@@ -281,7 +307,11 @@ module RulesImpl =
                 | ModelRule(Leadership    (_),_) -> eval rest gameState 
                 | ModelRule(InvSaves      (_),_) -> eval rest gameState 
                 | ModelRule(Saves         (_),_) -> eval rest gameState 
-                | xs -> failwith <| sprintf "%A" xs
-
+                | GameStateRule(EndGame) -> remove (GameStateRule(PlayerTurn(Bottom))) gameState |> eval rest 
+                | GameStateRule(EndTurn) -> eval rest gameState // Maybe Split EndPhase and End Turn
+                | GameStateRule(GameRound(_))    -> eval  rest gameState
+                | GameStateRule(PlayerTurn(_))   -> eval  rest gameState
+                | UnitRule(DeploymentState(_),_) -> eval  rest gameState
+                | GameStateRule(Noop)            -> eval  rest gameState
 
    

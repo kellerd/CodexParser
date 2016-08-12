@@ -38,6 +38,7 @@
         | Attacks         of CharacteristicValue
         | Leadership      of CharacteristicValue
         | InvSaves        of CharacteristicValue
+        | CoverSaves      of CharacteristicValue
         | Saves           of CharacteristicValue
         | Melee of int * int * UnitGuid
         | MeleeHits of int * UnitGuid
