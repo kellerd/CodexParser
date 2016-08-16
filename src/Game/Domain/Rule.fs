@@ -42,7 +42,7 @@
         | Saves           of CharacteristicValue
         | ArmourPenetration of ArmourPen
         | Melee of int * int * UnitGuid
-        | MeleeHits of int * UnitGuid
+        | MeleeHit of int * UnitGuid
         override this.ToString() = toString this
         static member FromString s = fromString<ModelRuleImpl> s
     and UnitRuleImpl = 
@@ -60,11 +60,14 @@
         | EndPhase
         | EndTurn
         | EndGame
+        | RollDice
+        | DiceRolled of DiceRoll
         | PlayerTurn of PlayerTurn
         | GameRound of Round
         | DeactivateUntil of LogicalExpression * RuleApplication
         | Revert of RuleApplication
         | Remove of RuleApplication
+        | Repeat of int * string * Rule
         override this.ToString() = toString this
         static member FromString s = fromString<GameRuleImpl> s
     and LogicalExpression =
@@ -82,12 +85,17 @@
         | ActiveWhen of LogicalExpression * Rule
         | Description of RuleDescription 
         | Overwritten of Rule * Rule 
+        | Nested of Rule list
     and WeaponProfile = RuleApplication list
 
    
     [<CompilationRepresentation (CompilationRepresentationFlags.ModuleSuffix)>]
     [<AutoOpen>]
     module Rule =
+        let (<&>) l1 l2 = Logical(l1,And,l2)
+        let (<|>) l1 l2 = Logical(l1,Or,l2)
+        let (<!>) l1 = Not(l1)
+
         let overwrite newR x = Overwritten(newR,x)
         let unoverwrite = function
                                 | Overwritten(_,r) -> r
@@ -101,6 +109,7 @@
                     | Function(Sequence([])) as rule    -> rule
                     | Function(r)                       -> Function(Sequence([r])) |> userActivated'
                     | Overwritten(newRule,old)          -> Overwritten(userActivated' newRule,old)
+                    | Nested(_) as rule                 -> rule
             userActivated' rule |> UserActivated
         let rec private after perform = function
             | ActiveWhen(logic,rule)            -> ActiveWhen(logic,after perform rule)
@@ -110,10 +119,14 @@
             | Function(Sequence([])) as rule    -> rule
             | Function(r)                       -> Function(Sequence([r])) |> after perform 
             | Overwritten(newRule,old)          -> Overwritten(after perform newRule,old)
+            | Nested(rs)                        -> rs |> List.map (after perform) |> Nested
         let afterRunDeactivateUntil activatedWhen = 
             after (fun r -> DeactivateUntil(activatedWhen,r))
         let afterRunRemove =
             after Remove
+        let afterRunRepeat times name r = 
+            after (fun _  -> Repeat(times,name,r)) r
+
         let rec append r1 r2 = 
             let unwrap = function
                 | UnitRule(_) as rule       -> [rule]              
@@ -126,8 +139,32 @@
             | ModelRule(_) as rule -> Sequence(rule :: r2')   
             | GameStateRule(_) as rule -> Sequence(rule :: r2')   
             | Sequence(ras) -> Sequence(ras @  r2')
+
         let onlyWhen l1 r1 = ActiveWhen(l1,r1)
-        let (<&>) l1 l2 = Logical(l1,And,l2)
-        let (<|>) l1 l2 = Logical(l1,Or,l2)
-        let (<!>) l1 = Not(l1)
+
+        let otherwise r1 r2 = 
+            match r1 with 
+            | ActiveWhen(l1,r) -> Nested([r1;onlyWhen (Not(l1)) r2])
+            | r -> Overwritten(r2,r)
+        let afterIfRemove logical ra =
+            Function(ra)            
+            |> afterRunRemove
+            |> onlyWhen logical
+            |> otherwise (Function(GameStateRule(Remove(ra))))
+            
         let (++) = append
+
+
+        let D6 = 6
+        
+        let badRolls sides lessThan =
+            Seq.initInfinite ((+) 1) 
+            |> Seq.takeWhile (fun i -> i < lessThan && i <= sides) 
+            |> Seq.map (fun i -> Rule(GameStateRule(DiceRolled(DiceRoll i))))
+            |> Seq.reduce (<|>)
+        let goodRolls sides equalOrGreaterThan =
+            Seq.initInfinite ((+) equalOrGreaterThan) 
+            |> Seq.takeWhile (fun i -> i <= sides) 
+            |> Seq.map (fun i -> Rule(GameStateRule(DiceRolled(DiceRoll i))))
+            |> Seq.reduce (<|>)
+        
