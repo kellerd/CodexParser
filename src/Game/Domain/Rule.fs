@@ -27,7 +27,7 @@
         | Reserves
         | Deployed
         | Start
-
+    type ArmourPen = int option
     type ModelRuleImpl = 
         | WeaponSkill     of CharacteristicValue
         | BallisticSkill  of CharacteristicValue
@@ -40,9 +40,9 @@
         | InvSaves        of CharacteristicValue
         | CoverSaves      of CharacteristicValue
         | Saves           of CharacteristicValue
+        | ArmourPenetration of ArmourPen
         | Melee of int * int * UnitGuid
         | MeleeHits of int * UnitGuid
-        | MeleeWounds of int * UnitGuid
         override this.ToString() = toString this
         static member FromString s = fromString<ModelRuleImpl> s
     and UnitRuleImpl = 
@@ -50,6 +50,9 @@
         | DeploymentState of DeploymentType
         | Deploy
         | SetCharacteristicUnit of string * Rule
+        | WoundPool of (int * WeaponProfile) seq * ModelGuid
+        | SortedWoundPool of (int * WeaponProfile) seq * ModelGuid
+        | Unsaved of ModelGuid
         override  this.ToString() = toString this
         static member FromString s = fromString<UnitRuleImpl> s
     and GameRuleImpl = 
@@ -59,7 +62,6 @@
         | EndGame
         | PlayerTurn of PlayerTurn
         | GameRound of Round
-        // | Deactivate of RuleApplication
         | DeactivateUntil of LogicalExpression * RuleApplication
         | Revert of RuleApplication
         | Remove of RuleApplication
@@ -80,6 +82,8 @@
         | ActiveWhen of LogicalExpression * Rule
         | Description of RuleDescription 
         | Overwritten of Rule * Rule 
+    and WeaponProfile = RuleApplication list
+
    
     [<CompilationRepresentation (CompilationRepresentationFlags.ModuleSuffix)>]
     [<AutoOpen>]
@@ -90,30 +94,40 @@
                                 | r -> r
         let userActivated rule =
             let rec userActivated' = function
-                    | ActiveWhen(logic,r) -> 
-                        ActiveWhen(logic,userActivated' r)
-                    | UserActivated(_) as rule -> rule
-                    | Description(_) as rule-> rule
-                    | Function(Sequence(r1::tail)) -> Function(Sequence(r1::GameStateRule(Revert(r1))::tail))
-                    | Function(Sequence([])) as rule -> rule
-                    | Function(r) -> Function(Sequence([r])) |> userActivated'
-                    | Overwritten(newRule,old) -> Overwritten(userActivated' newRule,old)
+                    | ActiveWhen(logic,r)               -> ActiveWhen(logic,userActivated' r)
+                    | UserActivated(_) as rule          -> rule
+                    | Description(_) as rule            -> rule
+                    | Function(Sequence(r1::tail))      -> Function(Sequence(r1::GameStateRule(Revert(r1))::tail))
+                    | Function(Sequence([])) as rule    -> rule
+                    | Function(r)                       -> Function(Sequence([r])) |> userActivated'
+                    | Overwritten(newRule,old)          -> Overwritten(userActivated' newRule,old)
             userActivated' rule |> UserActivated
         let rec private after perform = function
-            | ActiveWhen(logic,rule) -> 
-                    ActiveWhen(logic,after perform rule)
-                | UserActivated(rule)   -> after perform  rule |> UserActivated
-                | Description(_) as rule-> rule
-                | Function(Sequence(r1::tail)) -> 
-                    Function(Sequence(r1 :: (List.append tail [r1 |> perform |> GameStateRule])))//          GameStateRule(DeactivateUntil(activatedWhen,r1))])))
-                | Function(Sequence([])) as rule -> rule
-                | Function(r) -> Function(Sequence([r])) |> after perform 
-                | Overwritten(newRule,old) -> Overwritten(after perform newRule,old)
+            | ActiveWhen(logic,rule)            -> ActiveWhen(logic,after perform rule)
+            | UserActivated(rule)               -> after perform  rule |> UserActivated
+            | Description(_) as rule            -> rule
+            | Function(Sequence(r1::tail))      -> Function(Sequence(r1 :: (List.append tail [r1 |> perform |> GameStateRule])))//          GameStateRule(DeactivateUntil(activatedWhen,r1))])))
+            | Function(Sequence([])) as rule    -> rule
+            | Function(r)                       -> Function(Sequence([r])) |> after perform 
+            | Overwritten(newRule,old)          -> Overwritten(after perform newRule,old)
         let afterRunDeactivateUntil activatedWhen = 
             after (fun r -> DeactivateUntil(activatedWhen,r))
         let afterRunRemove =
             after Remove
+        let rec append r1 r2 = 
+            let unwrap = function
+                | UnitRule(_) as rule       -> [rule]              
+                | ModelRule(_) as rule      -> [rule] 
+                | GameStateRule(_) as rule  -> [rule] 
+                | Sequence(ras)             -> ras
+            let r2' = unwrap r2
+            match r1 with
+            | UnitRule(_) as rule -> Sequence(rule :: r2')                 
+            | ModelRule(_) as rule -> Sequence(rule :: r2')   
+            | GameStateRule(_) as rule -> Sequence(rule :: r2')   
+            | Sequence(ras) -> Sequence(ras @  r2')
         let onlyWhen l1 r1 = ActiveWhen(l1,r1)
         let (<&>) l1 l2 = Logical(l1,And,l2)
         let (<|>) l1 l2 = Logical(l1,Or,l2)
         let (<!>) l1 = Not(l1)
+        let (++) = append

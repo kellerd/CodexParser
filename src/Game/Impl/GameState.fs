@@ -25,10 +25,14 @@ module GameState =
         y :: (removeFirst pred xs)
     
     let def x _ = Some x
-    let replaceUnitModels u (m:Model) nm = { u with UnitModels = Map.updateWith (def nm) m.Id u.UnitModels } 
-    let replacePlayerUnits p u nu = { p with Units = Map.updateWith (def nu) u.Id p.Units }
+    let maybe x _ = x
+    let replaceUnitModels u (m:Model) nm = { u with UnitModels = Map.updateWith nm m.Id u.UnitModels } 
+    let replacePlayerUnits p u nu = { p with Units = Map.updateWith nu u.Id p.Units }
     let replaceGameStatePlayers s p np = { s with Players = replace s.Players p np }
  
+    let replaceUnitModelsInPlayer p u m nm = def (replaceUnitModels u m nm) |> replacePlayerUnits p u
+    let replaceUnitModelsInGameState s p u m nm = replaceUnitModelsInPlayer p u m nm |> replaceGameStatePlayers s p 
+
     let updatePlayerInGameState unit newUnit gameState = 
         let foundPlayer = tryFindPlayer gameState unit
         let newPlayer = foundPlayer |> Option.map (fun p -> replacePlayerUnits p unit newUnit)
@@ -39,7 +43,7 @@ module GameState =
         let foundUnit = tryFindUnitByModel gameState model
         let newUnit = foundUnit |> Option.map (fun p -> replaceUnitModels p model newmodel)
         match gameState, foundUnit, newUnit with
-        | (gs, Some u, Some nu) -> updatePlayerInGameState u nu gs
+        | (gs, Some u, Some nu) -> updatePlayerInGameState u (def nu) gs
         | (gs, _, _) -> gs   
     let replaceRuleOnGameState  replace (gameState:GameState)  = 
         let newGameState = { gameState with Rules = gameState.Rules |> replace }
@@ -48,14 +52,14 @@ module GameState =
         replaceRuleOnGameState (Map.updateWith mapf name) gameState
     let replaceRuleOnUnit  (unit : Unit) replace gameState = 
         let newUnit = { unit with Rules = unit.Rules |> replace }
-        updatePlayerInGameState unit newUnit gameState
+        updatePlayerInGameState unit (def newUnit) gameState
     let tryReplaceRuleOnUnit name mapf uid gameState = 
         tryFindUnit gameState uid
         |> Option.map (fun u -> replaceRuleOnUnit u (Map.updateWith mapf name) gameState)
         |> defaultArg <| gameState
     let replaceRuleOnModel  (model : Model) replace gameState = 
         let newmodel = { model with Rules = model.Rules |> replace }
-        updateUnitInGameState model newmodel gameState
+        updateUnitInGameState model (def newmodel) gameState
     let tryReplaceRuleOnModel name mapf mId gameState = 
         tryFindModel gameState mId
         |> Option.map (fun m -> replaceRuleOnModel m.Model (Map.updateWith mapf name) gameState)
