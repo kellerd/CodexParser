@@ -61,3 +61,13 @@
 #*.PDF   diff=astextplain
 #*.rtf   diff=astextplain
 #*.RTF   diff=astextplain
+
+###############################################################################
+# Adding vendor ignored sections
+###############################################################################
+.paket/* linguist-vendored
+.vs/* linguist-vendored
+tools/* linguist-vendored
+build.* linguist-vendored
+paket.* linguist-vendored
+packages/* linguist-vendored
