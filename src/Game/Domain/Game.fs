@@ -25,3 +25,26 @@ module Game =
         {
         NewGame : MoveCapability
         }
+
+    let woundTable str tough =
+        match str - tough with 
+        | 0 -> 4
+        | 1 -> 3
+        | -1 -> 5
+        | -2 | -3 -> 6
+        | x when x > 0 -> 2
+        | _ -> 0
+        |> DiceRoll
+    let armourTable saves pen =
+        let pen' = defaultArg pen 7
+        match pen' - saves with
+        | x when x > 0 -> saves
+        | _ -> 2
+        |> DiceRoll
+
+    let hitAssaultTable ws wsOpponent =
+         match ws,wsOpponent with
+            | x,y when x > y -> 3
+            | x,y when y > x * 2 -> 5
+            | _ -> 4
+        |> DiceRoll
