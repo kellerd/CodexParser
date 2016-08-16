@@ -64,7 +64,11 @@ module ConsoleWarhammer =
     let diceRollAsker = 
         let rnd = System.Random()
         fun () -> DiceRoll (rnd.Next(1,7))
-
+    let sortWoundPools woundProfiles =
+        printfn "Wound profiles: \r\n%A" woundProfiles
+        let len = (woundProfiles |> Seq.length)
+        Seq.init len (fun i -> printfn "Out of %d, %A Ranks: " len (Seq.item i woundProfiles) 
+                               System.Console.ReadLine() |> System.Int32.Parse)
     let displayRules gs = 
         gs.Players |> List.iter (fun p -> p.Units |> Map.map (fun _ u -> u.Rules) |> Map.iter (fun _ -> printfn "%A"))
         gs.Board.Models |> Map.map(fun _ m ->  m.Model.Rules) |> Map.iter (fun _ -> printfn "%A")
@@ -153,10 +157,12 @@ module ConsoleWarhammer =
             | PositionAsker _ -> printfn "Choose a Position: " ; a
             | MoveAsker _     -> printfn "Choose a Move: "     ; a
             | DiceRollAsker _ -> printfn "Roll a dice: "       ; a
+            | SortedWoundPoolAsker _ -> printfn "Sort the wound pool: "       ; a
     let tell = function 
         | PositionAsker asker -> GenAsker.Run (asker,positionAsker)
         | MoveAsker asker -> GenAsker.Run (asker,moveAsker)
         | DiceRollAsker asker -> GenAsker.Run(asker,diceRollAsker)
+        | SortedWoundPoolAsker asker -> GenAsker.Run(asker,sortWoundPools)
     let rec gameLoop api userAction = 
         printfn "\n------------------------------\n"  // a separator between moves
         
