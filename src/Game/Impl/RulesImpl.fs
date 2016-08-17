@@ -17,6 +17,16 @@ module RulesImpl =
         | Function(_) -> None
         | Description(_) -> None
         | Overwritten(_) -> None
+        | Nested(Optional r,rules) -> 
+            let newRules = List.map (function Optional r -> r | r -> r) rules
+            (r,newRules)|> Nested |> Some      
+        | Nested(r,rules) -> 
+            let newRules = List.map (function Optional r -> r,1 | r -> r,0) rules
+            let isOp = List.tryFind (snd >> (=) 2) newRules
+            if isOp.IsSome then
+                (r,(newRules |> List.map fst))|> Nested |> Some
+            else
+                None
     let rec (|Active|_|) r gameState = 
         match r with 
         | ActiveWhen(logic, innerRule) -> contains gameState logic innerRule |> Option.bind (fun _ -> match gameState with Active innerRule rule -> Some rule | _ -> None)
@@ -24,6 +34,12 @@ module RulesImpl =
         | Function app -> Some app
         | Description _ -> Some (GameStateRule Noop)
         | Overwritten (overwrite,_) -> match gameState with Active overwrite rule -> Some rule | _ -> None
+        | Nested(r, rules) -> 
+            let matchFst = match gameState with Active r rule -> Some rule | _ -> None
+            match matchFst with 
+            | Some r -> matchFst
+            | None -> List.tryPick(fun r -> match gameState with Active r rule -> Some rule | _ -> None) rules
+
     and tryFindInRuleList (gameState:GameState) ruleApplication rl = 
         rl |> Option.bind (Map.tryFindKey (fun k foundRule -> match ruleApplication with 
                                                                 | GameStateRule impl ->  k = impl.ToString() && match gameState with Active foundRule r -> r = ruleApplication | _ -> false
@@ -310,8 +326,12 @@ module RulesImpl =
         | Some u, Some p, Some m ->
             replaceUnitModelsInGameState gameState p u m.Model (maybe None)
         | _ -> failwith <| sprintf "Not found %A or %A" uId mId
-
-
+    
+    let rollDice gameState =
+        let roll diceRoller =
+            let newRule = diceRoller() |> DiceRolled |> GameStateRule 
+            [newRule],tryReplaceRuleOnGameState (DiceRolled.ToString()) (def (Function(newRule))) gameState
+        roll
     let rec eval rules gameState = 
         match rules with
         | [] -> GameStateResult gameState
@@ -332,21 +352,24 @@ module RulesImpl =
                 | UnitRule(WoundPool(profiles,mId),uId) -> woundPool profiles mId uId gameState >> eval' rest |> Asker |> SortedWoundPoolAsker |> AskResult
                 | UnitRule(SortedWoundPool(profiles,mId),uId) -> sortedWoundPool profiles mId uId gameState >> eval' rest |> Asker |> DiceRollAsker |> AskResult
                 | UnitRule(Unsaved(mId),uId) -> unsavedWound mId uId gameState |> eval rest
-                | ModelRule(WeaponSkill   (_),_) -> eval rest gameState 
-                | ModelRule(BallisticSkill(_),_) -> eval rest gameState 
-                | ModelRule(Strength      (_),_) -> eval rest gameState 
-                | ModelRule(Toughness     (_),_) -> eval rest gameState 
-                | ModelRule(Wounds        (_),_) -> eval rest gameState 
-                | ModelRule(Initiative    (_),_) -> eval rest gameState 
-                | ModelRule(Attacks       (_),_) -> eval rest gameState 
-                | ModelRule(Leadership    (_),_) -> eval rest gameState 
-                | ModelRule(InvSaves      (_),_) -> eval rest gameState 
-                | ModelRule(Saves         (_),_) -> eval rest gameState 
-                | ModelRule(CoverSaves         (_),_) -> eval rest gameState 
-                | ModelRule(ArmourPenetration(_),_) -> eval rest gameState 
+                | GameStateRule(RollDice) -> rollDice gameState >> eval' rest |> Asker |> DiceRollAsker |> AskResult
                 | GameStateRule(EndGame) -> remove (GameStateRule(PlayerTurn(Bottom))) gameState |> eval rest 
-                | GameStateRule(EndTurn) -> eval rest gameState // Maybe Split EndPhase and End Turn
-                | GameStateRule(GameRound(_))    -> eval  rest gameState
-                | GameStateRule(PlayerTurn(_))   -> eval  rest gameState
-                | UnitRule(DeploymentState(_),_) -> eval  rest gameState
+
+                | GameStateRule(EndTurn) // Maybe Split EndPhase and End Turn
+                | GameStateRule(DiceRolled(_))  
+                | ModelRule(WeaponSkill   (_),_)
+                | ModelRule(BallisticSkill(_),_)
+                | ModelRule(Strength      (_),_)
+                | ModelRule(Toughness     (_),_)
+                | ModelRule(Wounds        (_),_)
+                | ModelRule(Initiative    (_),_)
+                | ModelRule(Attacks       (_),_)
+                | ModelRule(Leadership    (_),_)
+                | ModelRule(InvSaves      (_),_)
+                | ModelRule(Saves         (_),_)
+                | ModelRule(CoverSaves         (_),_)
+                | ModelRule(ArmourPenetration(_),_)
+                | GameStateRule(GameRound(_))    
+                | GameStateRule(PlayerTurn(_))  
+                | UnitRule(DeploymentState(_),_) 
                 | GameStateRule(Noop)            -> eval  rest gameState
