@@ -85,7 +85,7 @@
         | ActiveWhen of LogicalExpression * Rule
         | Description of RuleDescription 
         | Overwritten of Rule * Rule 
-        | Nested of Rule list
+        | Nested of Rule * Rule list
     and WeaponProfile = RuleApplication list
 
    
@@ -119,7 +119,7 @@
             | Function(Sequence([])) as rule    -> rule
             | Function(r)                       -> Function(Sequence([r])) |> after perform 
             | Overwritten(newRule,old)          -> Overwritten(after perform newRule,old)
-            | Nested(rs)                        -> rs |> List.map (after perform) |> Nested
+            | Nested(r,rs)                        -> (after perform r,(rs |> List.map (after perform))) |> Nested
         let afterRunDeactivateUntil activatedWhen = 
             after (fun r -> DeactivateUntil(activatedWhen,r))
         let afterRunRemove =
@@ -144,7 +144,7 @@
 
         let otherwise r1 r2 = 
             match r1 with 
-            | ActiveWhen(l1,r) -> Nested([r1;onlyWhen (Not(l1)) r2])
+            | ActiveWhen(l1,r) -> Nested(r1,[onlyWhen (Not(l1)) r2])
             | r -> Overwritten(r2,r)
         let afterIfRemove logical ra =
             Function(ra)            
