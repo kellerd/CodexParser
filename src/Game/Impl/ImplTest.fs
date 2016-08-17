@@ -23,6 +23,7 @@ module ImplTest =
             | ActiveWhen(_, r) -> makeText r
             | Description(d) -> d.Name
             | Overwritten(_, r) -> makeText r
+            | Nested(h,_) -> makeText h
         
         makeText r, r
 
