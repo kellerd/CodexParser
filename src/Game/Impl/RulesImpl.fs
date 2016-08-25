@@ -37,7 +37,7 @@ module RulesImpl =
         | Nested(r, rules) -> 
             let matchFst = match gameState with Active r rule -> Some rule | _ -> None
             match matchFst with 
-            | Some r -> matchFst
+            | Some _ -> matchFst
             | None -> List.tryPick(fun r -> match gameState with Active r rule -> Some rule | _ -> None) rules
 
     and tryFindInRuleList (gameState:GameState) ruleApplication rl = 
@@ -231,61 +231,88 @@ module RulesImpl =
             deactivateUntil activateWhen rule gameState
         | Sequence([]) -> gameState
 
+    let avgToughness u gameState = 
+        u.UnitModels
+        |> Map.map (fun _ um -> um.Rules |> Map.filter (fun k _ -> k = Toughness.ToString())) 
+        |> Map.values
+        |> Seq.collect (Map.values)
+        |> Seq.choose(fun r -> match gameState with | Active r (ModelRule(Toughness(CharacteristicValue(ra)),_)) -> Some ra | _ -> None)
+        |> Seq.maxmode 0
+    let modelStrength m gameState = 
+        m.Model.Rules 
+        |> Map.tryFind (Strength.ToString())
+        |> Option.bind(fun r -> match gameState with | Active r (ModelRule(Strength(CharacteristicValue(ra)),_)) -> Some ra | _ -> None)
+        |> defaultArg <| 0
+    let doDice = Function(GameStateRule(RollDice)) |> Rule.afterRunRemove
+    let multipleFromDiceRollM rule f times mId gameState  = 
+        let text = rule |> Rule.textFromRuleApplication
+        let newRule = 
+            rule
+            |> Rule.afterIfRemove (goodRolls D6 (f gameState))
+            |> Rule.afterRunRepeat (times - 1) text
+
+        gameState
+        |> tryReplaceRuleOnModel (RollDice.ToString()) (def doDice) mId
+        |> tryReplaceRuleOnModel text (def newRule) mId
+
+    let multipleFromDiceRollU rule f times uId gameState  = 
+        let text = rule |> Rule.textFromRuleApplication
+        let newRule = 
+            rule
+            |> Rule.afterIfRemove (goodRolls D6 (f gameState))
+            |> Rule.afterRunRepeat (times - 1) text
+
+        gameState
+        |> tryReplaceRuleOnUnit (RollDice.ToString()) (def doDice) uId
+        |> tryReplaceRuleOnUnit text (def newRule) uId
+        
+    let toWound m u gameState = woundTable (modelStrength m gameState) (avgToughness u gameState)
 
     //let assault = .... //May have to change this to adding a Targetted rule to target, which adds a Melee to model 
     let melee attacks toHit target mId gameState = 
-        let doDice = Function(GameStateRule(RollDice)) |> Rule.afterRunRemove
-        let newRule =  
-            ModelRule(MeleeHit(1,target),mId)
-            |> Rule.afterIfRemove (goodRolls D6 toHit)
-            |> Rule.afterRunRepeat (attacks - 1) (MeleeHit.ToString())
-        gameState
-        |> tryReplaceRuleOnModel (RollDice.ToString()) (def doDice) mId
-        |> tryReplaceRuleOnModel (MeleeHit.ToString()) (def newRule) mId 
-
+        let newRule = ModelRule(MeleeHit(1,target),mId)
+        multipleFromDiceRollM newRule (fun _ -> toHit) attacks mId gameState
 
     let meleeHits hits uId mId gameState =
-
-
-        //Remove DiceRoll
-
-
         let foundModel = tryFindModel gameState mId
         let foundTarget = tryFindUnit gameState uId
         match foundModel,foundTarget with
         | Some m, Some u -> 
-            let rollForWounds diceAsker = 
-                let avgToughness = 
-                    u.UnitModels
-                    |> Map.map (fun _ um -> um.Rules |> Map.filter (fun k _ -> k = Toughness.ToString())) 
-                    |> Map.values
-                    |> Seq.collect (Map.values)
-                    |> Seq.choose(fun r -> match gameState with | Active r (ModelRule(Toughness(CharacteristicValue(ra)),_)) -> Some ra | _ -> None)
-                    |> Seq.maxmode 0
-                let str = 
-                    m.Model.Rules 
-                    |> Map.tryFind (Strength.ToString())
-                    |> Option.bind(fun r -> match gameState with | Active r (ModelRule(Strength(CharacteristicValue(ra)),_)) -> Some ra | _ -> None)
-                    |> defaultArg <| 0
-                let toWound = woundTable str avgToughness
-                let newWounds = Seq.init hits (fun _ -> diceAsker()) |> Seq.filter (fun x -> x >= toWound) |> Seq.map (fun (DiceRoll w) -> w,[])
-                let woundPool = 
-                    u.Rules
-                    |> Map.tryFind (WoundPool.ToString())
-                    |> Option.bind (fun r -> match gameState with 
-                                             | Active r (UnitRule(WoundPool(wounds,mId),uId)) -> Some(UnitRule(WoundPool((Seq.append wounds newWounds),mId),uId))
-                                             | _ -> None)
-                    |> defaultArg <|  UnitRule(WoundPool(newWounds,mId),uId)
-                [woundPool],tryReplaceRuleOnUnit (WoundPool.ToString()) (def (woundPool |> Function |> Rule.afterRunRemove)) uId gameState
-            rollForWounds
+            let newWounds = seq{yield 1,[]} //Seq of hits,weapon profiles
+            
+            let newRule =  
+                u.Rules
+                |> Map.tryFind (WoundPool.ToString())
+                |> Option.bind (fun r -> match gameState with 
+                                            | Active r (UnitRule(WoundPool(wounds,mId),uId)) -> Some(UnitRule(WoundPool((Seq.append wounds newWounds),mId),uId))
+                                            | _ -> None)
+                |> defaultArg <|  UnitRule(WoundPool(newWounds,mId),uId)
+
+            gameState
+            |> tryReplaceRuleOnModel (DiceRolled.ToString()) (maybe None) mId
+            |> multipleFromDiceRollU newRule (toWound m u) hits uId
         | _ -> failwith <| sprintf "Not found %A or %A" uId mId
+        
     let woundPool profiles attackingModelId uId gameState =
-        let sortedWoundPool sortedIndexes = 
-            let profiles' = profiles |> Seq.groupBy (snd) |> Seq.map (fun (profile,woundProfiles) -> woundProfiles |> Seq.sumBy fst, profile)
-            let zipped = (profiles',sortedIndexes profiles') ||> Seq.zip |> Seq.sortBy snd |> Seq.map fst
-            let newPool = UnitRule(SortedWoundPool(zipped,attackingModelId),uId)    
-            [newPool],tryReplaceRuleOnUnit (SortedWoundPool.ToString()) (def (newPool |> Function |> Rule.afterRunRemove)) uId gameState
-        sortedWoundPool
+
+        let profiles' = 
+            profiles 
+            |> Seq.groupBy (snd) 
+            |> Seq.map (fun (profile,woundProfiles) -> woundProfiles |> Seq.sumBy fst, profile)
+        let dosortedIndexes = 
+            profiles'
+            |> SupplySortedWeaponProfiles 
+            |> GameStateRule
+            |> Function
+            |> Rule.afterRunRemove
+        let newPool = 
+            UnitRule(SortedWoundPool(profiles', attackingModelId),uId)  
+            |> Rule.afterIfRemove (Rule(GameStateRule(SortedWeaponProfiles(Seq.empty<int>))))
+
+        gameState
+        |> tryReplaceRuleOnGameState (SupplySortedWeaponProfiles.ToString()) (def dosortedIndexes)
+        |> tryReplaceRuleOnUnit (SortedWoundPool.ToString()) (def newPool) uId
+
     let sortedWoundPool profiles uId mId gameState = 
         let foundTarget = tryFindUnit gameState uId
         match foundTarget with
@@ -348,8 +375,8 @@ module RulesImpl =
                 | GameStateRule(DeactivateUntil(activateWhen,ruleApplication)) -> deactivateUntil activateWhen ruleApplication gameState |> eval rest
                 | Sequence(rules) -> eval (rules @ rest) gameState
                 | ModelRule(Melee(attacks,toHit,target),mId) -> melee attacks toHit target mId gameState |> eval rest
-                | ModelRule(MeleeHit(hits,uId),mId) -> meleeHits hits uId mId gameState >> eval' rest |> Asker |> DiceRollAsker |> AskResult
-                | UnitRule(WoundPool(profiles,mId),uId) -> woundPool profiles mId uId gameState >> eval' rest |> Asker |> SortedWoundPoolAsker |> AskResult
+                | ModelRule(MeleeHit(hits,uId),mId) -> meleeHits hits uId mId gameState |> eval rest 
+                | UnitRule(WoundPool(profiles,mId),uId) -> woundPool profiles mId uId gameState |> eval rest
                 | UnitRule(SortedWoundPool(profiles,mId),uId) -> sortedWoundPool profiles mId uId gameState >> eval' rest |> Asker |> DiceRollAsker |> AskResult
                 | UnitRule(Unsaved(mId),uId) -> unsavedWound mId uId gameState |> eval rest
                 | GameStateRule(RollDice) -> rollDice gameState >> eval' rest |> Asker |> DiceRollAsker |> AskResult

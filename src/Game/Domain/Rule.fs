@@ -41,7 +41,7 @@
         | CoverSaves      of CharacteristicValue
         | Saves           of CharacteristicValue
         | ArmourPenetration of ArmourPen
-        | Melee of int * int * UnitGuid
+        | Melee of int * DiceRoll * UnitGuid
         | MeleeHit of int * UnitGuid
         override this.ToString() = toString this
         static member FromString s = fromString<ModelRuleImpl> s
@@ -50,8 +50,8 @@
         | DeploymentState of DeploymentType
         | Deploy
         | SetCharacteristicUnit of string * Rule
-        | WoundPool of (int * WeaponProfile) seq * ModelGuid
-        | SortedWoundPool of (int * WeaponProfile) seq * ModelGuid
+        | WoundPool of  seq<int * WeaponProfile> * ModelGuid
+        | SortedWoundPool of  seq<int * WeaponProfile> * ModelGuid
         | Unsaved of ModelGuid
         override  this.ToString() = toString this
         static member FromString s = fromString<UnitRuleImpl> s
@@ -61,6 +61,8 @@
         | EndTurn
         | EndGame
         | RollDice
+        | SupplySortedWeaponProfiles of seq<int * WeaponProfile>
+        | SortedWeaponProfiles of int seq
         | DiceRolled of DiceRoll
         | PlayerTurn of PlayerTurn
         | GameRound of Round
@@ -144,7 +146,7 @@
 
         let otherwise r1 r2 = 
             match r1 with 
-            | ActiveWhen(l1,r) -> Nested(r1,[onlyWhen (Not(l1)) r2])
+            | ActiveWhen(l1,_) -> Nested(r1,[onlyWhen (Not(l1)) r2])
             | r -> Overwritten(r2,r)
         let afterIfRemove logical ra =
             Function(ra)            
@@ -154,17 +156,35 @@
             
         let (++) = append
 
+        let rec textFromRuleApplication = 
+                function 
+                | GameStateRule impl -> impl.ToString()
+                | ModelRule(impl, _) -> impl.ToString()
+                | Sequence(rs) -> textFromRuleApplication (rs |> Seq.head)
+                | UnitRule(impl, _) -> impl.ToString()
+
+        let makeRule r = 
+            let rec makeText = 
+                function 
+                | Function(impl) -> textFromRuleApplication impl
+                | UserActivated(r) -> makeText r
+                | ActiveWhen(_, r) -> makeText r
+                | Description(d) -> d.Name
+                | Overwritten(_, r) -> makeText r
+                | Nested(h,_) -> makeText h
+        
+            makeText r, r
 
         let D6 = 6
         
-        let badRolls sides lessThan =
+        let badRolls sides (DiceRoll lessThan) =
             Seq.initInfinite ((+) 1) 
             |> Seq.takeWhile (fun i -> i < lessThan && i <= sides) 
-            |> Seq.map (fun i -> Rule(GameStateRule(DiceRolled(DiceRoll i))))
+            |> Seq.map (DiceRoll >> DiceRolled >> GameStateRule >> Rule)
             |> Seq.reduce (<|>)
-        let goodRolls sides equalOrGreaterThan =
+        let goodRolls sides (DiceRoll equalOrGreaterThan) =
             Seq.initInfinite ((+) equalOrGreaterThan) 
             |> Seq.takeWhile (fun i -> i <= sides) 
-            |> Seq.map (fun i -> Rule(GameStateRule(DiceRolled(DiceRoll i))))
+            |> Seq.map (DiceRoll >> DiceRolled >> GameStateRule >> Rule)
             |> Seq.reduce (<|>)
         
