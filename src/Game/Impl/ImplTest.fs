@@ -8,24 +8,7 @@ module ImplTest =
     let hUnitId = UnitGuid "A4F2493F-08BA-44EA-B813-0F3E5E53110B"  
     let tUnitId = UnitGuid "155143C3-C1FD-46BE-B41C-02A992F16FB2"
           
-    let makeRule r = 
-        let rec makeApp = 
-            function 
-            | GameStateRule impl -> impl.ToString()
-            | ModelRule(impl, _) -> impl.ToString()
-            | Sequence(rs) -> makeApp (rs |> Seq.head)
-            | UnitRule(impl, _) -> impl.ToString()
-        
-        let rec makeText = 
-            function 
-            | Function(impl) -> makeApp impl
-            | UserActivated(r) -> makeText r
-            | ActiveWhen(_, r) -> makeText r
-            | Description(d) -> d.Name
-            | Overwritten(_, r) -> makeText r
-            | Nested(h,_) -> makeText h
-        
-        makeText r, r
+
 
     let isSpecificPhase phase = 
         Rule(GameStateRule(GameRound(One(phase)))) <|>
