@@ -25,7 +25,7 @@ module GameState =
         y :: (removeFirst pred xs)
     
     let def x _ = Some x
-    let maybe x _ = x
+    let defnot x _ = x
     let replaceUnitModels u (m:Model) nm = { u with UnitModels = Map.updateWith nm m.Id u.UnitModels } 
     let replacePlayerUnits p u nu = { p with Units = Map.updateWith nu u.Id p.Units }
     let replaceGameStatePlayers s p np = { s with Players = replace s.Players p np }
