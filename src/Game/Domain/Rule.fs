@@ -15,7 +15,8 @@
         | Six    of Phase
         | Seven  of Phase
         | End    
-    type CharacteristicValue = CharacteristicValue of int
+    type CharacteristicValue = 
+        | CharacteristicValue of int
 
     type DiceRoll = DiceRoll of int
 
@@ -40,6 +41,7 @@
         | InvSaves        of CharacteristicValue
         | CoverSaves      of CharacteristicValue
         | Saves           of CharacteristicValue
+        | SetCharacteristic of string * Rule
         | ArmourPenetration of ArmourPen
         | Melee of int * DiceRoll * UnitGuid
         | MeleeHit of int * UnitGuid
@@ -49,10 +51,10 @@
         | Move of float<inch>
         | DeploymentState of DeploymentType
         | Deploy
-        | SetCharacteristicUnit of string * Rule
-        | WoundPool of  seq<int * WeaponProfile> * ModelGuid
-        | SortedWoundPool of  seq<int * WeaponProfile> * ModelGuid
-        | Unsaved of ModelGuid
+        | WoundPool of  list<int * WeaponProfile> * ModelGuid
+        | SortedWoundPool of  list<int * WeaponProfile> * ModelGuid
+        | Save of WeaponProfile * ModelGuid
+        | Unsaved of WeaponProfile*ModelGuid
         override  this.ToString() = toString this
         static member FromString s = fromString<UnitRuleImpl> s
     and GameRuleImpl = 
@@ -61,8 +63,8 @@
         | EndTurn
         | EndGame
         | RollDice
-        | SupplySortedWeaponProfiles of seq<int * WeaponProfile>
-        | SortedWeaponProfiles of int seq
+        | SupplySortedWeaponProfiles of list<int * WeaponProfile>
+        | SortedWeaponProfiles of int list
         | DiceRolled of DiceRoll
         | PlayerTurn of PlayerTurn
         | GameRound of Round
