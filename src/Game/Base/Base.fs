@@ -71,7 +71,19 @@ module WarhammerDomain =
     }    
     let pixelsOfCircle radius position =
         let radius' = roundToPixels radius
-        (x - position.X)^2 + (x - position.Y) ^2 = radius ^2
+        //(x - position.X)^2 + (y - position.Y) ^2 = radius ^2
+        // (y - position.Y)(y - position.Y)
+        //y^2 - 2y(position.Y) = radius ^2 - (x - position.X)^2  - position.Y ^ 2 
+        let y1 h k r x = (2. * k + Math.Sqrt(8. * h * x - 4. * h * h + 4. * r * r - r * x * x |> float)|>float) / 2.
+        
+        let y1' h k r x =y1 (float h) (float k) (float r) (float x) 
+        let y2' h k r x = y1' h (float k * -1.) r x |> (*) 1<px>
+        seq {
+           for x in createSeq (-1 * radius') radius' do
+               yield y1' position.X position.Y radius' x  
+               yield y2' position.X position.Y radius' x  
+        }
+        (y1,y2)
     let pixelsInRectangle widthmax heightmax start =
         let width' = roundToPixels widthmax
         let height' = roundToPixels heightmax
