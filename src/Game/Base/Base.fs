@@ -36,16 +36,17 @@ module WarhammerDomain =
     
     let characterResolution = 6.0<dpi>
     let ftToPx x = x * inch.perFootI |> inch.ToPixelsI (int characterResolution * 1<dpi>)
+    let fRoundToInt = round >> int
     
 
     [<Measure>]
     type mm =
         static member perInch = 25.4<mm/inch>
     type Position< [<Measure>] 'u > = { X : int<'u>; Y : int<'u> } with
-      member this.FindDistance other  : int<'u>=
+      member this.FindDistance other =
         let deltaX = float (other.X - this.X)
         let deltaY = float (other.Y - this.Y)
-        sqrt ((deltaX * deltaX) + (deltaY * deltaY)) |> Math.Round |> (fun x -> (x |> int) * (LanguagePrimitives.Int32WithMeasure 1))
+        sqrt ((deltaX * deltaX) + (deltaY * deltaY)) |> fRoundToInt |> (*) 1<_>
 
     let inchTomm x : float<mm>  = x / (1./mm.perInch)
     let mmToInch x : float<inch> = x / mm.perInch
@@ -58,8 +59,7 @@ module WarhammerDomain =
     type UnitGuid = Guid
 
     type LogicalOperator = And | Or
-
-    let roundToPixels x = ((inch.ToPixels characterResolution x / 1.<px> |> System.Math.Round |> int) * 1<px>)
+    let roundToPixels x = inch.ToPixels characterResolution x / 1.<px> |> fRoundToInt |> (*) 1<px>
     let pixelsInCircle radius position =  
         let radius' = roundToPixels radius
         seq {
@@ -71,7 +71,14 @@ module WarhammerDomain =
     }    
     let pixelsOfCircle radius position =
         let radius' = roundToPixels radius
-        (x - position.X)^2 + (x - position.Y) ^2 = radius ^2
+        let y1 h k r x = (2. * k + sqrt(8. * h * x - 4. * h * h + 4. * r * r - r * x * x)) / 2.
+        let y1' h k r x =y1 (float h) (float k) (float r) (float x) |> fRoundToInt |> (*) 1<px>
+        let y2' h k r x = y1' h (k * -1) r x 
+        seq {
+           for x in createSeq (-1 * radius') radius' do
+               yield y1' position.X position.Y radius' x  
+               yield y2' position.X position.Y radius' x  
+        }
     let pixelsInRectangle widthmax heightmax start =
         let width' = roundToPixels widthmax
         let height' = roundToPixels heightmax
@@ -81,5 +88,5 @@ module WarhammerDomain =
                 yield {X=x;Y=height'}
             for y in createSeq start.Y height' do
                 yield {X=start.X;Y=y}
-                yield {X=width'.X;Y=y}
+                yield {X=width';Y=y}
         } |> Seq.distinct
