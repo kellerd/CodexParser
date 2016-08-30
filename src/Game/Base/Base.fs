@@ -36,6 +36,7 @@ module WarhammerDomain =
     
     let characterResolution = 6.0<dpi>
     let ftToPx x = x * inch.perFootI |> inch.ToPixelsI (int characterResolution * 1<dpi>)
+    
 
     [<Measure>]
     type mm =
@@ -46,6 +47,9 @@ module WarhammerDomain =
         let deltaY = float (other.Y - this.Y)
         sqrt ((deltaX * deltaX) + (deltaY * deltaY)) |> Math.Round |> (fun x -> (x |> int) * (LanguagePrimitives.Int32WithMeasure 1))
 
+    let inchTomm x : float<mm>  = x / (1./mm.perInch)
+    let mmToInch x : float<inch> = x / mm.perInch
+
     type MaxMovement = MaxMovement of int<inch>
     type Dimentions<[<Measure>]'u> =
       {Width:float<'u>;Length:float<'u>} 
@@ -54,3 +58,28 @@ module WarhammerDomain =
     type UnitGuid = Guid
 
     type LogicalOperator = And | Or
+
+    let roundToPixels x = ((inch.ToPixels characterResolution x / 1.<px> |> System.Math.Round |> int) * 1<px>)
+    let pixelsInCircle radius position =  
+        let radius' = roundToPixels radius
+        seq {
+        for x in createSeq (position.X - radius') (position.X + radius') do
+            for y in createSeq (position.Y - radius') (position.Y + radius') do
+                let newPos = {X=x;Y=y}
+                if x > 0<px> && y > 0<px> && position.FindDistance newPos <= radius' then
+                    yield newPos
+    }    
+    let pixelsOfCircle radius position =
+        let radius' = roundToPixels radius
+        (x - position.X)^2 + (x - position.Y) ^2 = radius ^2
+    let pixelsInRectangle widthmax heightmax start =
+        let width' = roundToPixels widthmax
+        let height' = roundToPixels heightmax
+        seq {
+            for x in createSeq start.X width' do
+                yield {X=x;Y=start.Y}
+                yield {X=x;Y=height'}
+            for y in createSeq start.Y height' do
+                yield {X=start.X;Y=y}
+                yield {X=width'.X;Y=y}
+        } |> Seq.distinct

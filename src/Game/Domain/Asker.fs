@@ -8,7 +8,7 @@ type Asker<'a> =
     | PositionAsker of GenAsker<GameState -> Position<px>, 'a>
     | MoveAsker of GenAsker<Position<px>[] -> Position<px>, 'a>
     | DiceRollAsker of GenAsker<unit -> DiceRoll, 'a>
-    | SortedWoundPoolAsker of GenAsker<(int * WeaponProfile) seq -> int seq, 'a>
+    | SortedWoundPoolAsker of GenAsker<(int * WeaponProfile) list -> int list, 'a>
     with member this.Map(f) = 
             match this with
                 | PositionAsker(Asker(a)) -> a >> f |> Asker |> PositionAsker

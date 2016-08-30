@@ -42,6 +42,8 @@
         | CoverSaves      of CharacteristicValue
         | Saves           of CharacteristicValue
         | SetCharacteristic of string * Rule
+        | Unsaved of WeaponProfile
+        | RemoveOnZeroCharacteristic 
         | ArmourPenetration of ArmourPen
         | Melee of int * DiceRoll * UnitGuid
         | MeleeHit of int * UnitGuid
@@ -54,7 +56,6 @@
         | WoundPool of  list<int * WeaponProfile> * ModelGuid
         | SortedWoundPool of  list<int * WeaponProfile> * ModelGuid
         | Save of WeaponProfile * ModelGuid
-        | Unsaved of WeaponProfile*ModelGuid
         override  this.ToString() = toString this
         static member FromString s = fromString<UnitRuleImpl> s
     and GameRuleImpl = 
