@@ -18,7 +18,7 @@ module Board =
     type Player = Player1 | Player2
 
     let drawingResolution = 26.0<dpi>
-    type Dimensions = {Width:int<ft>; Height:int<ft>}
+    type BoardDimensions = {Width:int<ft>; Height:int<ft>}
     type Score = Score of int
     type GameState = {
         Board : BoardInfo
@@ -33,7 +33,7 @@ module Board =
     }
     and BoardInfo = {
         Models : Map<ModelGuid,ModelInfo>
-        Dimensions : Dimensions
+        Dimensions : BoardDimensions
     }
     and ModelInfo = {
         Model : Model
@@ -47,3 +47,15 @@ module Board =
     
     type UnitRuleInfo = { UnitId: UnitGuid; UnitName: string; Rule: Rule}
     type ModelRuleInfo = { ModelId: ModelGuid; Rule: Rule}
+
+    let pixelsOfBase b = 
+        match b.Model.Base with 
+        | BaseDiameter mms -> pixelsInCircle ((float mms) *  LanguagePrimitives.FloatWithMeasure<mm> 1. |> mmToInch) b.Position
+        | ModelDimentions({Width=w;Length=h}) -> pixelsInRectangle (mmToInch w) (mmToInch h)  b.Position
+        |> Set.ofSeq
+
+    let overlapping base1 base2 = 
+        Set.intersect (pixelsOfBase base1) (pixelsOfBase base2) 
+
+    let touching base1 base2
+        (pixelsOfBase base1) |> Set.

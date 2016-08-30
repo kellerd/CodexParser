@@ -105,17 +105,11 @@ module RulesImpl =
         | _, None -> failwith "Couldn't find unit"
 
     let move uId gameState maxMove  = 
-        let pixelsInCircle radius position =  seq {
-            for x in createSeq (position.X - radius) (position.X + radius) do
-                for y in createSeq (position.Y - radius) (position.Y + radius) do
-                    let newPos = {X=x;Y=y}
-                    if x > 0<px> && y > 0<px> && position.FindDistance newPos <= radius then
-                        yield newPos
-        }    
+
 
         let createMove moveAsker =
             let newPosition m = 
-                let ps = pixelsInCircle ((inch.ToPixels characterResolution maxMove / 1.<px> |> System.Math.Round |> int) * 1<px>) m.Position |> Seq.toArray
+                let ps = pixelsInCircle maxMove m.Position |> Seq.toArray
                 let rec newPick ps = 
                     let (p:Position<px>) = moveAsker ps
                     if Seq.contains p ps then p
@@ -348,8 +342,16 @@ module RulesImpl =
                 |> tryReplaceRuleOnUnit (SortedWoundPool.ToString()) (def (Function(UnitRule(SortedWoundPool(newProfile, mId),target)))) target
                 |> tryReplaceRuleOnUnit (Save.ToString()) (def newRule) target
         | x -> failwith <| sprintf "Not found - weapon profile sort %A" x
+    let pickClosest mId uId gameState = 
+        let foundUnit = tryFindUnit uId gameState
+        let unitModels = foundUnit |> Option.map(fun u -> u.UnitModels |> Map.values  |> Seq.map (fun um -> um.Base)) 
+        unitModels
+    let saveWound profile mId uId gameState = 
+        let picked = pickClosest  mId uId gameState
+        let newRule = Function(ModelRule(Unsaved(profile),picked)
 
 
+        [newRule]
 
 
 
@@ -371,20 +373,37 @@ module RulesImpl =
 //        | _ -> failwith <| sprintf "Not found %A or %A" uId mId
 
 
-    let unsavedWound mId uId gameState =
+    let unsavedWound profile mId gameState =
         let foundModel = tryFindModel gameState mId
-        let foundUnit = tryFindUnit gameState uId
+        let wounds = foundModel |> Option.bind (fun m ->  
+                                            m.Model.Rules 
+                                            |> Map.values
+                                            |> Seq.tryPick(fun r -> match gameState with | Active r (ModelRule(Wounds(CharacteristicValue(w)),_)) -> Some w 
+                                                                                         | _ -> None))
+        let foundUnit =  Option.bind (fun m -> tryFindUnitByModel gameState m.Model) foundModel
+        let foundPlayer = Option.bind (tryFindPlayer gameState) foundUnit
+        match wounds, foundUnit, foundPlayer,foundModel with
+        | Some wounds, Some u, Some p, Some m ->
+            let woundRule  = Function(ModelRule(Wounds(wounds - 1 |> CharacteristicValue),mId))
+            let newRule = ModelRule(SetCharacteristic(Wounds.ToString(),woundRule),mId)
+            [newRule],tryReplaceRuleOnGameState (SetCharacteristic.ToString()) (def (newRule |> Function |> Rule.afterRunRemove)) gameState
+        | _ -> failwith <| sprintf "Not found %A "  mId
+    let removeIfZeroCharacteristic  mId gameState = 
+        let foundModel = tryFindModel gameState mId
+        let foundUnit =  Option.bind (fun m -> tryFindUnitByModel gameState m.Model) foundModel
         let foundPlayer = Option.bind (tryFindPlayer gameState) foundUnit
         match foundUnit, foundPlayer,foundModel with
         | Some u, Some p, Some m ->
             replaceUnitModelsInGameState gameState p u m.Model (defnot None)
-        | _ -> failwith <| sprintf "Not found %A or %A" uId mId
-    
-    let rollDice gameState =
-        let roll diceRoller =
-            let newRule = diceRoller() |> DiceRolled |> GameStateRule 
-            [newRule],tryReplaceRuleOnGameState (DiceRolled.ToString()) (def (Function(newRule))) gameState
-        roll
+        | _ -> failwith <| sprintf "Not found %A "  mId
+    let supplySortedWeapons profiles gameState profileMaker = 
+        let newRule = profileMaker profiles |> SortedWeaponProfiles |> GameStateRule
+        [newRule],tryReplaceRuleOnGameState (SortedWeaponProfiles.ToString()) (def (Function(newRule))) gameState
+    let rollDice gameState diceRoller =
+        let newRule = diceRoller() |> DiceRolled |> GameStateRule 
+        [newRule],tryReplaceRuleOnGameState (DiceRolled.ToString()) (def (Function(newRule))) gameState
+
+
     let rec eval rules gameState = 
         match rules with
         | [] -> GameStateResult gameState
@@ -394,7 +413,7 @@ module RulesImpl =
                 | UnitRule(Deploy,uId) -> deploy uId gameState >> eval' rest |> Asker  |> PositionAsker |> AskResult              
                 | UnitRule(Move maxMove,uId) -> move uId gameState maxMove >> eval rest |> Asker  |> MoveAsker |> AskResult
                 | GameStateRule(RollDice) -> rollDice gameState >> eval' rest |> Asker |> DiceRollAsker |> AskResult
-                | GameStateRule(SupplySortedWeaponProfiles(profiles)) -> supplySortedWeapons profiles >> eval' rest |> Asker |> SortedWoundPoolAsker |> AskResult
+                | GameStateRule(SupplySortedWeaponProfiles(profiles)) -> supplySortedWeapons profiles gameState >> eval' rest |> Asker |> SortedWoundPoolAsker |> AskResult
                 | ModelRule(SetCharacteristic(name, newRule), uId) -> tryReplaceRuleOnModel name (Rule.overwrite newRule >> Some) uId gameState |> eval  rest
                 | GameStateRule(EndPhase) -> advancePhase gameState |> eval' rest
                 | GameStateRule(Remove(ruleApplication)) -> remove ruleApplication gameState |> eval rest
@@ -406,10 +425,10 @@ module RulesImpl =
                 | ModelRule(MeleeHit(hits,uId),mId) -> meleeHits hits uId mId gameState |> eval rest 
                 | UnitRule(WoundPool(profiles,mId),uId) -> woundPool profiles mId uId gameState |> eval rest
                 | UnitRule(SortedWoundPool(profiles,mId),uId) -> sortedWoundPool profiles mId uId gameState |> eval rest 
-                | UnitRule(Save(profile,mId),uId) -> saveWound profile mId uId gameState |> eval rest
-                | UnitRule(Unsaved(profile,mId),uId) -> unsavedWound profile mId uId gameState |> eval rest
+                | UnitRule(Save(profile,mId),uId) -> saveWound profile mId uId gameState |> eval' rest
+                | ModelRule(Unsaved(profile),mId) -> unsavedWound profile mId gameState |> eval' rest
                 | GameStateRule(EndGame) -> remove (GameStateRule(PlayerTurn(Bottom))) gameState |> eval rest 
-
+                | ModelRule(RemoveOnZeroCharacteristic, mId) -> removeIfZeroCharacteristic mId gameState |> eval rest
                 | GameStateRule(EndTurn) // Maybe Split EndPhase and End Turn
                 | GameStateRule(DiceRolled(_))  
                 | ModelRule(WeaponSkill   (_),_)
