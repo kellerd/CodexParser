@@ -343,7 +343,7 @@ module RulesImpl =
                 |> tryReplaceRuleOnUnit (Save.ToString()) (def newRule) target
         | x -> failwith <| sprintf "Not found - weapon profile sort %A" x
     let pickClosest mId uId gameState = 
-        let foundUnit = tryFindUnit uId gameState
+        let foundUnit = tryFindUnit gameState uId 
         let unitModels = foundUnit |> Option.map(fun u -> u.UnitModels |> Map.values  |> Seq.map (fun um -> um.Base)) 
         unitModels
     let saveWound profile mId uId gameState = 
@@ -351,7 +351,7 @@ module RulesImpl =
         let newRule = Function(ModelRule(Unsaved(profile),picked)
 
 
-        [newRule]
+        [newRule],gameState
 
 
 
