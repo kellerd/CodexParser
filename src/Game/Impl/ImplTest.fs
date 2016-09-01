@@ -26,7 +26,7 @@ module ImplTest =
               seq { 
                   yield Description { Name = "Lurker"
                                       Description = "Termagant Lurks when outside synapse" }
-                  yield Function(ModelRule(Melee(1,DiceRoll 3,tUnitId),id))
+                  yield Function(ModelRule(Melee(1,DiceRoll 3,hUnitId),id))
                         |> Rule.onlyWhen (isSpecificPhase Assault)
                         |> Rule.userActivated
                         |> Rule.afterRunDeactivateUntil (Rule(GameStateRule(EndPhase)))
@@ -60,10 +60,10 @@ module ImplTest =
 //                        |> Rule.userActivated
 //                        |> Rule.afterRunDeactivateUntil (Rule(GameStateRule(EndPhase)))
                   yield Function(UnitRule(DeploymentState(Start), tUnitId))
-//                  yield Function(UnitRule(Deploy, tUnitId))
-//                         |> Rule.onlyWhen (Rule(GameStateRule(GameRound(Begin))) <&> Rule(UnitRule(DeploymentState(Start), tUnitId))) 
-//                         |> Rule.userActivated
-//                         |> Rule.afterRunDeactivateUntil (Rule(GameStateRule(EndPhase)))
+                  yield Function(UnitRule(Deploy, tUnitId))
+                         |> Rule.onlyWhen (Rule(GameStateRule(GameRound(Begin))) <&> Rule(UnitRule(DeploymentState(Start), tUnitId))) 
+                         |> Rule.userActivated
+                         |> Rule.afterRunDeactivateUntil (Rule(GameStateRule(EndPhase)))
               }
               |> Seq.map makeRule
               |> Map.ofSeq }
@@ -111,10 +111,10 @@ module ImplTest =
                 //         |> Rule.userActivated
                 //         |> Rule.afterRunDeactivateUntil (Rule(GameStateRule(EndPhase)))
                   yield Function(UnitRule(DeploymentState(Start), hUnitId))
-                //   yield Function(UnitRule(Deploy, hUnitId))
-                //         |> Rule.onlyWhen (Rule(GameStateRule(GameRound(Begin))) <&> Rule(UnitRule(DeploymentState(Start), hUnitId))) 
-                //         |> Rule.userActivated
-                //         |> Rule.afterRunDeactivateUntil (Rule(GameStateRule(EndPhase)))
+                  yield Function(UnitRule(Deploy, hUnitId))
+                         |> Rule.onlyWhen (Rule(GameStateRule(GameRound(Begin))) <&> Rule(UnitRule(DeploymentState(Start), hUnitId))) 
+                         |> Rule.userActivated
+                         |> Rule.afterRunDeactivateUntil (Rule(GameStateRule(EndPhase)))
                   yield Description { Name = "Bounding Leap"
                                       Description = "Run(CharacteristicValue 3) extra inches" }
               }
