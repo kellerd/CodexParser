@@ -265,7 +265,7 @@ module RulesImpl =
     //let assault = .... //May have to change this to adding a Targetted rule to target, which adds a Melee to model 
     let melee attacks toHit target mId gameState = 
         let newRule = ModelRule(MeleeHit(1,target),mId)
-        multipleFromDiceRollM newRule (fun _ -> toHit) attacks mId gameState
+        [newRule],multipleFromDiceRollM newRule (fun _ -> toHit) attacks mId gameState
 
     let meleeHits hits uId mId gameState =
         let foundModel = tryFindModel gameState mId
@@ -427,7 +427,7 @@ module RulesImpl =
                 | GameStateRule(Repeat(times,name,rule)) -> repeat times name rule gameState |> eval rest
                 | GameStateRule(DeactivateUntil(activateWhen,ruleApplication)) -> deactivateUntil activateWhen ruleApplication gameState |> eval rest
                 | Sequence(rules) -> eval (rules @ rest) gameState
-                | ModelRule(Melee(attacks,toHit,target),mId) -> melee attacks toHit target mId gameState |> eval rest
+                | ModelRule(Melee(attacks,toHit,target),mId) -> melee attacks toHit target mId gameState |> eval' rest
                 | ModelRule(MeleeHit(hits,uId),mId) -> meleeHits hits uId mId gameState |> eval rest 
                 | UnitRule(WoundPool(profiles,mId),uId) -> woundPool profiles mId uId gameState |> eval rest
                 | UnitRule(SortedWoundPool(profiles,mId),uId) -> sortedWoundPool profiles mId uId gameState |> eval rest 
