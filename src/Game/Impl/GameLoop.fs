@@ -41,11 +41,7 @@ module GameLoop =
             |> Map.toList
             |> List.collect (fun (_,item) -> captureRules item.Model.Rules |> List.map (fun r -> r,mapper.ModelMap gs item r))
 
-        match gameRules @ unitRules @ modelRules with
-        | [] -> 
-            let ra = GameStateRule(EndPhase)
-            [ra,mapper.GameStateMap {gs with Rules = gs.Rules.Add(EndPhase.ToString(),Function(ra) |> Rule.afterRunRemove)} ra]
-        | rules -> rules
+        gameRules @ unitRules @ modelRules
 
         
     let makeNextMoveInfo f player (ruleApplication,gameState) = 

@@ -414,7 +414,11 @@ module RulesImpl =
         match rules with
         | [] -> GameStateResult gameState
         | rule::rest -> 
-            let eval' rest (newRules,gameState) = eval (rest @ newRules) gameState //Things that trigger recalculation
+            //Things that trigger recalculation
+            //Could change this to infinite doublly linked list. 
+            // current @ rest @ begin  
+            // Modify rest, prepend to reset, append to rest
+            let eval' rest (newRules,gameState) = eval (rest @ newRules) gameState 
             rule |> function 
                 | UnitRule(Deploy,uId) -> deploy uId gameState >> eval' rest |> Asker  |> PositionAsker |> AskResult              
                 | UnitRule(Move maxMove,uId) -> move uId gameState maxMove >> eval rest |> Asker  |> MoveAsker |> AskResult
