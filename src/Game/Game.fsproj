@@ -55,7 +55,7 @@
     <Compile Include="Impl\GameLoop.fs" />
     <Compile Include="UI\ConsoleUi.fs" />
     <Compile Include="UI\Logging.fs" />
-    <Compile Include="UI\ConsoleApplication.fs" />
+    <Compile Include="Script.fsx" />
     <Compile Include="Program.fs" />
   </ItemGroup>
   <Import Project="$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props" Condition="Exists('$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props')" />
