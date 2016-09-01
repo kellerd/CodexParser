@@ -2,8 +2,8 @@
 namespace ConsoleApplication
 module ConsoleApplication = 
 #else
-#r """..\..\..\packages\FSharpx.Collections\lib\net40\FSharpx.Collections.dll"""
-#load "..\Base\Equals.fs"
+    #r """..\..\..\packages\FSharpx.Collections\lib\net40\FSharpx.Collections.dll"""
+    #load "..\Base\Equals.fs"
         "..\Base\Map.fs"
         "..\Base\Seq.fs"
         "..\Base\Base.fs"
@@ -18,14 +18,10 @@ module ConsoleApplication =
         "..\UI\ConsoleUi.fs"
         "..\UI\Logging.fs"
 #endif
-    open GameImpl
-    open Logging
     let startGame() =
-        
-        let api = GameLoop.api 
-        let loggedApi = Logger.injectLogging api
+        let api = GameImpl.GameLoop.api 
+        let loggedApi = Logging.Logger.injectLogging api
         ConsoleUi.ConsoleWarhammer.startGame loggedApi 
 #if INTERACTIVE 
     startGame()
 #endif
-;;
