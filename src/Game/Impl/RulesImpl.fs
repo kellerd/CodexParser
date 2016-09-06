@@ -360,25 +360,6 @@ module RulesImpl =
             [newRule],gameState |> multipleFromDiceRollM newRule (save m) 1 mId
         | _ -> failwith <| sprintf "Not found model in %A" uId
 
-
-//            let rollForWounds diceAsker getNextTarget = 
-
-//                let saved penetration = 
-//                    let target = getNextTarget mId u.UnitModels
-//                    (diceAsker()) >= (armourTable (save target) penetration),target
-//                let unsaved = 
-//                    profiles 
-//                    |> Seq.collect (fun (wounds,profile) -> 
-//                                                            Seq.init wounds (fun _ -> collectPenetrations profile |> saved) 
-//                                                            |> Seq.filter (fst >> not )
-//                                                            |> Seq.map (fun (_,target) -> UnitRule(Unsaved(target.Id),uId)))
-//                    |> List.ofSeq
-//                    |> Sequence
-//                [unsaved], tryReplaceRuleOnUnit (Unsaved.ToString()) (def (unsaved |> Function |> Rule.afterRunRemove)) uId gameState
-//            rollForWounds
-//        | _ -> failwith <| sprintf "Not found %A or %A" uId mId
-
-
     let unsavedWound _ mId gameState =
         let foundModel = tryFindModel gameState mId
         let wounds = foundModel |> Option.bind (fun m ->  
@@ -409,6 +390,48 @@ module RulesImpl =
         let newRule = diceRoller() |> DiceRolled |> GameStateRule 
         [newRule],tryReplaceRuleOnGameState (DiceRolled.ToString()) (def (Function(newRule))) gameState
 
+    type AvailableRulesMap<'a> = {GameStateMap : GameState->RuleApplication->'a
+                                  UnitMap : GameState->Unit->RuleApplication->'a 
+                                  ModelMap: GameState->ModelInfo->RuleApplication->'a }
+
+    let optionalRulesMap = {GameStateMap = (fun gs r -> {gs with Rules = activateRule r gs.Rules })
+                            UnitMap = (fun gs item r -> replaceRuleOnUnit item (activateRule r) gs)
+                            ModelMap = (fun gs item r -> replaceRuleOnModel item.Model (activateRule r) gs )}
+    let activeRulesMap = {GameStateMap = (fun _ _ -> ())
+                          UnitMap = (fun _ _ _ -> ())
+                          ModelMap = (fun _ _ _ -> ())}
+
+    let availableRules predicate (mapper:AvailableRulesMap<'a>) player gs = 
+        let captureRules =  Map.toSeq >> Seq.choose predicate >> Seq.toList
+
+        let gameRules = captureRules gs.Rules |> List.map (fun r -> r, mapper.GameStateMap gs r)
+        
+        let unitRules = 
+            gs.Players
+            |> List.filter (fun p -> p.Player = player)
+            |> List.map (fun p -> p.Units) 
+            |> List.exactlyOne
+            |> Map.toList
+            |> List.collect (fun (_,item) ->  captureRules item.Rules |> List.map (fun r -> r, mapper.UnitMap gs item r ))
+
+        let modelRules = 
+            gs.Board.Models 
+            |> Map.filter (fun _ item -> item.Player = player) 
+            |> Map.toList
+            |> List.collect (fun (_,item) -> captureRules item.Model.Rules |> List.map (fun r -> r,mapper.ModelMap gs item r))
+
+        gameRules @ unitRules @ modelRules
+
+    let collect currentPlayer gameState = 
+        let predicate = optionalRules gameState
+        let rules  = 
+            gameState
+            |> availableRules predicate optionalRulesMap currentPlayer
+        let rulesApplication raPicker = 
+            match rules |> List.tryItem (raPicker (rules|> List.map fst)) with
+            | Some(_,newGs) -> newGs
+            | _ -> gameState
+        rulesApplication
 
     let rec eval rules gameState = 
         match rules with
@@ -439,6 +462,7 @@ module RulesImpl =
                 | ModelRule(Unsaved(profile),mId) -> unsavedWound profile mId gameState |> eval' rest
                 | GameStateRule(EndGame) -> remove (GameStateRule(PlayerTurn(Bottom))) gameState |> eval rest 
                 | ModelRule(RemoveOnZeroCharacteristic, mId) -> removeIfZeroCharacteristic mId gameState |> eval rest
+                | GameStateRule(CollectUserActivated(player)) -> collect player gameState >> eval rest |> Asker  |> PerformAsker |> AskResult
                 | GameStateRule(EndTurn) // Maybe Split EndPhase and End Turn
                 | GameStateRule(DiceRolled(_))  
                 | GameStateRule(SortedWeaponProfiles(_))  
@@ -458,3 +482,4 @@ module RulesImpl =
                 | GameStateRule(PlayerTurn(_))  
                 | UnitRule(DeploymentState(_),_) 
                 | GameStateRule(Noop)            -> eval  rest gameState
+    

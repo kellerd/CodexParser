@@ -9,9 +9,11 @@ type Asker<'a> =
     | MoveAsker of GenAsker<Position<px>[] -> Position<px>, 'a>
     | DiceRollAsker of GenAsker<unit -> DiceRoll, 'a>
     | SortedWoundPoolAsker of GenAsker<(int * WeaponProfile) list -> int list, 'a>
+    | PerformAsker of GenAsker<RuleApplication list->int, 'a>
     with member this.Map(f) = 
             match this with
                 | PositionAsker(Asker(a)) -> a >> f |> Asker |> PositionAsker
                 | MoveAsker(Asker(a)) ->  a >> f |> Asker |> MoveAsker
                 | DiceRollAsker(Asker(a)) ->  a >> f |> Asker |> DiceRollAsker
                 | SortedWoundPoolAsker(Asker(a)) ->  a >> f |> Asker |> SortedWoundPoolAsker
+                | PerformAsker(Asker(a)) -> a >> f |> Asker |> PerformAsker
