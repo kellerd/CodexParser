@@ -19,7 +19,7 @@
         | CharacteristicValue of int
 
     type DiceRoll = DiceRoll of int
-
+    type Player = Player1 | Player2
     type PlayerTurn = Top | Bottom 
 
     type DeploymentType = 
@@ -73,6 +73,7 @@
         | Revert of RuleApplication
         | Remove of RuleApplication
         | Repeat of int * string * Rule
+        | CollectUserActivated of Player
         override this.ToString() = toString this
         static member FromString s = fromString<GameRuleImpl> s
     and LogicalExpression =
