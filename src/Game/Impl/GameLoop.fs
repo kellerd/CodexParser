@@ -11,39 +11,7 @@ module GameLoop =
         player |> function 
         | Player1 -> Player2
         | Player2 -> Player1
-       
-    type AvailableRulesMap<'a> = {GameStateMap : GameState->RuleApplication->'a
-                                  UnitMap : GameState->Unit->RuleApplication->'a 
-                                  ModelMap: GameState->ModelInfo->RuleApplication->'a }
 
-    let optionalRulesMap = {GameStateMap = (fun gs r -> {gs with Rules = activateRule r gs.Rules })
-                            UnitMap = (fun gs item r -> replaceRuleOnUnit item (activateRule r) gs)
-                            ModelMap = (fun gs item r -> replaceRuleOnModel item.Model (activateRule r) gs )}
-    let activeRulesMap = {GameStateMap = (fun _ _ -> ())
-                          UnitMap = (fun _ _ _ -> ())
-                          ModelMap = (fun _ _ _ -> ())}
-    let availableRules predicate (mapper:AvailableRulesMap<'a>) player gs = 
-        let captureRules =  Map.toSeq >> Seq.choose predicate >> Seq.toList
-
-        let gameRules = captureRules gs.Rules |> List.map (fun r -> r, mapper.GameStateMap gs r)
-        
-        let unitRules = 
-            gs.Players
-            |> List.filter (fun p -> p.Player = player)
-            |> List.map (fun p -> p.Units) 
-            |> List.exactlyOne
-            |> Map.toList
-            |> List.collect (fun (_,item) ->  captureRules item.Rules |> List.map (fun r -> r, mapper.UnitMap gs item r ))
-
-        let modelRules = 
-            gs.Board.Models 
-            |> Map.filter (fun _ item -> item.Player = player) 
-            |> Map.toList
-            |> List.collect (fun (_,item) -> captureRules item.Model.Rules |> List.map (fun r -> r,mapper.ModelMap gs item r))
-
-        gameRules @ unitRules @ modelRules
-
-        
     let makeNextMoveInfo f player (ruleApplication,gameState) = 
         let capability () = 
             let predicate = activeRules gameState

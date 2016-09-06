@@ -15,7 +15,6 @@ module Board =
       Rules : Map<string,Rule>
     } 
 
-    type Player = Player1 | Player2
 
     let drawingResolution = 26.0<dpi>
     type BoardDimensions = {Width:int<ft>; Height:int<ft>}
