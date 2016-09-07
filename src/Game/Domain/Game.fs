@@ -11,7 +11,7 @@ module Game =
         | ModelRuleInfo of ModelRuleInfo 
         | GameStateRuleInfo of Rule: Rule
     and NextResult= 
-        | Next of (RuleInfo * MoveCapability) list
+        | Next of MoveCapability
         | Ask of Asker<RuleResult>
     and RuleResult = 
         | Player1ToMove of GameState * NextResult
