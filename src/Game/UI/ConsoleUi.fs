@@ -29,9 +29,9 @@ module ConsoleWarhammer =
         |> List.iteri (fun i r -> 
             printfn "%i) %s" i r)
 
-    let getCapability selectedIndex (nextMoves:(RuleInfo * MoveCapability) list) = 
+    let getCapability selectedIndex (nextMoves:RuleApplication list) = 
         if selectedIndex < List.length nextMoves then
-            List.item selectedIndex nextMoves |> snd |> Some 
+            List.item selectedIndex nextMoves |> Some 
         else
             None
 
@@ -109,16 +109,15 @@ module ConsoleWarhammer =
             
         
         boardToStr gameState.Board |> Seq.iter (printfn "%s")    // add some space
-    let processMoveIndex inputStr availableMoves processInputAgain = 
+    let processRuleIndex inputStr availableMoves processInputAgain = 
         match Int32.TryParse inputStr with
         // TryParse will output a tuple (parsed?,int)
         | true,inputIndex ->
             // parsed ok, now try to find the corresponding move
             match getCapability inputIndex availableMoves with
-            | Some capability -> 
+            | Some _ -> 
                 // corresponding move found, so make a move
-                let moveResult = capability()  
-                ContinuePlay moveResult // return it
+                inputIndex // return it
             | None ->
                 // no corresponding move found
                 printfn "...No move found for inputIndex %i. Try again" inputIndex 
@@ -132,19 +131,14 @@ module ConsoleWarhammer =
 
     /// Ask the user for input. Process the string entered as 
     /// a move index or a "quit" command
-    let rec processInput availableCapabilities = 
+    let rec runOptionalRule availableRules = 
 
         // helper that calls this function again with exactly
         // the same parameters
         let processInputAgain() = 
-            processInput availableCapabilities 
-
-        printfn "Enter an int corresponding to a displayed move or q to quit:" 
+            runOptionalRule availableRules 
         let inputStr = Console.ReadLine()
-        if inputStr = "q" then
-            ExitGame
-        else
-            processMoveIndex inputStr availableCapabilities processInputAgain
+        processRuleIndex inputStr availableRules processInputAgain
 
     let rec askToPlayAgain api  = 
         printfn "Would you like to play again (y/n)?"             
@@ -156,15 +150,18 @@ module ConsoleWarhammer =
         | _ -> askToPlayAgain api 
     let print a = 
         match a with  
-            | PositionAsker _ -> printfn "Choose a Position: " ; a
-            | MoveAsker _     -> printfn "Choose a Move: "     ; a
-            | DiceRollAsker _ -> printfn "Roll a dice: "       ; a
-            | SortedWoundPoolAsker _ -> printfn "Sort the wound pool: "       ; a
+            | PositionAsker _ -> printfn "Choose a Position: "
+            | MoveAsker _     -> printfn "Choose a Move: "    
+            | DiceRollAsker _ -> printfn "Roll a dice: "      
+            | SortedWoundPoolAsker _ -> printfn "Sort the wound pool: "
+            | PerformAsker(_) -> printfn "Enter an int corresponding to a displayed move"
+        a
     let tell = function 
         | PositionAsker asker -> GenAsker.Run (asker,positionAsker)
         | MoveAsker asker -> GenAsker.Run (asker,moveAsker)
         | DiceRollAsker asker -> GenAsker.Run(asker,diceRollAsker)
         | SortedWoundPoolAsker asker -> GenAsker.Run(asker,sortWoundPools)
+        | PerformAsker asker -> GenAsker.Run(asker,runOptionalRule)
     let rec gameLoop api userAction = 
         printfn "\n------------------------------\n"  // a separator between moves
         
@@ -189,20 +186,6 @@ module ConsoleWarhammer =
                 display |> displayRules
                 let nextUserAction = askToPlayAgain api 
                 gameLoop api nextUserAction
-            | Player1ToMove (display,Next nextMoves) -> 
-                display |> displayBoard
-                display |> displayRules
-                printfn "Player 1 to move" 
-                displayNextMoves nextMoves
-                let newResult = processInput nextMoves
-                gameLoop api newResult 
-            | Player2ToMove (display,Next nextMoves) -> 
-                display |> displayBoard
-                display |> displayRules
-                printfn "Player 2 to move" 
-                displayNextMoves nextMoves
-                let newResult = processInput nextMoves
-                gameLoop api newResult 
             | Player1ToMove (display,Ask asker) -> 
                 display |> displayBoard
                 display |> displayRules
@@ -214,7 +197,12 @@ module ConsoleWarhammer =
                 display |> displayRules
                 printfn "Player 2 to choose:" 
                 let newResult = asker |> print |> tell |> ContinuePlay
-                gameLoop api newResult 
+                gameLoop api newResult
+            | Player1ToMove(display, Next moveCapability) 
+            | Player2ToMove(display, Next moveCapability) -> 
+                display |> displayBoard
+                display |> displayRules
+                moveCapability() |> ContinuePlay |> gameLoop api  
     /// start the game with the given API
     let startGame api =
         let userAction = ContinuePlay (api.NewGame())
