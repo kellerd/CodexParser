@@ -2,7 +2,7 @@
 module Logger = 
     open Domain.Board
     open Domain.Game
-
+    open Domain
     /// Transform a MoveCapability into a logged version
 
     let transformCapability transformMR player rule unit (cap:MoveCapability) :MoveCapability  =
@@ -37,10 +37,10 @@ module Logger =
         let tmr = transformMoveResult
         match moveResult with
         | Player1ToMove (display,Next nextMoves) ->
-            let nextMoves' = nextMoves |> List.map (transformNextMove tmr Player1) 
+            let nextMoves' =  transformNextMove tmr Player1 nextMove
             Player1ToMove (display,Next nextMoves') 
-        | Player2ToMove (display,Next nextMoves) ->
-            let nextMoves' = nextMoves |> List.map (transformNextMove tmr Player2)
+        | Player2ToMove (display,Next nextMove) ->
+            let nextMoves' =  transformNextMove tmr Player2 nextMove
             Player2ToMove (display,Next nextMoves') 
         | Player1ToMove (_,Ask _) ->
             printfn "LOGINFO: Player1 Asking question"

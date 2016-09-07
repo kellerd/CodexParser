@@ -429,8 +429,8 @@ module RulesImpl =
             |> availableRules predicate optionalRulesMap currentPlayer
         let rulesApplication raPicker = 
             match rules |> List.tryItem (raPicker (rules|> List.map fst)) with
-            | Some(_,newGs) -> newGs
-            | _ -> gameState
+            | Some(ra,newGsRuleActivated) -> [ra],newGsRuleActivated
+            | _ -> [],gameState
         rulesApplication
 
     let rec eval rules gameState = 
@@ -462,7 +462,7 @@ module RulesImpl =
                 | ModelRule(Unsaved(profile),mId) -> unsavedWound profile mId gameState |> eval' rest
                 | GameStateRule(EndGame) -> remove (GameStateRule(PlayerTurn(Bottom))) gameState |> eval rest 
                 | ModelRule(RemoveOnZeroCharacteristic, mId) -> removeIfZeroCharacteristic mId gameState |> eval rest
-                | GameStateRule(CollectUserActivated(player)) -> collect player gameState >> eval rest |> Asker  |> PerformAsker |> AskResult
+                | GameStateRule(CollectUserActivated(player)) -> collect player gameState >> eval' rest |> Asker  |> PerformAsker |> AskResult
                 | GameStateRule(EndTurn) // Maybe Split EndPhase and End Turn
                 | GameStateRule(DiceRolled(_))  
                 | GameStateRule(SortedWeaponProfiles(_))  
