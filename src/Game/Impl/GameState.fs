@@ -3,6 +3,8 @@ module GameState =
     open FSharpx.Collections
     open Domain.Board
     open Microsoft.FSharp.Collections
+    open Domain
+
     let tryFindUnit gameState unitId = 
         gameState.Players |> List.tryPick (fun p -> p.Units |> Map.tryFind unitId)
     let tryFindUnitByModel gameState (model:Model) = 
@@ -48,21 +50,24 @@ module GameState =
     let replaceRuleOnGameState  replace (gameState:GameState)  = 
         let newGameState = { gameState with Rules = gameState.Rules |> replace }
         newGameState
-    let tryReplaceRuleOnGameState name mapf gameState = 
-        replaceRuleOnGameState (Map.updateWith mapf name) gameState
+    let tryReplaceRuleOnGameState updateType rule gameState = 
+        let name = makeRule rule |> fst
+        replaceRuleOnGameState (Map.updateWith (updateType rule) name) gameState
     let replaceRuleOnUnit  (unit : Unit) replace gameState = 
         let newUnit = { unit with Rules = unit.Rules |> replace }
         updatePlayerInGameState unit (def newUnit) gameState
-    let tryReplaceRuleOnUnit name mapf uid gameState = 
+    let tryReplaceRuleOnUnit updateType rule uid gameState = 
+        let name = makeRule rule |> fst
         tryFindUnit gameState uid
-        |> Option.map (fun u -> replaceRuleOnUnit u (Map.updateWith mapf name) gameState)
+        |> Option.map (fun u -> replaceRuleOnUnit u (Map.updateWith (updateType rule) name) gameState)
         |> defaultArg <| gameState
     let replaceRuleOnModel  (model : Model) replace gameState = 
         let newmodel = { model with Rules = model.Rules |> replace }
         updateUnitInGameState model (def newmodel) gameState
-    let tryReplaceRuleOnModel name mapf mId gameState = 
+    let tryReplaceRuleOnModel updateType rule mId gameState = 
+        let name = makeRule rule |> fst
         tryFindModel gameState mId
-        |> Option.map (fun m -> replaceRuleOnModel m.Model (Map.updateWith mapf name) gameState)
+        |> Option.map (fun m -> replaceRuleOnModel m.Model (Map.updateWith (updateType rule) name) gameState)
         |> defaultArg <| gameState
     let forAllModels f newUnit gameState = 
         [ for m in newUnit.UnitModels do
