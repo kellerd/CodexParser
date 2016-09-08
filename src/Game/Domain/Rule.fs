@@ -72,6 +72,7 @@
         | DeactivateUntil of LogicalExpression * RuleApplication
         | Revert of RuleApplication
         | Remove of RuleApplication
+        | Activate of RuleApplication
         | Repeat of int * string * Rule
         | CollectUserActivated of Player
         override this.ToString() = toString this

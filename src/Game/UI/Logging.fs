@@ -5,43 +5,23 @@ module Logger =
     open Domain
     /// Transform a MoveCapability into a logged version
 
-    let transformCapability transformMR player rule unit (cap:MoveCapability) :MoveCapability  =
+    let transformCapability transformMR player cap  =
         // create a new capability that logs the player & cellPos when run
         let newCap() =
-            let withUnit = 
-                match unit with 
-                    | Some u -> sprintf " with %A" u
-                    | None -> ""
-            printfn "LOGINFO: %A played %A%s" player rule withUnit
+            printfn "LOGINFO: %A played %A" player cap 
             let moveResult = cap() 
             transformMR moveResult 
         newCap
-    /// Transform a NextMove into a logged version
-    let transformNextMove transformMR player move = 
-        match move with 
-            | UnitRuleInfo ur as uri,cap -> 
-                let rule = ur.Rule  
-                let unit = Some ur.UnitId
-                uri,transformCapability transformMR player rule unit cap
-            | GameStateRuleInfo ur as uri,cap ->
-                let rule = ur
-                uri, transformCapability transformMR player rule None cap
-            | ModelRuleInfo ur as uri,cap ->
-                let rule = ur.Rule  
-                uri, transformCapability transformMR player rule None cap
     /// Transform a MoveResult into a logged version
-
-
-
     let rec transformMoveResult (moveResult:RuleResult) :RuleResult =
         let tmr = transformMoveResult
         match moveResult with
-        | Player1ToMove (display,Next nextMoves) ->
-            let nextMoves' =  transformNextMove tmr Player1 nextMove
-            Player1ToMove (display,Next nextMoves') 
+        | Player1ToMove (display,Next nextMove) ->
+            let nextMove' =  transformCapability tmr Player1 nextMove
+            Player1ToMove (display,Next nextMove') 
         | Player2ToMove (display,Next nextMove) ->
-            let nextMoves' =  transformNextMove tmr Player2 nextMove
-            Player2ToMove (display,Next nextMoves') 
+            let nextMove' =  transformCapability tmr Player2 nextMove
+            Player2ToMove (display,Next nextMove') 
         | Player1ToMove (_,Ask _) ->
             printfn "LOGINFO: Player1 Asking question"
             moveResult

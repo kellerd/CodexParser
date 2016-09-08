@@ -143,7 +143,7 @@ module ImplTest =
           Rules = 
               seq { 
                   yield Function(GameStateRule(EndPhase)) |> Rule.userActivated
-                  yield Function(GameStateRule(PlayerTurn(Top)))
+                  yield Function(GameStateRule(PlayerTurn(Top))) 
                   yield Function(GameStateRule(GameRound(Begin)))
                   yield ActiveWhen(Rule(GameStateRule(PlayerTurn(Top))),Function(GameStateRule(CollectUserActivated(Player1))))
                   yield ActiveWhen(Rule(GameStateRule(PlayerTurn(Bottom))),Function(GameStateRule(CollectUserActivated(Player2))))
