@@ -104,7 +104,7 @@ module RulesImpl =
         | Some p, Some u -> 
             let pa positionAsker =
                 let newRule = UnitRule(DeploymentState(Deployed), uId)
-                let newGs = tryReplaceRuleOnUnit (newRule.ToString()) (Rule.overwrite (Function(newRule)) >> Some) uId gameState
+                let newGs = tryReplaceRuleOnUnit def (Rule.overwrite (Function(newRule))) uId gameState
                 let newUnit = tryFindUnit newGs uId |> defaultArg <| u
                 [newRule],{ newGs with Board = { newGs.Board with Models = forAllModels (fun m -> { Model = m; Player = p.Player; Position = newGs |> positionAsker }) newUnit newGs} }
             pa
@@ -253,8 +253,8 @@ module RulesImpl =
             |> Rule.afterRunRepeat (times - 1) text
 
         gameState
-        |> tryReplaceRuleOnModel (RollDice.ToString()) (def doDice) mId
-        |> tryReplaceRuleOnModel text (def newRule) mId
+        |> tryReplaceRuleOnModel def doDice mId
+        |> tryReplaceRuleOnModel def newRule mId
     let multipleFromDiceRollU rule f times uId gameState  = 
         let text = rule |> Rule.textFromRuleApplication
         let newRule = 
@@ -262,8 +262,8 @@ module RulesImpl =
             |> Rule.afterRunRepeat (times - 1) text
 
         gameState
-        |> tryReplaceRuleOnUnit (RollDice.ToString()) (def doDice) uId
-        |> tryReplaceRuleOnUnit text (def newRule) uId
+        |> tryReplaceRuleOnUnit def doDice uId
+        |> tryReplaceRuleOnUnit def newRule uId
         
     let toWound m u gameState = woundTable (modelStrength m gameState) (avgToughness u gameState)
 
@@ -307,10 +307,10 @@ module RulesImpl =
             
 
         gameState
-        |> tryReplaceRuleOnGameState (dosortedIndexes.ToString()) (def (dosortedIndexes|> GameStateRule
+        |> tryReplaceRuleOnGameState def (dosortedIndexes|> GameStateRule
             |> Function
-            |> Rule.afterRunRemove))
-        |> tryReplaceRuleOnUnit (newPool.ToString()) (def (newPool|> Rule.afterIfRemove (Rule(GameStateRule(SortedWeaponProfiles([])))))) uId
+            |> Rule.afterRunRemove)
+        |> tryReplaceRuleOnUnit def (newPool|> Rule.afterIfRemove (Rule(GameStateRule(SortedWeaponProfiles([])))))) uId
 
     let save (um:Model) gameState = 
         um.Rules 
@@ -346,8 +346,8 @@ module RulesImpl =
                 let newRule = Function(UnitRule(Save(profile,mId),target)) |> Rule.afterRunRemove
                 gameState
                 |> tryReplaceRuleOnGameState (SortedWeaponProfiles.ToString()) (def (Function(GameStateRule(SortedWeaponProfiles(newSorted)))))
-                |> tryReplaceRuleOnUnit (SortedWoundPool.ToString()) (def (Function(UnitRule(SortedWoundPool(newProfile, mId),target)))) target
-                |> tryReplaceRuleOnUnit (Save.ToString()) (def newRule) target
+                |> tryReplaceRuleOnUnit def (Function(UnitRule(SortedWoundPool(newProfile, mId),target)))) target
+                |> tryReplaceRuleOnUnit def newRule) target
         | x -> failwith <| sprintf "Not found - weapon profile sort %A" x
     let pickClosest mId uId gameState = //TODO change impl to something. Probably have to roll position into GameState
         let foundUnit = tryFindUnit gameState uId 
@@ -379,7 +379,7 @@ module RulesImpl =
         | Some wounds, Some _, Some _, Some _ ->
             let woundRule  = Function(ModelRule(Wounds(wounds - 1 |> CharacteristicValue),mId))
             let newRule = SetCharacteristic(Wounds.ToString(),woundRule)
-            [newRule],tryReplaceRuleOnGameState (newRule.ToString()) (def ((newRule,mId) |> ModelRule |> Function |> Rule.afterRunRemove)) gameState
+            [newRule],tryReplaceRuleOnGameState def ((newRule,mId) |> ModelRule |> Function |> Rule.afterRunRemove) gameState
         | _ -> failwith <| sprintf "Not found %A "  mId
     let removeIfZeroCharacteristic  mId gameState = 
         let foundModel = tryFindModel gameState mId
@@ -391,10 +391,10 @@ module RulesImpl =
         | _ -> failwith <| sprintf "Not found %A "  mId
     let supplySortedWeapons profiles gameState profileMaker = 
         let newRule = profileMaker profiles |> SortedWeaponProfiles |> GameStateRule
-        [newRule],tryReplaceRuleOnGameState (SortedWeaponProfiles.ToString()) (def (Function(newRule))) gameState
+        [newRule],tryReplaceRuleOnGameState def (Function(newRule)) gameState
     let rollDice gameState diceRoller =
         let newRule = diceRoller() |> DiceRolled |> GameStateRule 
-        [newRule],tryReplaceRuleOnGameState (DiceRolled.ToString()) (def (Function(newRule))) gameState
+        [newRule],tryReplaceRuleOnGameState def (Function(newRule)) gameState
 
     let availableRules predicate player gs = 
         let captureRules =  Map.toSeq >> Seq.choose predicate >> Seq.toList
