@@ -74,7 +74,7 @@
         | Remove of RuleApplication
         | Activate of RuleApplication
         | Repeat of int * string * Rule
-        | CollectUserActivated of Player
+        | CollectUserActivated //of Value<Player>
         override this.ToString() = toString this
         static member FromString s = fromString<GameRuleImpl> s
     and LogicalExpression =
