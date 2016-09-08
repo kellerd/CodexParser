@@ -69,7 +69,14 @@ module RulesImpl =
                                           | Or, Some _, _ -> Some rule
                                           | Or, _, Some _ -> Some rule
                                           | Or, None _, None _ -> None
-    let optionalRules gs (_,r) = match r,gs with Optional _, Active r ra -> Some ra | _ -> None
+    let optionalAndActiveRules gs (_,r) = match r,gs with Optional _, Active r ra -> Some ra | _ -> None
+    let activeRulesButNotOptional gs (_,r) = 
+        match gs with 
+        | Active r ra -> 
+            match r with 
+            | Optional _ -> None
+            | _ -> Some ra
+        | _ -> None
     let activeRules gs (_,r) = match gs with Active r ra -> Some ra | _ -> None
     let rec (|MR|_|) = function
         | UnitRule(_) -> None
@@ -294,24 +301,25 @@ module RulesImpl =
         let dosortedIndexes = 
             profiles'
             |> SupplySortedWeaponProfiles 
-            |> GameStateRule
-            |> Function
-            |> Rule.afterRunRemove
+            
         let newPool = 
             UnitRule(SortedWoundPool(profiles', attackingModelId),uId)  
-            |> Rule.afterIfRemove (Rule(GameStateRule(SortedWeaponProfiles([]))))
+            
 
         gameState
-        |> tryReplaceRuleOnGameState (SupplySortedWeaponProfiles.ToString()) (def dosortedIndexes)
-        |> tryReplaceRuleOnUnit (SortedWoundPool.ToString()) (def newPool) uId
+        |> tryReplaceRuleOnGameState (dosortedIndexes.ToString()) (def (dosortedIndexes|> GameStateRule
+            |> Function
+            |> Rule.afterRunRemove))
+        |> tryReplaceRuleOnUnit (newPool.ToString()) (def (newPool|> Rule.afterIfRemove (Rule(GameStateRule(SortedWeaponProfiles([])))))) uId
 
     let save (um:Model) gameState = 
         um.Rules 
+        |> Map.choose(fun _ r -> match gameState with
+                                 | Active r (ModelRule(Saves(CharacteristicValue(ra)),mId)) 
+                                 | Active r (ModelRule(InvSaves(CharacteristicValue(ra)),mId))
+                                 | Active r (ModelRule(CoverSaves(CharacteristicValue(ra)),mId))  -> Some ra 
+                                 | _ -> None)
         |> Map.values
-        |> Seq.choose(fun r -> match gameState with | Active r (ModelRule(Saves(CharacteristicValue(ra)),mId)) 
-                                                    | Active r (ModelRule(InvSaves(CharacteristicValue(ra)),mId))
-                                                    | Active r (ModelRule(CoverSaves(CharacteristicValue(ra)),mId))  -> Some ra 
-                                                    | _ -> None)
         |> Seq.sort 
         |> Seq.tryNth 0
         |> defaultArg <| 7
@@ -321,9 +329,9 @@ module RulesImpl =
     let sortedWoundPool (profiles: list<int * WeaponProfile>) target mId gameState = 
         let r = 
             gameState.Rules 
-            |> Map.values
-            |> Seq.tryPick(fun r -> match gameState with | Active r (GameStateRule(SortedWeaponProfiles(ra))) -> Some ra 
-                                                         | _ -> None)
+            |> Map.tryPick(fun _ r -> match gameState with 
+                                      | Active r (GameStateRule(SortedWeaponProfiles(ra))) -> Some ra 
+                                      | _ -> None)
         match r with
         | Some sortedProfiles  -> 
             let sortedProfiles' = List.zip profiles sortedProfiles |> List.sortBy snd 
@@ -370,8 +378,8 @@ module RulesImpl =
         match wounds, foundUnit, foundPlayer,foundModel with
         | Some wounds, Some _, Some _, Some _ ->
             let woundRule  = Function(ModelRule(Wounds(wounds - 1 |> CharacteristicValue),mId))
-            let newRule = ModelRule(SetCharacteristic(Wounds.ToString(),woundRule),mId)
-            [newRule],tryReplaceRuleOnGameState (SetCharacteristic.ToString()) (def (newRule |> Function |> Rule.afterRunRemove)) gameState
+            let newRule = SetCharacteristic(Wounds.ToString(),woundRule)
+            [newRule],tryReplaceRuleOnGameState (newRule.ToString()) (def ((newRule,mId) |> ModelRule |> Function |> Rule.afterRunRemove)) gameState
         | _ -> failwith <| sprintf "Not found %A "  mId
     let removeIfZeroCharacteristic  mId gameState = 
         let foundModel = tryFindModel gameState mId
@@ -407,18 +415,25 @@ module RulesImpl =
             |> Map.toList
             |> List.collect (fun (_,item) -> captureRules item.Model.Rules)
 
-        gameRules @ unitRules @ modelRules
+        gameRules @ unitRules @ modelRules |> List.rev
 
-    let collect currentPlayer gameState = 
-        let predicate = optionalRules gameState
+    let collect gameState = 
+        let predicate = optionalAndActiveRules gameState
+        let currentPlayer = 
+            gameState.Rules 
+            |> Map.pick(fun _ r -> match gameState with | Active r (GameStateRule(PlayerTurn(Top))) -> Some Player1
+                                                           | _ ->  Some Player2)
+            
         let rules  = 
             gameState
             |> availableRules predicate currentPlayer
         let rulesApplication raPicker = 
             match rules |> List.tryItem (raPicker rules) with
             | Some ra ->
-                let newRule = Activate ra |> GameStateRule
-                tryReplaceRuleOnGameState (Activate.ToString()) (def (Function(newRule) |> Rule.afterRunRemove)) gameState
+                let newRule = Activate ra
+                let newGs = tryReplaceRuleOnGameState (newRule.ToString()) (def (Function(GameStateRule(newRule)) |> Rule.afterRunRemove)) gameState
+                printfn "%A" newGs.Rules
+                newGs
             | _ -> gameState
         rulesApplication
 
@@ -462,7 +477,7 @@ module RulesImpl =
                 | ModelRule(Unsaved(profile),mId) -> unsavedWound profile mId gameState |> eval' rest
                 | GameStateRule(EndGame) -> remove (GameStateRule(PlayerTurn(Bottom))) gameState |> eval rest 
                 | ModelRule(RemoveOnZeroCharacteristic, mId) -> removeIfZeroCharacteristic mId gameState |> eval rest
-                | GameStateRule(CollectUserActivated(player)) -> collect player gameState >> eval rest |> Asker  |> PerformAsker |> AskResult
+                | GameStateRule(CollectUserActivated) -> collect gameState >> eval rest |> Asker  |> PerformAsker |> AskResult
                 | GameStateRule(EndTurn) // Maybe Split EndPhase and End Turn
                 | GameStateRule(DiceRolled(_))  
                 | GameStateRule(SortedWeaponProfiles(_))  

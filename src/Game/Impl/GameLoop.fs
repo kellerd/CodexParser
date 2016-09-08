@@ -17,7 +17,7 @@ module GameLoop =
         | Player2 -> Player2ToMove(gs, nextMoves)
     
     let doNextTick gameState playerMove player = 
-        let predicate = activeRules gameState
+        let predicate = activeRulesButNotOptional gameState
         let activeRules = 
             availableRules predicate player gameState 
         let moveCap() = playerMove player activeRules gameState
