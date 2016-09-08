@@ -105,8 +105,6 @@ module RulesImpl =
         | _, None -> failwith "Couldn't find unit"
 
     let move uId gameState maxMove  = 
-
-
         let createMove moveAsker =
             let newPosition m = 
                 let ps = pixelsInCircle maxMove m.Position |> Seq.toArray
@@ -390,21 +388,10 @@ module RulesImpl =
         let newRule = diceRoller() |> DiceRolled |> GameStateRule 
         [newRule],tryReplaceRuleOnGameState (DiceRolled.ToString()) (def (Function(newRule))) gameState
 
-    type AvailableRulesMap<'a> = {GameStateMap : GameState->RuleApplication->'a
-                                  UnitMap : GameState->Unit->RuleApplication->'a 
-                                  ModelMap: GameState->ModelInfo->RuleApplication->'a }
-
-    let optionalRulesMap = {GameStateMap = (fun gs r -> {gs with Rules = activateRule r gs.Rules })
-                            UnitMap = (fun gs item r -> replaceRuleOnUnit item (activateRule r) gs)
-                            ModelMap = (fun gs item r -> replaceRuleOnModel item.Model (activateRule r) gs )}
-    let activeRulesMap = {GameStateMap = (fun _ _ -> ())
-                          UnitMap = (fun _ _ _ -> ())
-                          ModelMap = (fun _ _ _ -> ())}
-
-    let availableRules predicate (mapper:AvailableRulesMap<'a>) player gs = 
+    let availableRules predicate player gs = 
         let captureRules =  Map.toSeq >> Seq.choose predicate >> Seq.toList
 
-        let gameRules = captureRules gs.Rules |> List.map (fun r -> r, mapper.GameStateMap gs r)
+        let gameRules = captureRules gs.Rules
         
         let unitRules = 
             gs.Players
@@ -412,13 +399,13 @@ module RulesImpl =
             |> List.map (fun p -> p.Units) 
             |> List.exactlyOne
             |> Map.toList
-            |> List.collect (fun (_,item) ->  captureRules item.Rules |> List.map (fun r -> r, mapper.UnitMap gs item r ))
+            |> List.collect (fun (_,item) ->  captureRules item.Rules)
 
         let modelRules = 
             gs.Board.Models 
             |> Map.filter (fun _ item -> item.Player = player) 
             |> Map.toList
-            |> List.collect (fun (_,item) -> captureRules item.Model.Rules |> List.map (fun r -> r,mapper.ModelMap gs item r))
+            |> List.collect (fun (_,item) -> captureRules item.Model.Rules)
 
         gameRules @ unitRules @ modelRules
 
@@ -426,12 +413,24 @@ module RulesImpl =
         let predicate = optionalRules gameState
         let rules  = 
             gameState
-            |> availableRules predicate optionalRulesMap currentPlayer
+            |> availableRules predicate currentPlayer
         let rulesApplication raPicker = 
-            match rules |> List.tryItem (raPicker (rules|> List.map fst)) with
-            | Some(ra,newGsRuleActivated) -> [ra],newGsRuleActivated
-            | _ -> [],gameState
+            match rules |> List.tryItem (raPicker rules) with
+            | Some ra ->
+                let newRule = Activate ra |> GameStateRule
+                tryReplaceRuleOnGameState (Activate.ToString()) (def (Function(newRule) |> Rule.afterRunRemove)) gameState
+            | _ -> gameState
         rulesApplication
+
+    let rec activate ra gameState = 
+        match ra with
+        | GameStateRule(_) -> {gameState with GameState.Rules = activateRule ra gameState.Rules}
+        | UnitRule(_, uId) ->
+            tryFindUnit gameState uId |> Option.map (fun u -> replaceRuleOnUnit u (activateRule ra) gameState) |> defaultArg <| gameState
+        | ModelRule(_, mId) -> 
+            tryFindModel gameState mId |> Option.map (fun m -> replaceRuleOnModel m.Model (activateRule ra) gameState) |> defaultArg <| gameState
+        | Sequence(first::_) -> activate first gameState
+        | Sequence([]) -> gameState
 
     let rec eval rules gameState = 
         match rules with
@@ -452,6 +451,7 @@ module RulesImpl =
                 | GameStateRule(Remove(ruleApplication)) -> remove ruleApplication gameState |> eval rest
                 | GameStateRule(Revert(ruleApplication)) -> revert ruleApplication gameState |> eval rest
                 | GameStateRule(Repeat(times,name,rule)) -> repeat times name rule gameState |> eval rest
+                | GameStateRule(Activate(ra)) -> activate ra gameState |> eval rest
                 | GameStateRule(DeactivateUntil(activateWhen,ruleApplication)) -> deactivateUntil activateWhen ruleApplication gameState |> eval rest
                 | Sequence(rules) -> eval (rules @ rest) gameState
                 | ModelRule(Melee(attacks,toHit,target),mId) -> melee attacks toHit target mId gameState |> eval' rest
@@ -462,7 +462,7 @@ module RulesImpl =
                 | ModelRule(Unsaved(profile),mId) -> unsavedWound profile mId gameState |> eval' rest
                 | GameStateRule(EndGame) -> remove (GameStateRule(PlayerTurn(Bottom))) gameState |> eval rest 
                 | ModelRule(RemoveOnZeroCharacteristic, mId) -> removeIfZeroCharacteristic mId gameState |> eval rest
-                | GameStateRule(CollectUserActivated(player)) -> collect player gameState >> eval' rest |> Asker  |> PerformAsker |> AskResult
+                | GameStateRule(CollectUserActivated(player)) -> collect player gameState >> eval rest |> Asker  |> PerformAsker |> AskResult
                 | GameStateRule(EndTurn) // Maybe Split EndPhase and End Turn
                 | GameStateRule(DiceRolled(_))  
                 | GameStateRule(SortedWeaponProfiles(_))  

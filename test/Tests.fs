@@ -3,7 +3,7 @@
 open NUnit.Framework
 open FsUnit
 open Domain.Board
-open GameImpl.GameLoop
+open Domain
 open GameImpl.RulesImpl
 
 [<TestFixture>] 

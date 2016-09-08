@@ -53,7 +53,7 @@ module ConsoleWarhammer =
 
     let rec moveAsker positions =
         positions |> Array.iteri (fun i p -> printfn "%i) %i %i" i p.X p.Y)
-        printfn "Enter an int corresponding to a displayed move or q to quit:" 
+        printfn "Enter an int corresponding to a displayed move" 
         match Console.ReadLine() |> Int32.TryParse with
         // TryParse will output a tuple (parsed?,int)
         | true, inputIndex ->
@@ -132,7 +132,7 @@ module ConsoleWarhammer =
     /// Ask the user for input. Process the string entered as 
     /// a move index or a "quit" command
     let rec runOptionalRule availableRules = 
-
+        List.iteri (printfn "%d) %A") availableRules
         // helper that calls this function again with exactly
         // the same parameters
         let processInputAgain() = 

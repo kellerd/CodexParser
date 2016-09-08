@@ -4,7 +4,6 @@ module GameLoop =
     open Domain
     open Domain.Board
     open Domain.Game
-    open GameImpl.GameState
     open GameImpl.RulesImpl
     open Microsoft.FSharp.Collections
     let other player = 
@@ -20,8 +19,7 @@ module GameLoop =
     let doNextTick gameState playerMove player = 
         let predicate = activeRules gameState
         let activeRules = 
-            availableRules predicate activeRulesMap player gameState 
-            |> List.map fst
+            availableRules predicate player gameState 
         let moveCap() = playerMove player activeRules gameState
         moveCap |> Next |> gameResultFor player gameState 
 
