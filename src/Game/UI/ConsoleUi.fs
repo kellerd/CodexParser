@@ -72,9 +72,10 @@ module ConsoleWarhammer =
             printfn "Out of %d, %A Ranks: " len (List.item i woundProfiles) 
             System.Console.ReadLine() |> System.Int32.Parse
     let displayRules gs = 
-        gs.Players |> List.iter (fun p -> p.Units |> Map.map (fun _ u -> u.Rules) |> Map.iter (fun _ -> printfn "%A"))
-        gs.Board.Models |> Map.map(fun _ m ->  m.Model.Rules) |> Map.iter (fun _ -> printfn "%A")
-        gs.Rules |> printfn "%A"
+        // gs.Players |> List.iter (fun p -> p.Units |> Map.map (fun _ u -> u.Rules) |> Map.iter (fun _ -> printfn "%A"))
+        // gs.Board.Models |> Map.map(fun _ m ->  m.Model.Rules) |> Map.iter (fun _ -> printfn "%A")
+        // gs.Rules |> printfn "%A"
+        ()
     let displayBoard gameState = 
         
         let toCharacterWidth x =  x / 6<px/WidthChars>
