@@ -41,7 +41,7 @@
         | InvSaves        of CharacteristicValue
         | CoverSaves      of CharacteristicValue
         | Saves           of CharacteristicValue
-        | SetCharacteristic of string * Rule
+        | SetCharacteristic of Rule
         | Unsaved of WeaponProfile
         | RemoveOnZeroCharacteristic 
         | ArmourPenetration of ArmourPen
@@ -103,10 +103,11 @@
         let (<|>) l1 l2 = Logical(l1,Or,l2)
         let (<!>) l1 = Not(l1)
 
-        let overwrite newR x = Overwritten(newR,x)
-        let unoverwrite = function
-                                | Overwritten(_,r) -> r
-                                | r -> r
+        let overwrite newR x = (newR,x) |> Overwritten |> Some
+        let unoverwrite _ = function
+                                | Overwritten(_,r) -> r |> Some
+                                | r -> r |> Some
+                            
         let userActivated rule =
             let rec userActivated' = function
                     | ActiveWhen(logic,r)               -> ActiveWhen(logic,userActivated' r)
