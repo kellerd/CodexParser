@@ -426,9 +426,7 @@ module RulesImpl =
             match rules |> List.tryItem (raPicker rules) with
             | Some ra ->
                 let newRule = Activate ra |> GameStateRule |> Function |> Rule.afterRunRemove
-                let newGs = tryReplaceRuleOnGameState def newRule gameState
-                printfn "%A" newGs.Rules
-                newGs
+                tryReplaceRuleOnGameState def newRule gameState
             | _ -> gameState
         rulesApplication
 
