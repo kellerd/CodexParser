@@ -28,8 +28,8 @@ module GameState =
     
     let def x _ = Some x
     let defnot x _ = None
-    let replaceUnitModels u (m:Model) nm = { u with UnitModels = Map.updateWith nm m.Id u.UnitModels } 
-    let replacePlayerUnits p u nu = { p with Units = Map.updateWith nu u.Id p.Units }
+    let replaceUnitModels u (m:Model) nm = { u with UnitModels = Map.updateWithOrRemove nm m.Id u.UnitModels } 
+    let replacePlayerUnits p u nu = { p with Units = Map.updateWithOrRemove nu u.Id p.Units }
     let replaceGameStatePlayers s p np = { s with Players = replace s.Players p np }
     let rec tryFindRule ruleApplication gameState =
         match ruleApplication with
@@ -65,14 +65,15 @@ module GameState =
         newGameState
     let tryReplaceRuleOnGameState mapf rule gameState = 
         let name = makeRule rule |> fst
-        replaceRuleOnGameState (Map.updateWith (mapf rule) name) gameState
+        printfn "%s" name
+        replaceRuleOnGameState (Map.updateWithOrRemove (mapf rule) name) gameState
     let replaceRuleOnUnit  (unit : Unit) replace gameState = 
         let newUnit = { unit with Rules = unit.Rules |> replace }
         updatePlayerInGameState unit (def newUnit) gameState
     let tryReplaceRuleOnUnit mapf rule uid gameState = 
         let name = makeRule rule |> fst
         tryFindUnit gameState uid
-        |> Option.map (fun u -> replaceRuleOnUnit u (Map.updateWith (mapf rule) name) gameState)
+        |> Option.map (fun u -> replaceRuleOnUnit u (Map.updateWithOrRemove (mapf rule) name) gameState)
         |> defaultArg <| gameState
     let replaceRuleOnModel  (model : Model) replace gameState = 
         let newmodel = { model with Rules = model.Rules |> replace }
@@ -80,11 +81,11 @@ module GameState =
     let tryReplaceRuleOnModel mapf rule mId gameState = 
         let name = makeRule rule |> fst
         tryFindModel gameState mId
-        |> Option.map (fun m -> replaceRuleOnModel m.Model (Map.updateWith (mapf rule) name) gameState)
+        |> Option.map (fun m -> replaceRuleOnModel m.Model (Map.updateWithOrRemove (mapf rule) name) gameState)
         |> defaultArg <| gameState
     let forAllModels f newUnit gameState = 
         [ for m in newUnit.UnitModels do
                 yield f m.Value ]
         |> List.fold (fun acc m -> match Map.tryFind m.Model.Id acc with
-                                    | Some _ -> Map.updateWith (def m) m.Model.Id acc
+                                    | Some _ -> Map.updateWithOrRemove (def m) m.Model.Id acc
                                     | None -> Map.add m.Model.Id m acc) gameState.Board.Models
