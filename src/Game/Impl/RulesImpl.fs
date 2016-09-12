@@ -95,7 +95,7 @@ module RulesImpl =
             | Sequence(r::_) -> r.ToString()
             | Sequence([]) -> ""
         let name = matchName r
-        Map.updateWith (Rule.overwrite (Function(r))) name rules
+        Map.updateWithOrRemove (overriteOrNew r) name rules
 
     let deploy uId gameState  = 
         let foundUnit = tryFindUnit gameState uId
@@ -162,7 +162,7 @@ module RulesImpl =
         let changeRound (round,turn) gs = 
             let (gtMaker, phase) = splitRound round
            
-            let mapReplace rule = Map.updateWith (def (Function(GameStateRule(rule)))) (rule.ToString())
+            let mapReplace rule = Map.updateWithOrRemove (def (Function(GameStateRule(rule)))) (rule.ToString())
             let doGameState rule = replaceRuleOnGameState <| mapReplace rule
             
             let (rules,gameStateChanges) =

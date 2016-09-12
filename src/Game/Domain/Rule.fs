@@ -99,11 +99,13 @@
     [<CompilationRepresentation (CompilationRepresentationFlags.ModuleSuffix)>]
     [<AutoOpen>]
     module Rule =
+        open Microsoft.FSharp.Collections
         let (<&>) l1 l2 = Logical(l1,And,l2)
         let (<|>) l1 l2 = Logical(l1,Or,l2)
         let (<!>) l1 = Not(l1)
 
         let overwrite newR x = (newR,x) |> Overwritten |> Some
+        let overriteOrNew r = Option.either (overwrite (Function(r))) (Some(Function(r)))
         let unoverwrite _ = function
                                 | Overwritten(_,r) -> r |> Some
                                 | r -> r |> Some

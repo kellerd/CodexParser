@@ -41,6 +41,7 @@
     <Compile Include="AssemblyInfo.fs" />
     <Content Include="paket.references" />
     <None Include="App.config" />
+    <Compile Include="Base\Option.fs" />
     <Compile Include="Base\Equals.fs" />
     <Compile Include="Base\Seq.fs" />
     <Compile Include="Base\Base.fs" />
