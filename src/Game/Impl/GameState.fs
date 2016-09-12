@@ -61,7 +61,9 @@ module GameState =
         | (gs, Some u, Some nu) -> updatePlayerInGameState u (def nu) gs
         | (gs, _, _) -> gs   
     let replaceRuleOnGameState  replace (gameState:GameState)  = 
+        printfn "before: %A" gameState.Rules 
         let newGameState = { gameState with Rules = gameState.Rules |> replace }
+        printfn "after: %A" gameState.Rules
         newGameState
     let tryReplaceRuleOnGameState mapf rule gameState = 
         let name = makeRule rule |> fst
