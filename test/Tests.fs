@@ -5,10 +5,12 @@ open FsUnit
 open Domain.Board
 open Domain
 open GameImpl.RulesImpl
+open GameImpl.GameState
 
 [<TestFixture>] 
 type ``Given a Example state with Single Rules`` () =
    let gameState = Impl.ImplTest.initial
+   let rule = Activate (GameStateRule(PlayerTurn(Top))) |> GameStateRule |> Function |> Rule.afterRunRemove        
   
    [<Test>] member test.
     ``Player should be structurally equal`` ()=
@@ -33,6 +35,13 @@ type ``Given a Example state with Single Rules`` () =
    [<Test>] member test.
     ``Capabilities should not be empty`` ()=
            availableRules (activeRules gameState) Player1 gameState |> should not' (be Empty)
+   [<Test>] member test.
+    ``Adding a new rule, adds a new rule`` () =
+           (rule,gameState)
+           ||> tryReplaceRuleOnGameState def 
+           |> (fun m -> m.Rules)
+           |> Map.try 
+
 //type ``Given a mission in top, at the end of phase`` () =
 //    let gameState = { Impl.ImplTest.initial with Game = {Impl.ImplTest.initial.Game with Turn = Top(One(Phase.End))}}
 //    let positionAsker gs = 
