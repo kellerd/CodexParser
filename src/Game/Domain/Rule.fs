@@ -105,11 +105,12 @@
         let (<!>) l1 = Not(l1)
 
         let overwrite newR x = (newR,x) |> Overwritten |> Some
-        let overriteOrNew r = Option.either (overwrite (Function(r))) (Some(Function(r)))
+        let overriteOrNew r = Option.either (overwrite (r)) (Some(r))
+        let overriteOrNone r = Option.either (overwrite (r)) (None)
         let unoverwrite _ = function
                                 | Overwritten(_,r) -> r |> Some
                                 | r -> r |> Some
-                            
+        let unoverwriteOrNew  r = Option.either (unoverwrite(r)) (Some(r))                    
         let userActivated rule =
             let rec userActivated' = function
                     | ActiveWhen(logic,r)               -> ActiveWhen(logic,userActivated' r)
