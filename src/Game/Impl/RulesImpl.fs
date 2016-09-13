@@ -95,7 +95,7 @@ module RulesImpl =
             | Sequence(r::_) -> r.ToString()
             | Sequence([]) -> ""
         let name = matchName r
-        Map.updateWithOrRemove (overriteOrNew r) name rules
+        Map.updateWithOrRemove (overriteOrNew (Function(r))) name rules
 
     let deploy uId gameState  = 
         let foundUnit = tryFindUnit gameState uId
@@ -104,7 +104,7 @@ module RulesImpl =
         | Some p, Some u -> 
             let pa positionAsker =
                 let newRule = UnitRule(DeploymentState(Deployed), uId)
-                let newGs = tryReplaceRuleOnUnit Rule.overwrite (newRule |> Function) uId gameState
+                let newGs = tryReplaceRuleOnUnit Rule.overriteOrNew (newRule |> Function) uId gameState
                 let newUnit = tryFindUnit newGs uId |> defaultArg <| u
                 [newRule],{ newGs with Board = { newGs.Board with Models = forAllModels (fun m -> { Model = m; Player = p.Player; Position = newGs |> positionAsker }) newUnit newGs} }
             pa
@@ -185,11 +185,11 @@ module RulesImpl =
         let rule = tryFindRule ruleApplication gameState
         match ruleApplication,rule with 
         | UnitRule(_,uId),Some rule -> 
-            tryReplaceRuleOnUnit Rule.unoverwrite rule uId gameState
+            tryReplaceRuleOnUnit Rule.unoverwriteOrNew rule uId gameState
         | ModelRule(_,mId),Some rule ->
-            tryReplaceRuleOnModel Rule.unoverwrite rule mId gameState
+            tryReplaceRuleOnModel Rule.unoverwriteOrNew rule mId gameState
         | GameStateRule(_),Some rule ->
-            tryReplaceRuleOnGameState Rule.unoverwrite rule gameState
+            tryReplaceRuleOnGameState Rule.unoverwriteOrNew rule gameState
         | Sequence(rule::_),Some _ ->
             revert rule gameState 
         | Sequence([]),_ 
@@ -213,7 +213,8 @@ module RulesImpl =
         else
             gameState
     let rec deactivateUntil activateWhen ruleApplication gameState  =
-        let makeNewRule rule oldRule = Overwritten(ActiveWhen(activateWhen,rule),oldRule) |> Some
+        let makeNewRule rule oldRule = 
+            Option.map(function oldRule -> Overwritten(ActiveWhen(activateWhen,rule),oldRule)) oldRule
         match ruleApplication with 
         | UnitRule(_,uId) -> 
             tryReplaceRuleOnUnit makeNewRule (Function(GameStateRule(Revert(ruleApplication)))) uId gameState
@@ -454,7 +455,7 @@ module RulesImpl =
                 | UnitRule(Move maxMove,uId) -> move uId gameState maxMove >> eval rest |> Asker  |> MoveAsker |> AskResult
                 | GameStateRule(RollDice) -> rollDice gameState >> eval' rest |> Asker |> DiceRollAsker |> AskResult
                 | GameStateRule(SupplySortedWeaponProfiles(profiles)) -> supplySortedWeapons profiles gameState >> eval' rest |> Asker |> SortedWoundPoolAsker |> AskResult
-                | ModelRule(SetCharacteristic(newRule), uId) -> tryReplaceRuleOnModel Rule.overwrite newRule uId gameState |> eval  rest
+                | ModelRule(SetCharacteristic(newRule), uId) -> tryReplaceRuleOnModel Rule.overriteOrNone newRule uId gameState |> eval  rest
                 | GameStateRule(EndPhase) -> advancePhase gameState |> eval' rest
                 | GameStateRule(Remove(ruleApplication)) -> remove ruleApplication gameState |> eval rest
                 | GameStateRule(Revert(ruleApplication)) -> revert ruleApplication gameState |> eval rest
