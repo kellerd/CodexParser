@@ -47,7 +47,8 @@ module GameState =
         | Sequence([]) -> None
     let replaceUnitModelsInPlayer p u m nm = def (replaceUnitModels u m nm) |> replacePlayerUnits p u
     let replaceUnitModelsInGameState s p u m nm = replaceUnitModelsInPlayer p u m nm |> replaceGameStatePlayers s p 
-
+    let updateModelInBoard (model:Model) (newModel:Model option -> Model option) gameState =
+         {gameState with Board = {gameState.Board with Models = Map.updateWithOrRemove (Option.bind(fun mi -> Some mi.Model |> newModel |> Option.map(fun m -> {mi with Model = m}))) model.Id gameState.Board.Models}}
     let updatePlayerInGameState unit newUnit gameState = 
         let foundPlayer = tryFindPlayer gameState unit
         let newPlayer = foundPlayer |> Option.map (fun p -> replacePlayerUnits p unit newUnit)
@@ -58,7 +59,7 @@ module GameState =
         let foundUnit = tryFindUnitByModel gameState model
         let newUnit = foundUnit |> Option.map (fun p -> replaceUnitModels p model newmodel)
         match gameState, foundUnit, newUnit with
-        | (gs, Some u, Some nu) -> updatePlayerInGameState u (def nu) gs
+        | (gs, Some u, Some nu) -> updatePlayerInGameState u (def nu) gs |> updateModelInBoard model newmodel
         | (gs, _, _) -> gs   
     let replaceRuleOnGameState  replace (gameState:GameState)  = 
         printfn "before: %A" gameState.Rules 
@@ -76,7 +77,8 @@ module GameState =
         let name = makeRule rule |> fst
         tryFindUnit gameState uid
         |> Option.map (fun u -> replaceRuleOnUnit u (Map.updateWithOrRemove (mapf rule) name) gameState)
-        |> defaultArg <| gameState
+        //|> defaultArg <| gameState
+        |> Option.get 
     let replaceRuleOnModel  (model : Model) replace gameState = 
         let newmodel = { model with Rules = model.Rules |> replace }
         updateUnitInGameState model (def newmodel) gameState
@@ -84,7 +86,8 @@ module GameState =
         let name = makeRule rule |> fst
         tryFindModel gameState mId
         |> Option.map (fun m -> replaceRuleOnModel m.Model (Map.updateWithOrRemove (mapf rule) name) gameState)
-        |> defaultArg <| gameState
+        |> Option.get 
+        //|> defaultArg <| gameState
     let forAllModels f newUnit gameState = 
         [ for m in newUnit.UnitModels do
                 yield f m.Value ]

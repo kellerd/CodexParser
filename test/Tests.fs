@@ -10,11 +10,18 @@ open Domain.WarhammerDomain
 
 [<TestFixture>] 
 type ``Given a Example state with Single Rules`` () =
-   let gameState = Impl.ImplTest.initial
+   let addOrUpdateGameState (rule,gameState) = tryReplaceRuleOnGameState def rule gameState
+   let removeFromGameState (rule,gameState) = tryReplaceRuleOnGameState defnot rule gameState
+
    let ruleToAdd = Activate (GameStateRule(PlayerTurn(Top))) |> GameStateRule |> Function |> Rule.afterRunRemove  
+   let ruleToModify = Function(GameStateRule(GameRound(Round.Begin))) 
+   let containsKey rule gs = gs |> (fun m -> m.Rules) |> Map.tryFind (makeRule rule |> fst)  |> Option.isSome  
+   let doesntContainKeyIsFalse ruleToModify = (snd >> containsKey ruleToModify >> not) 
+   let containsValue rule gs = gs |> (fun m -> m.Rules) |> Map.tryFindKey (fun k r -> k = (makeRule rule |> fst) && r = rule)  |> Option.isSome       
+   
+   let uId = UnitGuid "A4F2493F-08BA-44EA-B813-0F3E5E53110B"    
    let ruleToAddUnit =     
-      let uId = UnitGuid "A4F2493F-08BA-44EA-B813-0F3E5E53110B"              
-      Function(UnitRule(Move 6.<inch>, uId))
+      Function(UnitRule(Move 3.<inch>, uId))
                          |> Rule.onlyWhen (Rule(GameStateRule(GameRound(One(Movement)))) <|>
                                              Rule(GameStateRule(GameRound(Two(Movement)))) <|>
                                              Rule(GameStateRule(GameRound(Three(Movement)))) <|>
@@ -25,15 +32,37 @@ type ``Given a Example state with Single Rules`` () =
                          |> Rule.userActivated
                          |> Rule.afterRunDeactivateUntil (Rule(GameStateRule(EndPhase)))
 
-   let ruleToModify = Function(GameStateRule(GameRound(Round.Begin)))  
-   let containsKey rule gs = gs |> (fun m -> m.Rules) |> Map.tryFind (makeRule rule |> fst)  |> Option.isSome  
-   let doesntContainKeyIsFalse ruleToModify = (snd >> containsKey ruleToModify >> not) 
-   let containsValue rule gs = gs |> (fun m -> m.Rules) |> Map.tryFindKey (fun k r -> k = (makeRule rule |> fst) && r = rule)  |> Option.isSome       
+   
+   let ruleToModifyUnit = Function(UnitRule(DeploymentState(OngoingReserves),uId))  
+   let containsKeyUnit rule gs = (gs,uId) ||> tryFindUnit |> Option.bind (fun m -> m.Rules |> Map.tryFind (makeRule rule |> fst))  |> Option.isSome  
+   let doesntContainKeyIsFalseUnit ruleToModify = (snd >> containsKeyUnit ruleToModify >> not) 
+   let containsValueUnit rule gs = (gs,uId) ||> tryFindUnit |> Option.bind (fun m -> m.Rules |> Map.tryFindKey (fun k r -> k = (makeRule rule |> fst) && r = rule))  |> Option.isSome       
+   let addOrUpdateUnit (rule,gameState) = tryReplaceRuleOnUnit def rule uId gameState
+   let removeFromUnit (rule,gameState) = tryReplaceRuleOnUnit defnot rule uId gameState
+
+   let mId = ModelGuid "2D5045C8-0427-4C6D-B0A4-371F46DAF844" 
+   
+   let (Some foundUnit) = tryFindUnit Impl.ImplTest.initial uId         
+   let (Some p) = tryFindPlayer Impl.ImplTest.initial foundUnit
+   let gameState = {Impl.ImplTest.initial  with Board = {Impl.ImplTest.initial.Board with Models = forAllModels (fun m -> { Model = m; Player = p.Player; Position = {X = 1<px>;Y = 1<px>}}) foundUnit Impl.ImplTest.initial}}
+
+   let ruleToAddModel = Function(ModelRule(CoverSaves(CharacteristicValue 3), mId))
+   let ruleToModifyModel = Function(ModelRule(Toughness(CharacteristicValue 6), mId))
+   let containsKeyModel rule gs = (gs,mId) ||> tryFindModel |> Option.bind (fun m -> m.Model.Rules |> Map.tryFind (makeRule rule |> fst))  |> Option.isSome  
+   let doesntContainKeyIsFalseModel ruleToModify = (snd >> containsKeyModel ruleToModify >> not) 
+   let containsValueModel rule gs = (gs,mId) ||> tryFindModel |> Option.bind (fun m -> m.Model.Rules |> Map.tryFindKey (fun k r -> k = (makeRule rule |> fst) && r = rule))  |> Option.isSome       
+   let addOrUpdateModel (rule,gameState) = tryReplaceRuleOnModel def rule mId gameState
+   let removeFromModel (rule,gameState) = tryReplaceRuleOnModel defnot rule mId gameState
+   
+   
+   
    let falseActTrue setup before act after =
-        setup |> before  |> should be False 
-        setup |> act  |> after |> should be True
-   let addOrUpdateGameState (rule,gameState) = tryReplaceRuleOnGameState def rule gameState
-   let removeFromGameState (rule,gameState) = tryReplaceRuleOnGameState defnot rule gameState
+        setup |> printfn "Setup: %A"
+        setup |> before |> should be False
+        let result = setup |> act 
+        result |> printfn "Result: %A"
+        result |> after |> should be True
+ 
    [<Test>] member test.
     ``Player should be structurally equal`` ()=
            gameState.Players 
@@ -74,38 +103,36 @@ type ``Given a Example state with Single Rules`` () =
     ``Removing a rule, removes the rule`` () =
         falseActTrue (ruleToModify,gameState) (doesntContainKeyIsFalse ruleToModify) removeFromGameState (containsKey ruleToModify >> not)
 
-   
    [<Test>] member test.
-    ``Adding a new rule, adds a new rule`` () =
-        falseActTrue (ruleToAddUnit,gameState) (snd >> containsKey ruleToAddUnit) addOrUpdateUnit (containsKey ruleToAddUnit)
+    ``Adding a new rule, adds a new rule Unit`` () =
+        falseActTrue (ruleToAddUnit,gameState) (snd >> containsKeyUnit ruleToAddUnit) addOrUpdateUnit (containsKeyUnit ruleToAddUnit)
    [<Test>] member test.
-    ``Adding a new rule, is instance of new rule`` () =
-        falseActTrue (ruleToAddUnit,gameState) (snd >> containsKey ruleToAddUnit) addOrUpdateUnit (containsValue ruleToAddUnit)
+    ``Adding a new rule, is instance of new rule Unit`` () =
+        falseActTrue (ruleToAddUnit,gameState) (snd >> containsKeyUnit ruleToAddUnit) addOrUpdateUnit (containsValueUnit ruleToAddUnit)
    [<Test>] member test.
-    ``Modifying a rule, changes it`` () =
-        falseActTrue (ruleToModifyUnit,gameState) (doesntContainKeyIsFalse ruleToModifyUnit) addOrUpdateUnit (containsKey ruleToModifyUnit)
+    ``Modifying a rule, changes it Unit`` () =
+        falseActTrue (ruleToModifyUnit,gameState) (doesntContainKeyIsFalseUnit ruleToModifyUnit) addOrUpdateUnit (containsKeyUnit ruleToModifyUnit)
    [<Test>] member test.
-    ``Modifying a rule, is instance of new rule`` () =
-        falseActTrue (ruleToModifyUnit,gameState) (doesntContainKeyIsFalse ruleToModifyUnit) addOrUpdateUnit (containsValue ruleToModifyUnit)
+    ``Modifying a rule, is instance of new rule Unit`` () =
+        falseActTrue (ruleToModifyUnit,gameState) (doesntContainKeyIsFalseUnit ruleToModifyUnit) addOrUpdateUnit (containsValueUnit ruleToModifyUnit)
    [<Test>] member test.
-    ``Removing a rule, removes the rule`` () =
-        falseActTrue (ruleToModifyUnit,gameState) (doesntContainKeyIsFalse ruleToModifyUnit) removeFromUnit (containsKey ruleToModifyUnit >> not)
-
+    ``Removing a rule, removes the rule Unit`` () =
+        falseActTrue (ruleToModifyUnit,gameState) (doesntContainKeyIsFalseUnit ruleToModifyUnit) removeFromUnit (containsKeyUnit ruleToModifyUnit >> not)
    [<Test>] member test.
-    ``Adding a new rule, adds a new rule`` () =
-        falseActTrue (ruleToAddModel,gameState) (snd >> containsKey ruleToAddModel) addOrUpdateModel (containsKey ruleToAddModel)
+    ``Adding a new rule, adds a new rule Model`` () =
+        falseActTrue (ruleToAddModel,gameState) (snd >> containsKeyModel ruleToAddModel) addOrUpdateModel (containsKeyModel ruleToAddModel)
    [<Test>] member test.
-    ``Adding a new rule, is instance of new rule`` () =
-        falseActTrue (ruleToAddModel,gameState) (snd >> containsKey ruleToAddModel) addOrUpdateModel (containsValue ruleToAddModel)
+    ``Adding a new rule, is instance of new rule Model`` () =
+        falseActTrue (ruleToAddModel,gameState) (snd >> containsKeyModel ruleToAddModel) addOrUpdateModel (containsValueModel ruleToAddModel)
    [<Test>] member test.
-    ``Modifying a rule, changes it`` () =
-        falseActTrue (ruleToModifyModel,gameState) (doesntContainKeyIsFalse ruleToModifyModel) addOrUpdateModel (containsKey ruleToModifyModel)
+    ``Modifying a rule, changes it Model`` () =
+        falseActTrue (ruleToModifyModel,gameState) (doesntContainKeyIsFalseModel ruleToModifyModel) addOrUpdateModel (containsKeyModel ruleToModifyModel)
    [<Test>] member test.
-    ``Modifying a rule, is instance of new rule`` () =
-        falseActTrue (ruleToModifyModel,gameState) (doesntContainKeyIsFalse ruleToModifyModel) addOrUpdateModel (containsValue ruleToModifyModel)
+    ``Modifying a rule, is instance of new rule Model`` () =
+        falseActTrue (ruleToModifyModel,gameState) (doesntContainKeyIsFalseModel ruleToModifyModel) addOrUpdateModel (containsValueModel ruleToModifyModel)
    [<Test>] member test.
-    ``Removing a rule, removes the rule`` () =
-        falseActTrue (ruleToModifyModel,gameState) (doesntContainKeyIsFalse ruleToModifyModel) removeFromModel (containsKey ruleToModifyModel >> not)
+    ``Removing a rule, removes the rule Model`` () =
+        falseActTrue (ruleToModifyModel,gameState) (doesntContainKeyIsFalseModel ruleToModifyModel) removeFromModel (containsKeyModel ruleToModifyModel >> not)
 //type ``Given a mission in top, at the end of phase`` () =
 //    let gameState = { Impl.ImplTest.initial with Game = {Impl.ImplTest.initial.Game with Turn = Top(One(Phase.End))}}
 //    let positionAsker gs = 
