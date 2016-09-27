@@ -208,3 +208,9 @@ module ConsoleWarhammer =
     let startGame api =
         let userAction = ContinuePlay (api.NewGame())
         gameLoop api userAction 
+
+
+
+
+
+

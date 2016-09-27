@@ -6,12 +6,13 @@ open Domain.Board
 open Domain
 open GameImpl.RulesImpl
 open GameImpl.GameState
+open GameImpl.GameStateComputation
 open Domain.WarhammerDomain
 
 [<TestFixture>] 
 type ``Given a Example state with Single Rules`` () =
-   let addOrUpdateGameState (rule,gameState) = tryReplaceRuleOnGameState def rule gameState
-   let removeFromGameState (rule,gameState) = tryReplaceRuleOnGameState defnot rule gameState
+   let addOrUpdateGameState (rule,gameState) = runT (tryReplaceRuleOnGameState def rule) gameState  |> snd
+   let removeFromGameState (rule,gameState) = runT (tryReplaceRuleOnGameState defnot rule ) gameState |> snd
 
    let ruleToAdd = Activate (GameStateRule(PlayerTurn(Top))) |> GameStateRule |> Function |> Rule.afterRunRemove  
    let ruleToModify = Function(GameStateRule(GameRound(Round.Begin))) 
@@ -34,25 +35,27 @@ type ``Given a Example state with Single Rules`` () =
 
    
    let ruleToModifyUnit = Function(UnitRule(DeploymentState(OngoingReserves),uId))  
-   let containsKeyUnit rule gs = (gs,uId) ||> tryFindUnit |> Option.bind (fun m -> m.Rules |> Map.tryFind (makeRule rule |> fst))  |> Option.isSome  
+   let containsKeyUnit rule gs = runT (tryFindUnit uId) gs |> fst |> Option.bind (fun m -> m.Rules |> Map.tryFind (makeRule rule |> fst))  |> Option.isSome  
    let doesntContainKeyIsFalseUnit ruleToModify = (snd >> containsKeyUnit ruleToModify >> not) 
-   let containsValueUnit rule gs = (gs,uId) ||> tryFindUnit |> Option.bind (fun m -> m.Rules |> Map.tryFindKey (fun k r -> k = (makeRule rule |> fst) && r = rule))  |> Option.isSome       
-   let addOrUpdateUnit (rule,gameState) = tryReplaceRuleOnUnit def rule uId gameState
-   let removeFromUnit (rule,gameState) = tryReplaceRuleOnUnit defnot rule uId gameState
+   let containsValueUnit rule gs =  runT (tryFindUnit uId) gs |> fst |> Option.bind (fun m -> m.Rules |> Map.tryFindKey (fun k r -> k = (makeRule rule |> fst) && r = rule))  |> Option.isSome       
+   let addOrUpdateUnit (rule,gameState) = runT (tryReplaceRuleOnUnit def rule uId) gameState |> snd
+   let removeFromUnit (rule,gameState) = runT (tryReplaceRuleOnUnit defnot rule uId) gameState |> snd
 
    let mId = ModelGuid "2D5045C8-0427-4C6D-B0A4-371F46DAF844" 
    
-   let (Some foundUnit) = tryFindUnit Impl.ImplTest.initial uId         
-   let (Some p) = tryFindPlayer Impl.ImplTest.initial foundUnit
-   let gameState = {Impl.ImplTest.initial  with Board = {Impl.ImplTest.initial.Board with Models = forAllModels (fun m -> { Model = m; Player = p.Player; Position = {X = 1<px>;Y = 1<px>}}) foundUnit Impl.ImplTest.initial}}
+   let (Some foundUnit) = runT (tryFindUnit  uId) Impl.ImplTest.initial   |> fst      
+   let (Some p) = runT (tryFindPlayer foundUnit) Impl.ImplTest.initial      |> fst
+   let gameState = Impl.ImplTest.initial 
+   let f m = { Model = m; Player = p.Player; Position = {X = 1<px>;Y = 1<px>}} 
+   let gameState = runT (forAllModels (map f) foundUnit) gameState |> snd
 
    let ruleToAddModel = Function(ModelRule(CoverSaves(CharacteristicValue 3), mId))
    let ruleToModifyModel = Function(ModelRule(Toughness(CharacteristicValue 6), mId))
-   let containsKeyModel rule gs = (gs,mId) ||> tryFindModel |> Option.bind (fun m -> m.Model.Rules |> Map.tryFind (makeRule rule |> fst))  |> Option.isSome  
+   let containsKeyModel rule gs = runT (tryFindModel mId) gs |> fst |> Option.bind (fun m -> m.Model.Rules |> Map.tryFind (makeRule rule |> fst))  |> Option.isSome  
    let doesntContainKeyIsFalseModel ruleToModify = (snd >> containsKeyModel ruleToModify >> not) 
-   let containsValueModel rule gs = (gs,mId) ||> tryFindModel |> Option.bind (fun m -> m.Model.Rules |> Map.tryFindKey (fun k r -> k = (makeRule rule |> fst) && r = rule))  |> Option.isSome       
-   let addOrUpdateModel (rule,gameState) = tryReplaceRuleOnModel def rule mId gameState
-   let removeFromModel (rule,gameState) = tryReplaceRuleOnModel defnot rule mId gameState
+   let containsValueModel rule gs = runT (tryFindModel mId) gs |> fst |> Option.bind (fun m -> m.Model.Rules |> Map.tryFindKey (fun k r -> k = (makeRule rule |> fst) && r = rule))  |> Option.isSome       
+   let addOrUpdateModel (rule,gameState) = runT (tryReplaceRuleOnModel def rule mId) gameState |> snd
+   let removeFromModel (rule,gameState) = runT (tryReplaceRuleOnModel defnot rule mId) gameState |> snd
    
    
    

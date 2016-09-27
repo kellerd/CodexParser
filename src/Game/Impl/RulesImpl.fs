@@ -48,27 +48,27 @@ module RulesImpl =
                                                                 | Sequence(impl::_) -> k = impl.ToString() && match gameState with Active foundRule r -> r = ruleApplication | _ -> false
                                                                 | Sequence([]) -> false
                                                                 ))
-    and contains (gameState:GameState) logic rule = 
-            match logic with 
-            | Rule ruleApplication -> 
-                let rec tryFind = function 
-                                | GameStateRule _ ->  Some gameState.Rules
-                                | ModelRule (_, mId) ->  tryFindModel gameState mId |> Option.map (fun m -> m.Model.Rules)
-                                | UnitRule(_, uId) -> tryFindUnit gameState uId |>  Option.map (fun u -> u.Rules)
-                                | Sequence(impl::_) -> tryFind impl
-                                | Sequence([]) -> None
-                match ruleApplication|> tryFind |> tryFindInRuleList gameState ruleApplication  with 
-                    | Some _ -> Some rule
-                    | None -> None
-            | Not expr -> match contains gameState expr rule with
-                          | Some _ -> None
-                          | None -> Some rule
-            | Logical (expr,op,expr2) ->  match op, contains gameState expr rule, contains gameState expr2 rule with
-                                          | And, Some _, Some _ -> Some rule
-                                          | And, _, _ -> None
-                                          | Or, Some _, _ -> Some rule
-                                          | Or, _, Some _ -> Some rule
-                                          | Or, None _, None _ -> None
+    and contains gameState (logic:LogicalExpression) (rule:Rule)  = 
+        match logic with 
+        | Rule ruleApplication -> 
+            let rec tryFind = function 
+                            | GameStateRule _ ->  Some gameState.Rules
+                            | ModelRule (_, mId) ->  eval (runT (tryFindModel mId)) gameState |> (Option.map (fun m -> m.Model.Rules))
+                            | UnitRule(_, uId) -> eval (runT (tryFindUnit uId)) gameState |>  (Option.map (fun u -> u.Rules))
+                            | Sequence(impl::_) -> tryFind impl
+                            | Sequence([]) -> None
+            match ruleApplication|> tryFind |> tryFindInRuleList gameState ruleApplication  with 
+                | Some _ -> Some rule
+                | None -> None
+        | Not expr -> match contains gameState expr rule with
+                        | Some _ -> None
+                        | None -> Some rule
+        | Logical (expr,op,expr2) ->  match op, contains gameState expr rule, contains gameState expr2 rule with
+                                        | And, Some _, Some _ -> Some rule
+                                        | And, _, _ -> None
+                                        | Or, Some _, _ -> Some rule
+                                        | Or, _, Some _ -> Some rule
+                                        | Or, None _, None _ -> None
     let optionalAndActiveRules gs (_,r) = match r,gs with Optional _, Active r ra -> Some ra | _ -> None
     let activeRulesButNotOptional gs (_,r) = 
         match gs with 
@@ -97,43 +97,53 @@ module RulesImpl =
         let name = matchName r
         Map.updateWithOrRemove (overriteOrNew (Function(r))) name rules
 
-    let deploy uId gameState  = 
-        let foundUnit = tryFindUnit gameState uId
-        let foundPlayer = foundUnit |> Option.bind (tryFindPlayer gameState)
+    let deploy uId = game { 
+
+        let! foundUnit = tryFindUnit uId
+        let! foundPlayer = optBindM tryFindPlayer foundUnit
         match foundPlayer, foundUnit with
         | Some p, Some u -> 
-            let pa positionAsker =
+            let pa positionAsker = game {
                 let newRule = UnitRule(DeploymentState(Deployed), uId)
-                let newGs = tryReplaceRuleOnUnit Rule.overriteOrNew (newRule |> Function) uId gameState
-                let newUnit = tryFindUnit newGs uId |> defaultArg <| u
-                [newRule],{ newGs with Board = { newGs.Board with Models = forAllModels (fun m -> { Model = m; Player = p.Player; Position = newGs |> positionAsker }) newUnit newGs} }
-            pa
-        | None, _ -> failwith "Couldn't find player"
-        | _, None -> failwith "Couldn't find unit"
+                do! tryReplaceRuleOnUnit Rule.overriteOrNew (newRule |> Function) uId
+                let! newUnit = tryFindUnit uId
+                match newUnit with 
+                | Some u -> 
+                    let! newGs = getState
+                    let askPosition m = { Model = m; Player = p.Player; Position = positionAsker newGs }
+                    do! forAllModels (map askPosition) u
+                | None -> ()
+            }
+            return pa
+    }
 
-    let move uId gameState maxMove  = 
-        let createMove moveAsker =
-            let newPosition m = 
+    let mapPositions moveAsker maxMove (p:PlayerInfo) = 
+        let innerFn (m:Model) = game {
+            let getPositions m = 
                 let ps = pixelsInCircle maxMove m.Position |> Seq.toArray
                 let rec newPick ps = 
                     let (p:Position<px>) = moveAsker ps
                     if Seq.contains p ps then p
                     else newPick ps
-                newPick ps
+                newPick ps 
+            let! newValue = tryFindModel m.Id 
+            let newValue' = newValue |> Option.get |> getPositions 
+            return { Model = m; Player = p.Player; Position = newValue' }
+            }
+        bind innerFn
+    let move uId maxMove  = game {
+        let! foundUnit = tryFindUnit uId
+        let! foundPlayer = optBindM tryFindPlayer foundUnit
+        match foundPlayer, foundUnit with
+            | Some p, Some u ->
+                let createMove moveAsker = game {
+                    let newPosition = mapPositions moveAsker maxMove p   
+                    do! forAllModels newPosition u
+                }
+                return createMove
+    }
 
-            let foundUnit = tryFindUnit gameState uId
-            let foundPlayer = foundUnit |> Option.bind (tryFindPlayer gameState)
-            match foundPlayer, foundUnit with
-            | Some p, Some u -> 
-                { gameState with Board = 
-                                    { gameState.Board with Models = forAllModels (fun m -> { Model = m
-                                                                                             Player = p.Player
-                                                                                             Position = tryFindModel gameState m.Id |> Option.get |> newPosition }) u gameState} }
-            | None, _ -> failwith "Couldn't find player"
-            | _, None -> failwith "Couldn't find unit"
-        createMove
-
-    let advancePhase gs = 
+    let advancePhase = game { 
 
         let nextGameTurn = function
             | Begin -> One Phase.Begin
@@ -159,13 +169,13 @@ module RulesImpl =
         let otherPlayerTurn = function
             | Top,x -> Bottom, Phase.Begin |> (splitRound x|> fst) 
             | Bottom,x -> Top,nextGameTurn x
-        let changeRound (round,turn) gs = 
+        let changeRound (round,turn) = 
             let (gtMaker, phase) = splitRound round
            
             let mapReplace rule = Map.updateWithOrRemove (def (Function(GameStateRule(rule)))) (rule.ToString())
             let doGameState rule = replaceRuleOnGameState <| mapReplace rule
             
-            let (rules,gameStateChanges) =
+            let gameStateChanges =
                 match phase with
                 | Some Phase.Begin -> turn, gtMaker Phase.Movement
                 | Some Phase.Movement ->  turn, gtMaker Phase.Psychic
@@ -174,57 +184,59 @@ module RulesImpl =
                 | Some Phase.Assault ->  turn, gtMaker Phase.End
                 | Some Phase.End | None -> otherPlayerTurn (turn,round)
                 |> (fun (turn,round) -> [PlayerTurn(turn); GameRound(round)])
-                |> List.map (fun r -> GameStateRule(r), doGameState r)
-                |> List.unzip 
-            rules,(gameStateChanges |> List.reduce (>>)) gs
+                |> List.map (fun r -> game { do! doGameState r } )
+            sequence gameStateChanges
+        let! gs = getState
         match Map.tryFind (GameRound(Begin).ToString()) gs.Rules,Map.tryFind (PlayerTurn(Top).ToString()) gs.Rules with
-        | Some(Function(GameStateRule(GameRound(round)))), Some(Function(GameStateRule(PlayerTurn(turn)))) -> changeRound(round,turn) gs
-        | _ -> failwith <| sprintf "Couldn't find game round or playerturn %A" gs.Rules
-
-    let rec revert ruleApplication gameState = 
-        let rule = tryFindRule ruleApplication gameState
+        | Some(Function(GameStateRule(GameRound(round)))), Some(Function(GameStateRule(PlayerTurn(turn)))) -> return! changeRound(round,turn)
+        | _ -> return []
+    }
+    let rec revert ruleApplication = game { 
+        let! rule = tryFindRule ruleApplication 
         match ruleApplication,rule with 
         | UnitRule(_,uId),Some rule -> 
-            tryReplaceRuleOnUnit Rule.unoverwriteOrNew rule uId gameState
+            do! tryReplaceRuleOnUnit Rule.unoverwriteOrNew rule uId 
         | ModelRule(_,mId),Some rule ->
-            tryReplaceRuleOnModel Rule.unoverwriteOrNew rule mId gameState
+            do! tryReplaceRuleOnModel Rule.unoverwriteOrNew rule mId 
         | GameStateRule(_),Some rule ->
-            tryReplaceRuleOnGameState Rule.unoverwriteOrNew rule gameState
+            do! tryReplaceRuleOnGameState Rule.unoverwriteOrNew rule 
         | Sequence(rule::_),Some _ ->
-            revert rule gameState 
+            return! revert rule  
         | Sequence([]),_ 
-        | _,None -> gameState
-    let rec remove ruleApplication gameState = 
-        let rule = tryFindRule ruleApplication gameState
+        | _,None -> ()
+    }
+    let rec remove ruleApplication = game {
+        let! rule = tryFindRule ruleApplication 
         match ruleApplication,rule with 
         | UnitRule(_,uId),Some rule -> 
-            tryReplaceRuleOnUnit defnot rule uId gameState
+            do! tryReplaceRuleOnUnit defnot rule uId 
         | ModelRule(_,mId),Some rule ->
-            tryReplaceRuleOnModel defnot rule mId gameState
+            do! tryReplaceRuleOnModel defnot rule mId 
         | GameStateRule(_),Some rule ->
-            tryReplaceRuleOnGameState defnot rule gameState
+            do! tryReplaceRuleOnGameState defnot rule 
         | Sequence(rule::_),Some _ ->
-            remove rule gameState 
+            return! remove rule  
         | Sequence([]),_ 
-        | _,None -> gameState
-    let repeat times name rule gameState = 
+        | _,None -> ()
+    }
+    let repeat times name rule = game {
         if times > 0 then
-            tryReplaceRuleOnGameState def (rule |> Rule.afterRunRepeat (times - 1) name) gameState
-        else
-            gameState
-    let rec deactivateUntil activateWhen ruleApplication gameState  =
+          do! tryReplaceRuleOnGameState def (rule |> Rule.afterRunRepeat (times - 1) name)         
+    }
+    let rec deactivateUntil activateWhen ruleApplication = game {
         let makeNewRule rule oldRule = 
             Option.map(function oldRule -> Overwritten(ActiveWhen(activateWhen,rule),oldRule)) oldRule
         match ruleApplication with 
         | UnitRule(_,uId) -> 
-            tryReplaceRuleOnUnit makeNewRule (Function(GameStateRule(Revert(ruleApplication)))) uId gameState
+            do! tryReplaceRuleOnUnit makeNewRule (Function(GameStateRule(Revert(ruleApplication)))) uId 
         | ModelRule(_,mId) ->
-            tryReplaceRuleOnModel makeNewRule (Function(GameStateRule(Revert(ruleApplication)))) mId gameState
+            do! tryReplaceRuleOnModel makeNewRule (Function(GameStateRule(Revert(ruleApplication)))) mId 
         | GameStateRule(_) ->
-            tryReplaceRuleOnGameState makeNewRule (Function(GameStateRule(Revert(ruleApplication)))) gameState
+            do! tryReplaceRuleOnGameState makeNewRule (Function(GameStateRule(Revert(ruleApplication)))) 
         | Sequence(rule::_) ->
-            deactivateUntil activateWhen rule gameState
-        | Sequence([]) -> gameState
+            return! deactivateUntil activateWhen rule 
+        | Sequence([]) -> ()
+    }
 
     let avgToughness u gameState = 
         u.UnitModels
@@ -239,38 +251,39 @@ module RulesImpl =
         |> Option.bind(fun r -> match gameState with | Active r (ModelRule(Strength(CharacteristicValue(ra)),_)) -> Some ra | _ -> None)
         |> defaultArg <| 0
     let doDice = Function(GameStateRule(RollDice)) |> Rule.afterRunRemove
-    let diceRoll rule f gameState =
-        rule
-        |> Rule.afterIfRemove (goodRolls D6 (f gameState))
-    let multipleFromDiceRollM rule f times mId gameState  = 
+    let diceRoll rule f = game {
+        let! gameState = getState
+        return rule |> Rule.afterIfRemove (goodRolls D6 (f gameState))
+    }
+    let multipleFromDiceRollM rule f times mId = game {
         let text = rule |> Rule.textFromRuleApplication
-        let newRule = 
-            diceRoll rule f gameState
-            |> Rule.afterRunRepeat (times - 1) text
-
-        gameState
-        |> tryReplaceRuleOnModel def doDice mId
-        |> tryReplaceRuleOnModel def newRule mId
-    let multipleFromDiceRollU rule f times uId gameState  = 
+        let! newRule = 
+            pipe (diceRoll rule f) (Rule.afterRunRepeat (times - 1) text)
+        
+        do! tryReplaceRuleOnModel def doDice mId
+        do! tryReplaceRuleOnModel def newRule mId
+    }
+    let multipleFromDiceRollU rule f times uId = game {
         let text = rule |> Rule.textFromRuleApplication
-        let newRule = 
-            diceRoll rule f gameState
-            |> Rule.afterRunRepeat (times - 1) text
+        let! newRule = 
+            pipe (diceRoll rule f) (Rule.afterRunRepeat (times - 1) text)
 
-        gameState
-        |> tryReplaceRuleOnUnit def doDice uId
-        |> tryReplaceRuleOnUnit def newRule uId
+        do! tryReplaceRuleOnUnit def doDice uId 
+        do! tryReplaceRuleOnUnit def newRule uId
+    }
         
     let toWound m u gameState = woundTable (modelStrength m gameState) (avgToughness u gameState)
 
     //let assault = .... //May have to change this to adding a Targetted rule to target, which adds a Melee to model 
-    let melee attacks toHit target mId gameState = 
+    let melee attacks toHit target mId = game { 
         let newRule = ModelRule(MeleeHit(1,target),mId)
-        [newRule],multipleFromDiceRollM newRule (fun _ -> toHit) attacks mId gameState
-
-    let meleeHits hits uId mId gameState =
-        let foundModel = tryFindModel gameState mId
-        let foundTarget = tryFindUnit gameState uId
+        do! multipleFromDiceRollM newRule (fun _ -> toHit) attacks mId 
+        return newRule
+    }
+    let meleeHits hits uId mId = game {
+        let! foundModel = tryFindModel mId
+        let! foundTarget = tryFindUnit uId
+        let! gameState = getState
         match foundModel,foundTarget with
         | Some m, Some u -> 
             let newWounds = [1,[]] //List of hits,weapon profiles
@@ -283,12 +296,11 @@ module RulesImpl =
                                             | _ -> None)
                 |> defaultArg <|  UnitRule(WoundPool(newWounds,mId),uId)
 
-            gameState
-            |> tryReplaceRuleOnModel defnot (Function(GameStateRule(DiceRolled(DiceRoll(1))))) mId
-            |> multipleFromDiceRollU newRule (toWound m u) hits uId
+            do! tryReplaceRuleOnModel defnot (Function(GameStateRule(DiceRolled(DiceRoll(1))))) mId
+            do! multipleFromDiceRollU newRule (toWound m u) hits uId
         | _ -> failwith <| sprintf "Not found %A or %A" uId mId
-        
-    let woundPool profiles attackingModelId uId gameState =
+    }
+    let woundPool profiles attackingModelId uId = game {
 
         let profiles' = 
             profiles 
@@ -304,10 +316,9 @@ module RulesImpl =
             UnitRule(SortedWoundPool(profiles', attackingModelId),uId)  
             |> Rule.afterIfRemove (Rule(GameStateRule(SortedWeaponProfiles([]))))
 
-        gameState
-        |> tryReplaceRuleOnGameState def dosortedIndexes
-        |> tryReplaceRuleOnUnit def newPool uId
-
+        do! tryReplaceRuleOnGameState def dosortedIndexes
+        do! tryReplaceRuleOnUnit def newPool uId
+    }
     let save (um:Model) gameState = 
         um.Rules 
         |> Map.choose(fun _ r -> match gameState with
@@ -322,7 +333,8 @@ module RulesImpl =
         |> DiceRoll
     let collectPenetrations  = List.tryPick(function | MR(ArmourPenetration(ra)) -> ra | _ -> None)
 
-    let sortedWoundPool (profiles: list<int * WeaponProfile>) target mId gameState = 
+    let sortedWoundPool (profiles: list<int * WeaponProfile>) target mId = game { 
+        let! gameState = getState
         let r = 
             gameState.Rules 
             |> Map.tryPick(fun _ r -> match gameState with 
@@ -332,7 +344,7 @@ module RulesImpl =
         | Some sortedProfiles  -> 
             let sortedProfiles' = List.zip profiles sortedProfiles |> List.sortBy snd 
             match sortedProfiles' with 
-            | [] -> gameState
+            | [] -> ()
             | ((times,profile),sortNum)::rest ->
                 let newProfile,newSorted = List.unzip rest |> fun (pr,srt) -> 
                                                                 if times > 0 then
@@ -340,58 +352,63 @@ module RulesImpl =
                                                                 else
                                                                     pr,srt
                 let newRule = Function(UnitRule(Save(profile,mId),target)) |> Rule.afterRunRemove
-                gameState
-                |> tryReplaceRuleOnGameState def (Function(GameStateRule(SortedWeaponProfiles(newSorted))))
-                |> tryReplaceRuleOnUnit def (Function(UnitRule(SortedWoundPool(newProfile, mId),target))) target
-                |> tryReplaceRuleOnUnit def newRule target
+                
+                do! tryReplaceRuleOnGameState def (Function(GameStateRule(SortedWeaponProfiles(newSorted))))
+                do! tryReplaceRuleOnUnit def (Function(UnitRule(SortedWoundPool(newProfile, mId),target))) target
+                do! tryReplaceRuleOnUnit def newRule target
         | x -> failwith <| sprintf "Not found - weapon profile sort %A" x
-    let pickClosest mId uId gameState = //TODO change impl to something. Probably have to roll position into GameState
-        let foundUnit = tryFindUnit gameState uId 
-        let foundModel = tryFindModel gameState mId
-        let foundAssaulters =  Option.bind (fun m -> tryFindUnitByModel gameState m.Model) foundModel
+    }
+    let pickClosest mId uId = game {//TODO change impl to something. Probably have to roll position into GameState
+        let! foundUnit = tryFindUnit uId 
+        let! foundModel = tryFindModel mId
+        let! foundAssaulters = optBindM (fun m -> tryFindUnitByModel m.Model) foundModel
         match (foundAssaulters,foundUnit) with
         | Some _,Some u ->
-            u.UnitModels |> Map.values |> Seq.head |> Some
-        | _ -> None
-    let saveWound profile mId uId gameState = 
-        let picked = pickClosest  mId uId gameState
+            return u.UnitModels |> Map.values |> Seq.head |> Some
+        | _ -> return None
+    }
+    let saveWound profile mId uId = game {
+        let! picked = pickClosest mId uId 
         match picked with 
         | Some m -> 
             let newRule = ModelRule(Unsaved(profile),m.Id)
-            
-            [newRule],gameState |> multipleFromDiceRollM newRule (save m) 1 mId
+            do! multipleFromDiceRollM newRule (save m) 1 mId
         | _ -> failwith <| sprintf "Not found model in %A" uId
-
-    let unsavedWound _ mId gameState =
-        let foundModel = tryFindModel gameState mId
+    }
+    let unsavedWound _ mId = game {
+        let! foundModel = tryFindModel mId
+        let! gameState = getState
         let wounds = foundModel |> Option.bind (fun m ->  
                                             m.Model.Rules 
                                             |> Map.values
                                             |> Seq.tryPick(fun r -> match gameState with | Active r (ModelRule(Wounds(CharacteristicValue(w)),_)) -> Some w 
                                                                                          | _ -> None))
-        let foundUnit =  Option.bind (fun m -> tryFindUnitByModel gameState m.Model) foundModel
-        let foundPlayer = Option.bind (tryFindPlayer gameState) foundUnit
+        let! foundUnit =  optBindM (fun m -> tryFindUnitByModel m.Model) foundModel
+        let! foundPlayer = optBindM (tryFindPlayer) foundUnit
         match wounds, foundUnit, foundPlayer,foundModel with
         | Some wounds, Some _, Some _, Some _ ->
             let woundRule  = Function(ModelRule(Wounds(wounds - 1 |> CharacteristicValue),mId))
             let newRule = (SetCharacteristic(woundRule),mId) |> ModelRule 
-            [newRule],tryReplaceRuleOnGameState def (newRule |> Function |> Rule.afterRunRemove) gameState
+            do! tryReplaceRuleOnGameState def (newRule |> Function |> Rule.afterRunRemove) 
         | _ -> failwith <| sprintf "Not found %A "  mId
-    let removeIfZeroCharacteristic  mId gameState = 
-        let foundModel = tryFindModel gameState mId
-        let foundUnit =  Option.bind (fun m -> tryFindUnitByModel gameState m.Model) foundModel
-        let foundPlayer = Option.bind (tryFindPlayer gameState) foundUnit
+    }
+    let removeIfZeroCharacteristic  mId = game {
+        let! foundModel = tryFindModel mId
+        let! foundUnit =  optBindM (fun m -> tryFindUnitByModel m.Model) foundModel
+        let! foundPlayer = optBindM tryFindPlayer foundUnit
         match foundUnit, foundPlayer,foundModel with
         | Some u, Some p, Some m ->
-            replaceUnitModelsInGameState gameState p u m.Model (defnot None)
+            do! replaceUnitModelsInGameState p u m.Model (defnot None)
         | _ -> failwith <| sprintf "Not found %A "  mId
-    let supplySortedWeapons profiles gameState profileMaker = 
+    }
+    let supplySortedWeapons profiles profileMaker = game {
         let newRule = profileMaker profiles |> SortedWeaponProfiles |> GameStateRule 
-        [newRule],tryReplaceRuleOnGameState def (newRule |> Function) gameState
-    let rollDice gameState diceRoller =
+        do! tryReplaceRuleOnGameState def (newRule |> Function)
+    }
+    let rollDice diceRoller = game {
         let newRule = diceRoller() |> DiceRolled |> GameStateRule
-        [newRule],tryReplaceRuleOnGameState def (newRule |> Function) gameState
-
+        do! tryReplaceRuleOnGameState def (newRule |> Function) 
+    }
     let availableRules predicate player gs = 
         let captureRules =  Map.toSeq >> Seq.choose predicate >> Seq.toList
 
@@ -413,7 +430,8 @@ module RulesImpl =
 
         gameRules @ unitRules @ modelRules |> List.rev
 
-    let collect gameState = 
+    let collect = game {
+        let! gameState = getState
         let predicate = optionalAndActiveRules gameState
         let currentPlayer = 
             gameState.Rules 
@@ -426,21 +444,32 @@ module RulesImpl =
         let rulesApplication raPicker = 
             match rules |> List.tryItem (raPicker rules) with
             | Some ra ->
-                let newRule = Activate ra |> GameStateRule |> Function |> Rule.afterRunRemove
-                tryReplaceRuleOnGameState def newRule gameState
-            | _ -> gameState
-        rulesApplication
+                game {
+                    let newRule = Activate ra |> GameStateRule |> Function |> Rule.afterRunRemove
+                    do! tryReplaceRuleOnGameState def newRule 
+                }
+            | _ -> game {return ()}
+        return rulesApplication
+    }
 
-    let rec activate ra gameState = 
+    let rec activate ra = game {
         match ra with
-        | GameStateRule(_) -> {gameState with GameState.Rules = activateRule ra gameState.Rules}
+        | GameStateRule(_) -> 
+            let! gameState = getState
+            do! putState {gameState with GameState.Rules = activateRule ra gameState.Rules} 
         | UnitRule(_, uId) ->
-            tryFindUnit gameState uId |> Option.map (fun u -> replaceRuleOnUnit u (activateRule ra) gameState) |> defaultArg <| gameState
+                let! unit = tryFindUnit uId
+                match unit with 
+                | Some u -> do! replaceRuleOnUnit u (activateRule ra)
+                | None -> ()
         | ModelRule(_, mId) -> 
-            tryFindModel gameState mId |> Option.map (fun m -> replaceRuleOnModel m.Model (activateRule ra) gameState) |> defaultArg <| gameState
-        | Sequence(first::_) -> activate first gameState
-        | Sequence([]) -> gameState
-
+                let! model = tryFindModel mId
+                match model with 
+                | Some m -> do! replaceRuleOnModel m.Model (activateRule ra)
+                | None -> ()
+        | Sequence(first::_) -> return! activate first 
+        | Sequence([]) -> ()
+    }
     let rec eval rules gameState = 
         match rules with
         | [] -> GameStateResult gameState
@@ -450,28 +479,34 @@ module RulesImpl =
             // current @ rest @ begin  
             // Modify rest, prepend to reset, append to rest
             let eval' rest (newRules,gameState) = eval (rest @ newRules) gameState 
+            let runT' f gameState =
+                let (f',s) = runT f gameState
+                let flipRunT result = runT result s |> snd |> eval rest
+                f' >> flipRunT
+            let runT f gameState =
+                (runT f gameState)  |> snd |> eval rest
             rule |> function 
-                | UnitRule(Deploy,uId) -> deploy uId gameState >> eval' rest |> Asker  |> PositionAsker |> AskResult              
-                | UnitRule(Move maxMove,uId) -> move uId gameState maxMove >> eval rest |> Asker  |> MoveAsker |> AskResult
-                | GameStateRule(RollDice) -> rollDice gameState >> eval' rest |> Asker |> DiceRollAsker |> AskResult
-                | GameStateRule(SupplySortedWeaponProfiles(profiles)) -> supplySortedWeapons profiles gameState >> eval' rest |> Asker |> SortedWoundPoolAsker |> AskResult
-                | ModelRule(SetCharacteristic(newRule), uId) -> tryReplaceRuleOnModel Rule.overriteOrNone newRule uId gameState |> eval  rest
-                | GameStateRule(EndPhase) -> advancePhase gameState |> eval' rest
-                | GameStateRule(Remove(ruleApplication)) -> remove ruleApplication gameState |> eval rest
-                | GameStateRule(Revert(ruleApplication)) -> revert ruleApplication gameState |> eval rest
-                | GameStateRule(Repeat(times,name,rule)) -> repeat times name rule gameState |> eval rest
-                | GameStateRule(Activate(ra)) -> activate ra gameState |> eval rest
-                | GameStateRule(DeactivateUntil(activateWhen,ruleApplication)) -> deactivateUntil activateWhen ruleApplication gameState |> eval rest
+                | UnitRule(Deploy,uId) -> runT' (deploy uId) gameState |> Asker  |> PositionAsker |> AskResult              
+                | UnitRule(Move maxMove,uId) -> runT' (move uId maxMove) gameState |> Asker  |> MoveAsker |> AskResult
+                | GameStateRule(RollDice) -> runT' (returnM rollDice) gameState |> Asker |> DiceRollAsker |> AskResult
+                | GameStateRule(SupplySortedWeaponProfiles(profiles)) -> runT' (returnM (supplySortedWeapons profiles)) gameState |> Asker |> SortedWoundPoolAsker |> AskResult
+                | ModelRule(SetCharacteristic(newRule), uId) -> runT (tryReplaceRuleOnModel Rule.overriteOrNone newRule uId) gameState
+                | GameStateRule(EndPhase) -> runT (advancePhase) gameState 
+                | GameStateRule(Remove(ruleApplication)) -> runT (remove ruleApplication) gameState 
+                | GameStateRule(Revert(ruleApplication)) -> runT (revert ruleApplication) gameState 
+                | GameStateRule(Repeat(times,name,rule)) -> runT (repeat times name rule) gameState 
+                | GameStateRule(Activate(ra)) -> runT (activate ra) gameState 
+                | GameStateRule(DeactivateUntil(activateWhen,ruleApplication)) -> runT (deactivateUntil activateWhen ruleApplication) gameState
                 | Sequence(rules) -> eval (rules @ rest) gameState
-                | ModelRule(Melee(attacks,toHit,target),mId) -> melee attacks toHit target mId gameState |> eval' rest
-                | ModelRule(MeleeHit(hits,uId),mId) -> meleeHits hits uId mId gameState |> eval rest 
-                | UnitRule(WoundPool(profiles,mId),uId) -> woundPool profiles mId uId gameState |> eval rest
-                | UnitRule(SortedWoundPool(profiles,mId),uId) -> sortedWoundPool profiles mId uId gameState |> eval rest 
-                | UnitRule(Save(profile,mId),uId) -> saveWound profile mId uId gameState |> eval' rest
-                | ModelRule(Unsaved(profile),mId) -> unsavedWound profile mId gameState |> eval' rest
-                | GameStateRule(EndGame) -> remove (GameStateRule(PlayerTurn(Bottom))) gameState |> eval rest 
-                | ModelRule(RemoveOnZeroCharacteristic, mId) -> removeIfZeroCharacteristic mId gameState |> eval rest
-                | GameStateRule(CollectUserActivated) -> collect gameState >> eval rest |> Asker  |> PerformAsker |> AskResult
+                | ModelRule(Melee(attacks,toHit,target),mId) -> runT (melee attacks toHit target mId) gameState 
+                | ModelRule(MeleeHit(hits,uId),mId) -> runT (meleeHits hits uId mId) gameState  
+                | UnitRule(WoundPool(profiles,mId),uId) -> runT (woundPool profiles mId uId) gameState 
+                | UnitRule(SortedWoundPool(profiles,mId),uId) -> runT (sortedWoundPool profiles mId uId) gameState 
+                | UnitRule(Save(profile,mId),uId) -> runT (saveWound profile mId uId) gameState
+                | ModelRule(Unsaved(profile),mId) -> runT (unsavedWound profile mId) gameState 
+                | GameStateRule(EndGame) -> runT (remove (GameStateRule(PlayerTurn(Bottom)))) gameState 
+                | ModelRule(RemoveOnZeroCharacteristic, mId) -> runT (removeIfZeroCharacteristic mId)  gameState
+                | GameStateRule(CollectUserActivated) -> runT' (collect) gameState |> Asker  |> PerformAsker |> AskResult
                 | GameStateRule(EndTurn) // Maybe Split EndPhase and End Turn
                 | GameStateRule(DiceRolled(_))  
                 | GameStateRule(SortedWeaponProfiles(_))  
