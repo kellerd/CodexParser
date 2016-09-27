@@ -53,8 +53,8 @@ module RulesImpl =
         | Rule ruleApplication -> 
             let rec tryFind = function 
                             | GameStateRule _ ->  Some gameState.Rules
-                            | ModelRule (_, mId) ->  eval (runT (tryFindModel mId)) gameState |> (Option.map (fun m -> m.Model.Rules))
-                            | UnitRule(_, uId) -> eval (runT (tryFindUnit uId)) gameState |>  (Option.map (fun u -> u.Rules))
+                            | ModelRule (_, mId) ->  eval (tryFindModel mId) gameState |> (Option.map (fun m -> m.Model.Rules))
+                            | UnitRule(_, uId) -> eval (tryFindUnit uId) gameState |>  (Option.map (fun u -> u.Rules))
                             | Sequence(impl::_) -> tryFind impl
                             | Sequence([]) -> None
             match ruleApplication|> tryFind |> tryFindInRuleList gameState ruleApplication  with 
