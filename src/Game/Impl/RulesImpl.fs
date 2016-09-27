@@ -500,10 +500,10 @@ module RulesImpl =
             let eval' rest (newRules,gameState) = eval (rest @ newRules) gameState 
             let runT' f gameState =
                 let (f',s) = runT f gameState
-                let flipRunT result = runT result s |> snd |> eval rest
+                let flipRunT result = exec result s |> eval rest
                 f' >> flipRunT
             let runT f gameState =
-                (runT f gameState)  |> snd |> eval rest
+                exec f gameState  |> eval rest
             rule |> function 
                 | UnitRule(Deploy,uId) -> runT' (deploy uId) gameState |> Asker  |> PositionAsker |> AskResult              
                 | UnitRule(Move maxMove,uId) -> runT' (move uId maxMove) gameState |> Asker  |> MoveAsker |> AskResult

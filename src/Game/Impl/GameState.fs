@@ -32,8 +32,8 @@ module GameStateComputation =
 
     let getState = (fun s -> (s,s)) |> GameStateComputation
     let putState s = (fun _ -> ((),s)) |> GameStateComputation
-    let eval m s = m s |> fst
-    let exec m s = m s |> snd
+    let eval m s = runT m s |> fst
+    let exec m s = runT m s |> snd
 
     let toComputation f = 
         let innerFn state =
@@ -271,7 +271,7 @@ module GameState =
         let! gameState = getState
         let models = 
             [ for m in newUnit.UnitModels do
-                yield runT (f (returnM m.Value)) gameState |> fst ]
+                yield eval (f (returnM m.Value)) gameState ]
             |> List.fold (fun acc m -> match Map.tryFind m.Model.Id acc with
                                         | Some _ -> Map.updateWithOrRemove (def m) m.Model.Id acc
                                         | None -> Map.add m.Model.Id m acc) gameState.Board.Models
