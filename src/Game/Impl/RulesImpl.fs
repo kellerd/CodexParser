@@ -392,6 +392,19 @@ module RulesImpl =
             do! tryReplaceRuleOnGameState def (newRule |> Function |> Rule.afterRunRemove) 
         | _ -> failwith <| sprintf "Not found %A "  mId
     }
+    
+    // let removeIfZeroCharacteristic  mId = 
+    //     tryFindModel mId 
+    //     >>= fun foundModel -> 
+    //             optBindM (fun m -> tryFindUnitByModel m.Model) foundModel
+    //             >>= fun foundUnit -> 
+    //                 optBindM tryFindPlayer foundUnit
+    //                 >>= fun foundPlayer ->            
+    //                         match foundUnit, foundPlayer,foundModel with
+    //                         | Some u, Some p, Some m ->
+    //                             replaceUnitModelsInGameState p u m.Model (defnot None)
+    //                         | _ -> failwith <| sprintf "Not found %A "  mId
+    
     let removeIfZeroCharacteristic  mId = game {
         let! foundModel = tryFindModel mId
         let! foundUnit =  optBindM (fun m -> tryFindUnitByModel m.Model) foundModel
