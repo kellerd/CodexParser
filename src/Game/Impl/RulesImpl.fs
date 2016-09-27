@@ -368,6 +368,12 @@ module RulesImpl =
         | _ -> return None
     }
     let saveWound profile mId uId = game {
+        
+        // let x = 
+        //     map (Option.map (fun (m:Model) -> multipleFromDiceRollM (ModelRule(Unsaved(profile),m.Id)) (save m) 1 mId)) (pickClosest mId uId) 
+             
+
+
         let! picked = pickClosest mId uId 
         match picked with 
         | Some m -> 
