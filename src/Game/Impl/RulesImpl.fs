@@ -194,24 +194,11 @@ module RulesImpl =
             revert rule gameState 
         | Sequence([]),_ 
         | _,None -> gameState
-    let rec remove ruleApplication gameState = 
-        let rule = tryFindRule ruleApplication gameState
-        match ruleApplication,rule with 
-        | UnitRule(_,uId),Some rule -> 
-            tryReplaceRuleOnUnit defnot rule uId gameState
-        | ModelRule(_,mId),Some rule ->
-            tryReplaceRuleOnModel defnot rule mId gameState
-        | GameStateRule(_),Some rule ->
-            tryReplaceRuleOnGameState defnot rule gameState
-        | Sequence(rule::_),Some _ ->
-            remove rule gameState 
-        | Sequence([]),_ 
-        | _,None -> gameState
-    let repeat times name rule gameState = 
+    let repeat times name rule = 
         if times > 0 then
-            tryReplaceRuleOnGameState def (rule |> Rule.afterRunRepeat (times - 1) name) gameState
+            [GameStateRule(AddOrReplace(GameStateList,(rule |> Rule.afterRunRepeat (times - 1) name)))]
         else
-            gameState
+            []
     let rec deactivateUntil activateWhen ruleApplication gameState  =
         let makeNewRule rule oldRule = 
             Option.map(function oldRule -> Overwritten(ActiveWhen(activateWhen,rule),oldRule)) oldRule
@@ -451,15 +438,20 @@ module RulesImpl =
             // Modify rest, prepend to reset, append to rest
             let eval' rest (newRules,gameState) = eval (rest @ newRules) gameState 
             rule |> function 
+                | GameStateRule(AddOrReplace(GameStateList, newRule)) -> tryReplaceRuleOnGameState def (newRule) gameState |> eval rest
+                | GameStateRule(AddOrReplace(ModelGuid id, newRule)) -> tryReplaceRuleOnModel def (newRule) id gameState |> eval rest
+                | GameStateRule(AddOrReplace(UnitGuid id, newRule)) -> tryReplaceRuleOnUnit def (newRule) id gameState |> eval rest
                 | UnitRule(Deploy,uId) -> deploy uId gameState >> eval' rest |> Asker  |> PositionAsker |> AskResult              
                 | UnitRule(Move maxMove,uId) -> move uId gameState maxMove >> eval rest |> Asker  |> MoveAsker |> AskResult
                 | GameStateRule(RollDice) -> rollDice gameState >> eval' rest |> Asker |> DiceRollAsker |> AskResult
                 | GameStateRule(SupplySortedWeaponProfiles(profiles)) -> supplySortedWeapons profiles gameState >> eval' rest |> Asker |> SortedWoundPoolAsker |> AskResult
                 | ModelRule(SetCharacteristic(newRule), uId) -> tryReplaceRuleOnModel Rule.overriteOrNone newRule uId gameState |> eval  rest
                 | GameStateRule(EndPhase) -> advancePhase gameState |> eval' rest
-                | GameStateRule(Remove(ruleApplication)) -> remove ruleApplication gameState |> eval rest
+                | GameStateRule(Remove(GameStateList, oldRule)) -> tryReplaceRuleOnGameState defnot oldRule gameState |> eval rest
+                | GameStateRule(Remove(ModelGuid id, oldRule)) ->  tryReplaceRuleOnModel defnot oldRule id gameState |> eval rest
+                | GameStateRule(Remove(UnitGuid id, oldRule)) -> tryReplaceRuleOnUnit defnot oldRule id gameState |> eval rest
                 | GameStateRule(Revert(ruleApplication)) -> revert ruleApplication gameState |> eval rest
-                | GameStateRule(Repeat(times,name,rule)) -> repeat times name rule gameState |> eval rest
+                | GameStateRule(Repeat(times,name,rule)) -> (repeat times name rule,gameState) |> eval' rest
                 | GameStateRule(Activate(ra)) -> activate ra gameState |> eval rest
                 | GameStateRule(DeactivateUntil(activateWhen,ruleApplication)) -> deactivateUntil activateWhen ruleApplication gameState |> eval rest
                 | Sequence(rules) -> eval (rules @ rest) gameState
@@ -469,7 +461,7 @@ module RulesImpl =
                 | UnitRule(SortedWoundPool(profiles,mId),uId) -> sortedWoundPool profiles mId uId gameState |> eval rest 
                 | UnitRule(Save(profile,mId),uId) -> saveWound profile mId uId gameState |> eval' rest
                 | ModelRule(Unsaved(profile),mId) -> unsavedWound profile mId gameState |> eval' rest
-                | GameStateRule(EndGame) -> remove (GameStateRule(PlayerTurn(Bottom))) gameState |> eval rest 
+                | GameStateRule(EndGame) -> eval (GameStateRule(Remove(GameStateList,Function(GameStateRule(PlayerTurn(Bottom)))))::rest) gameState
                 | ModelRule(RemoveOnZeroCharacteristic, mId) -> removeIfZeroCharacteristic mId gameState |> eval rest
                 | GameStateRule(CollectUserActivated) -> collect gameState >> eval rest |> Asker  |> PerformAsker |> AskResult
                 | GameStateRule(EndTurn) // Maybe Split EndPhase and End Turn
