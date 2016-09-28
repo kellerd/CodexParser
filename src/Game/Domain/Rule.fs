@@ -21,7 +21,7 @@
     type DiceRoll = DiceRoll of int
     type Player = Player1 | Player2
     type PlayerTurn = Top | Bottom 
-
+    type RuleListId = GameStateList | ModelList of ModelGuid | UnitList of UnitGuid
     type DeploymentType = 
         | Destroyed
         | OngoingReserves
@@ -71,8 +71,9 @@
         | GameRound of Round
         | DeactivateUntil of LogicalExpression * RuleApplication
         | Revert of RuleApplication
-        | Remove of RuleApplication
+        | Remove of RuleListId * Rule
         | Activate of RuleApplication
+        | AddOrReplace of RuleListId * Rule
         | Repeat of int * string * Rule
         | CollectUserActivated //of Value<Player>
         override this.ToString() = toString this
@@ -133,8 +134,8 @@
             | Nested(r,rs)                        -> (after perform r,(rs |> List.map (after perform))) |> Nested
         let afterRunDeactivateUntil activatedWhen = 
             after (fun r -> DeactivateUntil(activatedWhen,r))
-        let afterRunRemove =
-            after Remove
+        let afterRunRemove list r =
+            after (fun _ -> Remove(list,r)) r
         let afterRunRepeat times name r = 
             after (fun _  -> Repeat(times,name,r)) r
 
@@ -158,10 +159,18 @@
             | ActiveWhen(l1,_) -> Nested(r1,[onlyWhen (Not(l1)) r2])
             | r -> Overwritten(r2,r)
         let afterIfRemove logical ra =
-            Function(ra)            
-            |> afterRunRemove
+            let rec findRule = function
+                | GameStateRule(_) -> GameStateList
+                | ModelRule(_,id) -> ModelList(id)
+                | UnitRule(_,id) -> UnitList(id)
+                | Sequence(ra::_) -> findRule ra
+                | Sequence([]) -> GameStateList
+            let ruleList = findRule ra
+            let r = Function(ra)
+            r            
+            |> afterRunRemove (findRule ra)
             |> onlyWhen logical
-            |> otherwise (Function(GameStateRule(Remove(ra))))
+            |> otherwise (Function(GameStateRule(Remove(ruleList, r))))
             
         let (++) = append
 
