@@ -53,7 +53,7 @@ module GameLoop =
             | GameStateResult gs -> doNextTick gs playerMove newPlayer
             | AskResult a -> a.Map(moveNextPlayer newPlayer gameState) |> Ask |> gameResultFor newPlayer gameState
    
-    and  playerMove player (rules:Rule list) gameState = 
+    and  playerMove player rules gameState = 
         let evalResult = 
             match rules with
             | [] -> GameStateResult gameState

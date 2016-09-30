@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
 <Project ToolsVersion="14.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <PropertyGroup>
     <Name>Game</Name>
@@ -41,22 +41,22 @@
     <Compile Include="AssemblyInfo.fs" />
     <Content Include="paket.references" />
     <None Include="App.config" />
-    <Compile Include="Base\Option.fs" />
-    <Compile Include="Base\Equals.fs" />
-    <Compile Include="Base\Seq.fs" />
-    <Compile Include="Base\Base.fs" />
-    <Compile Include="Base\Map.fs" />
-    <Compile Include="Domain\Rule.fs" />
-    <Compile Include="Domain\Tabletop.fs" />
-    <Compile Include="Domain\Asker.fs" />
-    <Compile Include="Domain\Game.fs" />
-    <Compile Include="Impl\GameState.fs" />
-    <Compile Include="Impl\ImplTest.fs" />
-    <Compile Include="Impl\RulesImpl.fs" />
-    <Compile Include="Impl\GameLoop.fs" />
-    <Compile Include="UI\Display.fs" />
-    <Compile Include="UI\ConsoleUi.fs" />
-    <Compile Include="UI\Logging.fs" />
+    <Compile Include="Base/Option.fs" />
+    <Compile Include="Base/Equals.fs" />
+    <Compile Include="Base/Seq.fs" />
+    <Compile Include="Base/Base.fs" />
+    <Compile Include="Base/Map.fs" />
+    <Compile Include="Domain/Rule.fs" />
+    <Compile Include="Domain/Tabletop.fs" />
+    <Compile Include="Domain/Asker.fs" />
+    <Compile Include="Domain/Game.fs" />
+    <Compile Include="Impl/GameState.fs" />
+    <Compile Include="Impl/ImplTest.fs" />
+    <Compile Include="Impl/RulesImpl.fs" />
+    <Compile Include="Impl/GameLoop.fs" />
+    <Compile Include="UI/Display.fs" />
+    <Compile Include="UI/Logging.fs" />
+    <Compile Include="UI/ConsoleUi.fs" />
     <Compile Include="Script.fsx" />
     <Compile Include="Program.fs" />
   </ItemGroup>
