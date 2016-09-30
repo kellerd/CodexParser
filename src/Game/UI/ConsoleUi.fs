@@ -29,7 +29,7 @@ module ConsoleWarhammer =
         |> List.iteri (fun i r -> 
             printfn "%i) %s" i r)
 
-    let getCapability selectedIndex (nextMoves:RuleApplication list) = 
+    let getCapability selectedIndex nextMoves = 
         if selectedIndex < List.length nextMoves then
             List.item selectedIndex nextMoves |> Some 
         else

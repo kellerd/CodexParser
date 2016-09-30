@@ -13,7 +13,7 @@ type ``Given a Example state with Single Rules`` () =
    let addOrUpdateGameState (rule,gameState) = tryReplaceRuleOnGameState def rule gameState
    let removeFromGameState (rule,gameState) = tryReplaceRuleOnGameState defnot rule gameState
 
-   let ruleToAdd = Activate (GameStateRule(PlayerTurn(Top))) |> GameStateRule |> Function |> Rule.afterRunRemove GameStateList
+   let ruleToAdd = Activate (GameStateList,Function(GameStateRule(PlayerTurn(Top)))) |> GameStateRule |> Function |> Rule.afterRunRemove GameStateList
    let ruleToModify = Function(GameStateRule(GameRound(Round.Begin))) 
    let containsKey rule gs = gs |> (fun m -> m.Rules) |> Map.tryFind (makeRule rule |> fst)  |> Option.isSome  
    let doesntContainKeyIsFalse ruleToModify = (snd >> containsKey ruleToModify >> not) 
@@ -30,7 +30,7 @@ type ``Given a Example state with Single Rules`` () =
                                              Rule(GameStateRule(GameRound(Six(Movement)))) <|>
                                              Rule(GameStateRule(GameRound(Seven(Movement)))))
                          |> Rule.userActivated
-                         |> Rule.afterRunDeactivateUntil (Rule(GameStateRule(EndPhase)))
+                         |> Rule.afterRunDeactivateUntil (Rule(GameStateRule(EndPhase))) (UnitList uId)
 
    
    let ruleToModifyUnit = Function(UnitRule(DeploymentState(OngoingReserves),uId))  
@@ -44,7 +44,13 @@ type ``Given a Example state with Single Rules`` () =
    
    let (Some foundUnit) = tryFindUnit Impl.ImplTest.initial uId         
    let (Some p) = tryFindPlayer Impl.ImplTest.initial foundUnit
-   let gameState = {Impl.ImplTest.initial  with Board = {Impl.ImplTest.initial.Board with Models = forAllModels (fun m -> { Model = m; Player = p.Player; Position = {X = 1<px>;Y = 1<px>}}) foundUnit Impl.ImplTest.initial}}
+   let gameState = 
+    {Impl.ImplTest.initial  
+        with Board = {Impl.ImplTest.initial.Board 
+                        with Models = Map.fold 
+                                        (fun map k m -> Map.add k { Model = m.Model; Player = p.Player; Position = {X = 1<px>;Y = 1<px>}} map) 
+                                        Impl.ImplTest.initial.Board.Models 
+                                        Impl.ImplTest.initial.Board.Models}}
 
    let ruleToAddModel = Function(ModelRule(CoverSaves(CharacteristicValue 3), mId))
    let ruleToModifyModel = Function(ModelRule(Toughness(CharacteristicValue 6), mId))

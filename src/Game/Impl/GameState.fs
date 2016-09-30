@@ -49,7 +49,7 @@ module GameState =
     let replaceUnitModelsInGameState s p u m nm = replaceUnitModelsInPlayer p u m nm |> replaceGameStatePlayers s p 
     let updateModelInBoard (model:ModelInfo option) (newModel:ModelInfo option -> ModelInfo option) gameState =
         match model with 
-        | Some model -> { gameState with Board = { gameState.Board with Models = Map.updateWithOrRemove newModel model.Model.Id gameState.Board.Models } }) model
+        | Some model -> { gameState with Board = { gameState.Board with Models = Map.updateWithOrRemove newModel model.Model.Id gameState.Board.Models } } 
         | None -> gameState
     let updatePlayerInGameState unit newUnit gameState = 
         let foundPlayer = Option.bind (tryFindPlayer gameState) unit
@@ -61,9 +61,9 @@ module GameState =
         let foundUnit = Option.bind (tryFindUnitByModel gameState) model
         let newUnit = Option.map2 (fun p model -> replaceUnitModels p model newModel) foundUnit model
         let nmFunc = (Option.bind(fun mi -> Some mi.Model |> newModel |> Option.map(fun m -> {mi with Model = m})))
-        let modelInfo = GameState.
+        let modelInfo = Option.bind(fun (model:Model) -> gameState.Board.Models |> Map.tryFind model.Id) model
         match newUnit with
-        | (Some nu) -> updatePlayerInGameState foundUnit (def nu) gameState |> updateModelInBoard (model) nmFunc
+        | (Some nu) -> updatePlayerInGameState foundUnit (def nu) gameState |> updateModelInBoard modelInfo nmFunc
         | (_) -> gameState
     let replaceRuleOnGameState  replace (gameState:GameState)  = 
         let newGameState = { gameState with Rules = gameState.Rules |> replace }
