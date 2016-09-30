@@ -1,6 +1,6 @@
 ﻿namespace Logging
 module Logger = 
-    open Domain.Board
+    open Domain.Tabletop
     open Domain.Game
     open Domain
     /// Transform a MoveCapability into a logged version

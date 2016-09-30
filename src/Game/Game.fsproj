@@ -47,13 +47,14 @@
     <Compile Include="Base\Base.fs" />
     <Compile Include="Base\Map.fs" />
     <Compile Include="Domain\Rule.fs" />
-    <Compile Include="Domain\Board.fs" />
+    <Compile Include="Domain\Tabletop.fs" />
     <Compile Include="Domain\Asker.fs" />
     <Compile Include="Domain\Game.fs" />
     <Compile Include="Impl\GameState.fs" />
     <Compile Include="Impl\ImplTest.fs" />
     <Compile Include="Impl\RulesImpl.fs" />
     <Compile Include="Impl\GameLoop.fs" />
+    <Compile Include="UI\Display.fs" />
     <Compile Include="UI\ConsoleUi.fs" />
     <Compile Include="UI\Logging.fs" />
     <Compile Include="Script.fsx" />

@@ -1,6 +1,6 @@
 ﻿namespace Domain
 open WarhammerDomain
-open Board          
+open Domain.Tabletop          
 type GenAsker<'a,'b> = Asker of ('a -> 'b)
     with static member Run (a:GenAsker<'a,'b>, input:'a) =  let (Asker asker') = a 
                                                             asker' input

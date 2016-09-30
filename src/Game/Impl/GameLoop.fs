@@ -2,7 +2,7 @@
 
 module GameLoop = 
     open Domain
-    open Domain.Board
+    open Domain.Tabletop
     open Domain.Game
     open GameImpl.RulesImpl
     open Microsoft.FSharp.Collections

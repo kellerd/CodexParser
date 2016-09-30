@@ -3,7 +3,7 @@
 module ImplTest = 
     open Domain.WarhammerDomain
     open Domain
-    open Domain.Board
+    open Domain.Tabletop
     open System
     let hUnitId = UnitGuid "A4F2493F-08BA-44EA-B813-0F3E5E53110B"  
     let tUnitId = UnitGuid "155143C3-C1FD-46BE-B41C-02A992F16FB2"
@@ -122,11 +122,7 @@ module ImplTest =
               |> Map.ofSeq }
     
     let initial = 
-        { Board = 
-              { Models = Map.empty<Guid, ModelInfo>
-                Dimensions = 
-                    { Width = 6<ft>
-                      Height = 4<ft> } }
+        { 
           Players = 
               [ { Player = Player1
                   Units = 
@@ -146,6 +142,7 @@ module ImplTest =
                   yield Function(GameStateRule(PlayerTurn(Top))) 
                   yield Function(GameStateRule(GameRound(Begin)))
                   yield Function(GameStateRule(CollectUserActivated))
+                  yield Function(GameStateRule(Board({ Width = 6<ft>; Height = 4<ft> })))
               }
               |> Seq.map makeRule
               |> Map.ofSeq

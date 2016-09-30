@@ -1,7 +1,7 @@
 namespace GameImpl 
 module GameState = 
     open FSharpx.Collections
-    open Domain.Board
+    open Domain.Tabletop
     open Microsoft.FSharp.Collections
     open Domain
 
@@ -14,7 +14,8 @@ module GameState =
                                                      p.Units
                                                      |> Map.tryFind unit.Id
                                                      |> Option.bind (fun _ -> Some p))
-    let tryFindModel gameState mId  = gameState.Board.Models |> Map.tryFind mId
+    let tryFindModel gameState mId  =
+        gameState.Players |> List.choose(fun p -> p.Units |> Map.tryPick (fun _ u  -> u.UnitModels |> Map.tryFind mId)) |> List.tryHead
 
     let rec removeFirst pred lst = 
         match lst with
@@ -38,7 +39,7 @@ module GameState =
             tryFindUnit gameState uId |> Option.bind(fun u -> u.Rules |> Map.tryFind name)
         | ModelRule(rule,mId) ->
             let name = rule.ToString()
-            tryFindModel gameState mId |> Option.bind(fun m -> m.Model.Rules |> Map.tryFind name)
+            tryFindModel gameState mId |> Option.bind(fun m -> m.Rules |> Map.tryFind name)
         | GameStateRule(rule) ->
             let name = rule.ToString()
             gameState.Rules |> Map.tryFind name
@@ -47,10 +48,10 @@ module GameState =
         | Sequence([]) -> None
     let replaceUnitModelsInPlayer p u m nm = def (replaceUnitModels u m nm) |> replacePlayerUnits p u
     let replaceUnitModelsInGameState s p u m nm = replaceUnitModelsInPlayer p u m nm |> replaceGameStatePlayers s p 
-    let updateModelInBoard (model:ModelInfo option) (newModel:ModelInfo option -> ModelInfo option) gameState =
-        match model with 
-        | Some model -> { gameState with Board = { gameState.Board with Models = Map.updateWithOrRemove newModel model.Model.Id gameState.Board.Models } } 
-        | None -> gameState
+    // let updateModelInBoard (model:ModelInfo option) (newModel:ModelInfo option -> ModelInfo option) gameState =
+    //     match model with 
+    //     | Some model -> { gameState with Board = { gameState.Board with Models = Map.updateWithOrRemove newModel model.Model.Id gameState.Board.Models } } 
+    //     | None -> gameState
     let updatePlayerInGameState unit newUnit gameState = 
         let foundPlayer = Option.bind (tryFindPlayer gameState) unit
         let newPlayer = Option.map2 (fun p unit -> replacePlayerUnits p unit newUnit) foundPlayer unit
@@ -60,10 +61,8 @@ module GameState =
     let updateUnitInGameState (model:Model option) newModel gameState = 
         let foundUnit = Option.bind (tryFindUnitByModel gameState) model
         let newUnit = Option.map2 (fun p model -> replaceUnitModels p model newModel) foundUnit model
-        let nmFunc = (Option.bind(fun mi -> Some mi.Model |> newModel |> Option.map(fun m -> {mi with Model = m})))
-        let modelInfo = Option.bind(fun (model:Model) -> gameState.Board.Models |> Map.tryFind model.Id) model
         match newUnit with
-        | (Some nu) -> updatePlayerInGameState foundUnit (def nu) gameState |> updateModelInBoard modelInfo nmFunc
+        | (Some nu) -> updatePlayerInGameState foundUnit (def nu) gameState
         | (_) -> gameState
     let replaceRuleOnGameState  replace (gameState:GameState)  = 
         let newGameState = { gameState with Rules = gameState.Rules |> replace }
@@ -86,7 +85,7 @@ module GameState =
     let tryReplaceRuleOnModel mapf rule mId gameState = 
         let name = makeRule rule |> fst
         tryFindModel gameState mId
-        |> Option.map (fun m -> replaceRuleOnModel m.Model (Map.updateWithOrRemove (mapf rule) name) gameState)
+        |> Option.map (fun m -> replaceRuleOnModel m (Map.updateWithOrRemove (mapf rule) name) gameState)
         |> Option.get 
     let forAllModels f newUnit = 
         [ for m in newUnit.UnitModels do
