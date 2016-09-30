@@ -123,7 +123,9 @@
                     | ActiveWhen(logic,r)               -> ActiveWhen(logic,userActivated' r)
                     | UserActivated(_) as rule          -> rule
                     | Description(_) as rule            -> rule
-                    | Function(Sequence(r1::tail))      -> Function(Sequence(r1::GameStateRule(Revert(r1))::tail))
+                    | Function(Sequence(GameStateRule(_) as r1::tail))      -> Function(Sequence(r1::GameStateRule(Revert(GameStateList, Function(r1)))::tail))
+                    | Function(Sequence(ModelRule(_,mId) as r1::tail))      -> Function(Sequence(r1::GameStateRule(Revert(ModelList mId,Function(r1)))::tail))
+                    | Function(Sequence(UnitRule(_,uId) as r1::tail))      -> Function(Sequence(r1::GameStateRule(Revert(UnitList uId,Function(r1)))::tail))
                     | Function(Sequence([])) as rule    -> rule
                     | Function(r)                       -> Function(Sequence([r])) |> userActivated'
                     | Overwritten(newRule,old)          -> Overwritten(userActivated' newRule,old)
@@ -138,8 +140,8 @@
             | Function(r)                       -> Function(Sequence([r])) |> after perform 
             | Overwritten(newRule,old)          -> Overwritten(after perform newRule,old)
             | Nested(r,rs)                        -> (after perform r,(rs |> List.map (after perform))) |> Nested
-        let afterRunDeactivateUntil activatedWhen = 
-            after (fun r -> DeactivateUntil(activatedWhen,r))
+        let afterRunDeactivateUntil list activatedWhen r = 
+            after (fun _ -> DeactivateUntil(list,activatedWhen,r)) r
         let afterRunRemove list r =
             after (fun _ -> Remove(list,r)) r
         let afterRunRepeat times name r = 
@@ -164,17 +166,26 @@
             match r1 with 
             | ActiveWhen(l1,_) -> Nested(r1,[onlyWhen (Not(l1)) r2])
             | r -> Overwritten(r2,r)
+
+        let rec findRuleListId rule = 
+            match rule with 
+            | ActiveWhen(logic,r)               -> findRuleListId r
+            | UserActivated(r) as rule          -> findRuleListId r
+            | Description(_) as rule            -> None 
+            | Function(ra)     -> findRuleApplication ra
+            | Overwritten(newRule,old)        -> findRuleListId newRule
+            | Nested(rule,rules)              -> Option.either (findRuleListId) (List.choose findRuleListId rules |> List.tryHead) (Some rule)
+        and findRuleApplication = function 
+            | GameStateRule(_)     -> GameStateList |> Some
+            | ModelRule(_,mId)      -> ModelList mId |> Some
+            | UnitRule(_,uId)      -> UnitList uId |> Some
+            | Sequence(rs) -> List.choose findRuleApplication rs |> List.tryHead
+
         let afterIfRemove logical (r:Rule) =
-            let rec findRule = function
-                | GameStateRule(_) -> GameStateList
-                | ModelRule(_,id) -> ModelList(id)
-                | UnitRule(_,id) -> UnitList(id)
-                | Sequence(ra::_) -> findRule ra
-                | Sequence([]) -> GameStateList
-            let ruleList = findRule r
-            let r = Function(r)
+
+            let ruleList = findRuleListId r |> defaultArg <| GameStateList
             r            
-            |> afterRunRemove (findRule r)
+            |> afterRunRemove (ruleList)
             |> onlyWhen logical
             |> otherwise (Function(GameStateRule(Remove(ruleList, r))))
             

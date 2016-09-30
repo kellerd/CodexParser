@@ -29,7 +29,7 @@ module ImplTest =
                   yield Function(ModelRule(Melee(1,DiceRoll 3,hUnitId),id))
                         |> Rule.onlyWhen (isSpecificPhase Assault)
                         |> Rule.userActivated
-                        |> Rule.afterRunDeactivateUntil (Rule(GameStateRule(EndPhase)))
+                        |> Rule.afterRunDeactivateUntil (Rule(GameStateRule(EndPhase))) (ModelList id) 
                   yield Function(ModelRule(WeaponSkill(CharacteristicValue 3), id))
                   yield Function(ModelRule(BallisticSkill(CharacteristicValue 3), id))
                   yield Function(ModelRule(Strength(CharacteristicValue 3), id))
@@ -63,7 +63,7 @@ module ImplTest =
                   yield Function(UnitRule(Deploy, tUnitId))
                          |> Rule.onlyWhen (Rule(GameStateRule(GameRound(Begin))) <&> Rule(UnitRule(DeploymentState(Start), tUnitId))) 
                          |> Rule.userActivated
-                         |> Rule.afterRunDeactivateUntil (Rule(GameStateRule(EndPhase)))
+                         |> Rule.afterRunDeactivateUntil (Rule(GameStateRule(EndPhase))) (UnitList tUnitId) 
               }
               |> Seq.map makeRule
               |> Map.ofSeq }
@@ -114,7 +114,7 @@ module ImplTest =
                   yield Function(UnitRule(Deploy, hUnitId))
                          |> Rule.onlyWhen (Rule(GameStateRule(GameRound(Begin))) <&> Rule(UnitRule(DeploymentState(Start), hUnitId))) 
                          |> Rule.userActivated
-                         |> Rule.afterRunDeactivateUntil (Rule(GameStateRule(EndPhase)))
+                         |> Rule.afterRunDeactivateUntil (Rule(GameStateRule(EndPhase))) (UnitList hUnitId)
                   yield Description { Name = "Bounding Leap"
                                       Description = "Run(CharacteristicValue 3) extra inches" }
               }
