@@ -1,6 +1,6 @@
 ﻿namespace Domain
 module Game =
-    open Board
+    open Domain.Tabletop
     type EvalResult = 
         | GameStateResult of GameState
         | AskResult of Asker<EvalResult>

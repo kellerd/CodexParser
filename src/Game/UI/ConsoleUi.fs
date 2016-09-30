@@ -1,8 +1,10 @@
 ﻿namespace ConsoleUi
 module ConsoleWarhammer = 
+    open UI.Display
     open Domain.WarhammerDomain
-    open Domain.Board
+    open Domain.Tabletop
     open Domain.Game
+    open GameImpl.RulesImpl
     open Domain
     open System
     /// Track the UI state
@@ -41,12 +43,27 @@ module ConsoleWarhammer =
        | (true,int) -> Some(int * 1<px>)
        | _ -> None
 
+    let board gameState = 
+        gameState.Rules 
+        |> Map.tryFind (Board.ToString()) 
+        |> Option.map (function 
+            | Function(GameStateRule(Board(dim))) -> dim)
+        |> Option.get
+
+    let position (model:Model) = 
+        model.Rules 
+        |> Map.tryFind (ModelPosition.ToString()) 
+        |> Option.map (function 
+            | Function(ModelRule(ModelPosition(pos),mId)) -> pos)
+        |> Option.get
+
     let rec positionAsker gameState =
         printfn "Give X coordinates"
         let x = Console.ReadLine()
         printfn "Give Y coordinates"
         let y = Console.ReadLine()
-        match x, y, gameState.Board.Dimensions.Width, gameState.Board.Dimensions.Height with
+
+        match x, y, (board gameState).Width, (board gameState).Height with
             | IntPx xp, IntPx yp, maxX, maxY when xp >= 0<px> && yp >= 0<px> && xp <= ftToPx maxX && yp <= ftToPx maxY -> {X=xp; Y=yp}
             | _,_, maxX, maxY-> printfn "Please enter numbers within 0-%i wide and 0-%i tall" (ftToPx maxX) (ftToPx maxY)
                                 positionAsker gameState
@@ -71,6 +88,16 @@ module ConsoleWarhammer =
             fun i -> 
             printfn "Out of %d, %A Ranks: " len (List.item i woundProfiles) 
             System.Console.ReadLine() |> System.Int32.Parse
+    let display gameState = 
+        let rules = availableRules (fun (_,r) -> Some r) Player1 gameState @
+                    availableRules (fun (_,r) -> Some r) Player1 gameState
+                    |> List.distinct
+        let models = gameState.Players |> List.collect (fun p -> p.Units |> Map.toList |> List.collect (fun (_,u) -> u.UnitModels |> Map.toList |> List.map (fun (_,m) -> { Model = m; Player = p.Player},position m)))
+        {
+            Models = models
+            Rules = rules
+            Dimensions = board gameState
+        }
     let displayRules gs = 
         // gs.Players |> List.iter (fun p -> p.Units |> Map.map (fun _ u -> u.Rules) |> Map.iter (fun _ -> printfn "%A"))
         // gs.Board.Models |> Map.map(fun _ m ->  m.Model.Rules) |> Map.iter (fun _ -> printfn "%A")
@@ -84,9 +111,9 @@ module ConsoleWarhammer =
         let playerToStr  = function
             | Player1 -> "1"
             | Player2 -> "2"
-        let boardToStr board = 
-            let maxHeight = ftToPx board.Dimensions.Height |> toCharacterHeight
-            let maxWidth = ftToPx board.Dimensions.Width |> toCharacterWidth
+        let boardToStr display = 
+            let maxHeight = ftToPx (board gameState).Height |> toCharacterHeight
+            let maxWidth = ftToPx (board gameState).Width |> toCharacterWidth
             let inline initCollection s =
                 let coll = new ^t()
                 Seq.iter (fun (k,v) -> (^t : (member Add : 'a * 'b -> unit) coll, k, v)) s
@@ -98,18 +125,14 @@ module ConsoleWarhammer =
                                             yield ((x * 1<WidthChars>,y*1<HeightChars>),"█") } )
                 
             
-            board.Models 
-                |> Map.map (fun _ x -> (x.Position.X |> toCharacterWidth, 
-                                        x.Position.Y |> toCharacterHeight), 
-                                        x.Player)
-                |> Map.iter (fun _ ((x,y), player) -> boardDisplay.Item((x,y)) <- (playerToStr player))
+            display.Models |> List.iter (fun ({Model=m; Player=p},{X = x; Y = y}) ->  boardDisplay.Item((x |> toCharacterWidth,y |> toCharacterHeight )) <- (playerToStr p))
             seq { for y in 0 .. (int maxHeight) do
                     yield seq { for x in 0 .. (int maxWidth) do
                                     yield  boardDisplay.Item((x * 1<WidthChars>,y*1<HeightChars>))}}
-            |> (Seq.map (fun seq -> seq |> Seq.reduce (+)))
+            |> (Seq.map (Seq.reduce (+)))
             
         
-        boardToStr gameState.Board |> Seq.iter (printfn "%s")    // add some space
+        boardToStr (display gameState) |> Seq.iter (printfn "%s")    // add some space
     let processRuleIndex inputStr availableMoves processInputAgain = 
         match Int32.TryParse inputStr with
         // TryParse will output a tuple (parsed?,int)

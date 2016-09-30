@@ -1,5 +1,5 @@
 ﻿namespace Domain
-module Board =
+module Tabletop =
     open WarhammerDomain
             
     type [<ReferenceEquality>]  Model = {
@@ -17,27 +17,16 @@ module Board =
 
 
     let drawingResolution = 26.0<dpi>
-    type BoardDimensions = {Width:int<ft>; Height:int<ft>}
     type Score = Score of int
     type GameState = {
-        Board : BoardInfo
         Players : PlayerInfo list
         Rules : Map<string,Rule>
         Game:GameInfo
-        }
+    }
     and PlayerInfo = {
         Player: Player
         Units: Map<UnitGuid,Unit>
         Score: Score
-    }
-    and BoardInfo = {
-        Models : Map<ModelGuid,ModelInfo>
-        Dimensions : BoardDimensions
-    }
-    and ModelInfo = {
-        Model : Model
-        Player : Player
-        Position: Position<px>
     }
     and GameInfo = {
         Mission:Mission
@@ -47,20 +36,20 @@ module Board =
     type UnitRuleInfo = { UnitId: UnitGuid; UnitName: string; Rule: Rule}
     type ModelRuleInfo = { ModelId: ModelGuid; Rule: Rule}
 
-    let pixelsInBase b = 
-        match b.Model.Base with 
-        | BaseDiameter mms -> pixelsInCircle ((float mms) *  LanguagePrimitives.FloatWithMeasure<mm> 1. |> mmToInch) b.Position
-        | ModelDimentions({Width=w;Length=h}) -> pixelsInRectangle (mmToInch w) (mmToInch h)  b.Position
+    let pixelsInBase b position = 
+        match b.Base with 
+        | BaseDiameter mms -> pixelsInCircle ((float mms) *  LanguagePrimitives.FloatWithMeasure<mm> 1. |> mmToInch) position
+        | ModelDimentions({Width=w;Length=h}) -> pixelsInRectangle (mmToInch w) (mmToInch h)  position
         |> Set.ofSeq
 
-    let pixelsOfBase b = 
-        match b.Model.Base with 
-        | BaseDiameter mms -> pixelsOfCircle ((float mms) *  LanguagePrimitives.FloatWithMeasure<mm> 1. |> mmToInch) b.Position
-        | ModelDimentions({Width=w;Length=h}) -> pixelsOfRectangle (mmToInch w) (mmToInch h)  b.Position
+    let pixelsOfBase b position = 
+        match b.Base with 
+        | BaseDiameter mms -> pixelsOfCircle ((float mms) *  LanguagePrimitives.FloatWithMeasure<mm> 1. |> mmToInch) position
+        | ModelDimentions({Width=w;Length=h}) -> pixelsOfRectangle (mmToInch w) (mmToInch h)  position
         |> Set.ofSeq
 
-    let overlapping base1 base2 = 
-        Set.intersect (pixelsInBase base1) (pixelsInBase base2) 
+    let overlapping (base1,pos1) (base2,pos2) = 
+        Set.intersect (pixelsInBase base1 pos1) (pixelsInBase base2 pos2) 
     let shift xshift yshift pxs =
         Set.map (fun {X=x;Y=y} -> {X=x+xshift;Y=y+yshift}) pxs
     let shimmy pxs =
@@ -72,18 +61,16 @@ module Board =
                     let y' = y * (LanguagePrimitives.Int32WithMeasure 1)
                     yield shift x' y' pxs
         }
-    let touching base1 base2 =
-        let firstBase = shimmy (pixelsOfBase base1) |> Set.unionMany 
-        let secondBase =  (pixelsInBase base2)
-        printfn "%A" firstBase
-        printfn "%A" secondBase
+    let touching (base1,pos1) (base2,pos2)  =
+        let firstBase = shimmy (pixelsOfBase base1 pos1) |> Set.unionMany 
+        let secondBase =  (pixelsInBase base2 pos2)
         Set.intersect firstBase secondBase
 
 
     // open Domain
     // open WarhammerDomain
     // open Domain.WarhammerDomain
-    // open Domain.Board
+    // open Domain.Tabletop
     // let m1 = { Model = { Name = "Termagant"
     //                      Id = (System.Guid.NewGuid())
     //                      Base = BaseDiameter 50<mm>

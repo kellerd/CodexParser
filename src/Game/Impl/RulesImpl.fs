@@ -3,7 +3,7 @@
 module RulesImpl = 
     open Domain.WarhammerDomain
     open Domain
-    open Domain.Board
+    open Domain.Tabletop
     open Domain.Game
     open GameImpl.GameState
     open Microsoft.FSharp.Collections
@@ -53,7 +53,7 @@ module RulesImpl =
             | Rule ruleApplication -> 
                 let rec tryFind = function 
                                 | GameStateRule _ ->  Some gameState.Rules
-                                | ModelRule (_, mId) ->  tryFindModel gameState mId |> Option.map (fun m -> m.Model.Rules)
+                                | ModelRule (_, mId) ->  tryFindModel gameState mId |> Option.map (fun m -> m.Rules)
                                 | UnitRule(_, uId) -> tryFindUnit gameState uId |>  Option.map (fun u -> u.Rules)
                                 | Sequence(impl::_) -> tryFind impl
                                 | Sequence([]) -> None
@@ -103,10 +103,9 @@ module RulesImpl =
                     
                 newRule :: 
                     forAllModels (fun (m:Model) -> 
-                    (ModelList(m.Id),(SetPosition(gameState |> positionAsker),m.Id)
+                    (ModelList(m.Id),(ModelPosition(gameState |> positionAsker),m.Id)
                     |> ModelRule
-                    |> Function
-                    |> Rule.afterRunRemove (ModelList(m.Id)))
+                    |> Function)
                     |> AddOrReplace 
                     |> GameStateRule
                     |> Function
@@ -117,8 +116,9 @@ module RulesImpl =
 
     let move uId gameState maxMove  = 
         let createMove moveAsker =
-            let newPosition m = 
-                let ps = pixelsInCircle maxMove m.Position |> Seq.toArray
+            let newPosition position = 
+
+                let ps = pixelsInCircle maxMove position |> Seq.toArray
                 let rec newPick ps = 
                     let (p:Position<px>) = moveAsker ps
                     if Seq.contains p ps then p
@@ -129,10 +129,17 @@ module RulesImpl =
             match foundUnit with
             | Some u -> 
                 forAllModels (fun (m:Model) -> 
-                    (ModelList(m.Id),(SetPosition(tryFindModel gameState m.Id |> Option.get |> newPosition ),m.Id)
+                    let pos =  
+                        m.Rules
+                        |> Map.tryFind (ModelPosition.ToString())
+                        |> Option.bind (fun r -> match gameState with 
+                                                    | Active r (Function(ModelRule(ModelPosition(pos),mId))) -> Some pos
+                                                    | _ -> None)
+
+
+                    (ModelList(m.Id),(ModelPosition(pos |> Option.get |> newPosition ),m.Id)
                     |> ModelRule
-                    |> Function
-                    |> Rule.afterRunRemove (ModelList(m.Id)))
+                    |> Function)
                     |> AddOrReplace 
                     |> GameStateRule
                     |> Function
@@ -189,15 +196,15 @@ module RulesImpl =
         else
             []
 
-    let avgToughness u gameState = 
+    let avgToughness (u:Unit) gameState = 
         u.UnitModels
         |> Map.map (fun _ um -> um.Rules |> Map.filter (fun k _ -> k = Toughness.ToString())) 
         |> Map.values
         |> Seq.collect (Map.values)
         |> Seq.choose(fun r -> match gameState with | Active r (Function(ModelRule(Toughness(CharacteristicValue(ra)),_))) -> Some ra | _ -> None)
         |> Seq.maxmode 0
-    let modelStrength m gameState = 
-        m.Model.Rules 
+    let modelStrength (m:Model) gameState = 
+        m.Rules
         |> Map.tryFind (Strength.ToString())
         |> Option.bind(fun r -> match gameState with | Active r (Function(ModelRule(Strength(CharacteristicValue(ra)),_))) -> Some ra | _ -> None)
         |> defaultArg <| 0
@@ -321,7 +328,7 @@ module RulesImpl =
     let pickClosest mId uId gameState = //TODO change impl to something. Probably have to roll position into GameState
         let foundUnit = tryFindUnit gameState uId 
         let foundModel = tryFindModel gameState mId
-        let foundAssaulters =  Option.bind (fun m -> tryFindUnitByModel gameState m.Model) foundModel
+        let foundAssaulters =  Option.bind (fun m -> tryFindUnitByModel gameState m) foundModel
         match (foundAssaulters,foundUnit) with
         | Some _,Some u ->
             u.UnitModels |> Map.values |> Seq.head |> Some
@@ -337,11 +344,11 @@ module RulesImpl =
     let unsavedWound _ mId gameState =
         let foundModel = tryFindModel gameState mId
         let wounds = foundModel |> Option.bind (fun m ->  
-                                            m.Model.Rules 
+                                            m.Rules
                                             |> Map.values
                                             |> Seq.tryPick(fun r -> match gameState with | Active r (Function(ModelRule(Wounds(CharacteristicValue(w)),_))) -> Some w 
                                                                                          | _ -> None))
-        let foundUnit =  Option.bind (fun m -> tryFindUnitByModel gameState m.Model) foundModel
+        let foundUnit =  Option.bind (fun m -> tryFindUnitByModel gameState m) foundModel
         let foundPlayer = Option.bind (tryFindPlayer gameState) foundUnit
         match wounds, foundUnit, foundPlayer,foundModel with
         | Some wounds, Some _, Some _, Some _ ->
@@ -351,12 +358,12 @@ module RulesImpl =
         | _ -> failwith <| sprintf "Not found %A "  mId
     let removeIfZeroCharacteristic  mId gameState = 
         let foundModel = tryFindModel gameState mId
-        let foundUnit =  Option.bind (fun m -> tryFindUnitByModel gameState m.Model) foundModel
+        let foundUnit =  Option.bind (fun m -> tryFindUnitByModel gameState m) foundModel
         let foundPlayer = Option.bind (tryFindPlayer gameState) foundUnit
         match foundUnit, foundPlayer,foundModel with
         | Some u, Some p, Some m ->
 
-            replaceUnitModelsInGameState gameState p u m.Model (defnot None)
+            replaceUnitModelsInGameState gameState p u m (defnot None)
         | _ -> failwith <| sprintf "Not found %A "  mId
     let supplySortedWeapons profiles gameState profileMaker = 
         let newRule = profileMaker profiles |> SortedWeaponProfiles |> GameStateRule 
@@ -370,21 +377,24 @@ module RulesImpl =
 
         let gameRules = captureRules gs.Rules
         
-        let unitRules = 
+        let units = 
             gs.Players
             |> List.filter (fun p -> p.Player = player)
             |> List.map (fun p -> p.Units) 
             |> List.exactlyOne
             |> Map.toList
+
+        let unitRules = 
+            units 
             |> List.collect (fun (_,item) ->  captureRules item.Rules)
 
         let modelRules = 
-            gs.Board.Models 
-            |> Map.filter (fun _ item -> item.Player = player) 
-            |> Map.toList
-            |> List.collect (fun (_,item) -> captureRules item.Model.Rules)
+            units
+            |> List.collect(fun (_,item) -> item.UnitModels 
+                                            |> Map.toList 
+                                            |> List.collect (fun(_,item) -> captureRules item.Rules))
 
-        gameRules @ unitRules @ modelRules |> List.rev
+        modelRules @ unitRules @ gameRules
 
     let collect gameState = 
         let predicate = optionalAndActiveRules gameState
@@ -457,7 +467,6 @@ module RulesImpl =
             | PlayerTurn(_)
             | Noop            -> gameState |> GameStateResult
         and evalM' mId gameState = function
-            | SetPosition(pos) -> updateModelInBoard (tryFindModel gameState mId) (Option.map(fun m -> {m with Position = pos} )) gameState |> GameStateResult
             | SetCharacteristic(newRule) -> tryReplaceRuleOnModel Rule.overriteOrNone newRule mId gameState  |> GameStateResult
             | Melee(attacks,toHit,target) -> melee attacks toHit target mId gameState |> List.fold runRule (GameStateResult gameState) 
             | MeleeHit(hits,uId) -> meleeHits hits uId mId gameState  |> List.fold runRule (GameStateResult gameState) 
@@ -465,6 +474,7 @@ module RulesImpl =
             | RemoveOnZeroCharacteristic -> removeIfZeroCharacteristic mId gameState |> GameStateResult
             | WeaponSkill   (_)
             | BallisticSkill(_)
+            | ModelPosition(_)
             | Strength      (_)
             | Toughness     (_)
             | Wounds        (_)

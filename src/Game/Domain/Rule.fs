@@ -22,6 +22,7 @@
     type Player = Player1 | Player2
     type PlayerTurn = Top | Bottom 
     type RuleListId = GameStateList | ModelList of ModelGuid | UnitList of UnitGuid
+    type BoardDimensions = {Width:int<ft>; Height:int<ft>}
     type DeploymentType = 
         | Destroyed
         | OngoingReserves
@@ -35,13 +36,13 @@
         | Strength        of CharacteristicValue
         | Toughness       of CharacteristicValue
         | Wounds          of CharacteristicValue
+        | ModelPosition        of Position<px>
         | Initiative      of CharacteristicValue
         | Attacks         of CharacteristicValue
         | Leadership      of CharacteristicValue
         | InvSaves        of CharacteristicValue
         | CoverSaves      of CharacteristicValue
         | Saves           of CharacteristicValue
-        | SetPosition of Position<px>
         | SetCharacteristic of Rule
         | Unsaved of WeaponProfile
         | RemoveOnZeroCharacteristic 
@@ -65,6 +66,7 @@
         | EndTurn
         | EndGame
         | RollDice
+        | Board of BoardDimensions
         | SupplySortedWeaponProfiles of list<int * WeaponProfile>
         | SortedWeaponProfiles of int list
         | DiceRolled of DiceRoll

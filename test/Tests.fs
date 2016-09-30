@@ -2,7 +2,7 @@
 
 open NUnit.Framework
 open FsUnit
-open Domain.Board
+open Domain.Tabletop
 open Domain
 open GameImpl.RulesImpl
 open GameImpl.GameState
@@ -44,19 +44,14 @@ type ``Given a Example state with Single Rules`` () =
    
    let (Some foundUnit) = tryFindUnit Impl.ImplTest.initial uId         
    let (Some p) = tryFindPlayer Impl.ImplTest.initial foundUnit
-   let gameState = 
-    {Impl.ImplTest.initial  
-        with Board = {Impl.ImplTest.initial.Board 
-                        with Models = Map.fold 
-                                        (fun map k m -> Map.add k { Model = m.Model; Player = p.Player; Position = {X = 1<px>;Y = 1<px>}} map) 
-                                        Impl.ImplTest.initial.Board.Models 
-                                        Impl.ImplTest.initial.Board.Models}}
+   let gameState = Impl.ImplTest.initial  
+
 
    let ruleToAddModel = Function(ModelRule(CoverSaves(CharacteristicValue 3), mId))
    let ruleToModifyModel = Function(ModelRule(Toughness(CharacteristicValue 6), mId))
-   let containsKeyModel rule gs = (gs,mId) ||> tryFindModel |> Option.bind (fun m -> m.Model.Rules |> Map.tryFind (makeRule rule |> fst))  |> Option.isSome  
+   let containsKeyModel rule gs = (gs,mId) ||> tryFindModel |> Option.bind (fun m -> m.Rules |> Map.tryFind (makeRule rule |> fst))  |> Option.isSome  
    let doesntContainKeyIsFalseModel ruleToModify = (snd >> containsKeyModel ruleToModify >> not) 
-   let containsValueModel rule gs = (gs,mId) ||> tryFindModel |> Option.bind (fun m -> m.Model.Rules |> Map.tryFindKey (fun k r -> k = (makeRule rule |> fst) && r = rule))  |> Option.isSome       
+   let containsValueModel rule gs = (gs,mId) ||> tryFindModel |> Option.bind (fun m -> m.Rules |> Map.tryFindKey (fun k r -> k = (makeRule rule |> fst) && r = rule))  |> Option.isSome       
    let addOrUpdateModel (rule,gameState) = tryReplaceRuleOnModel def rule mId gameState
    let removeFromModel (rule,gameState) = tryReplaceRuleOnModel defnot rule mId gameState
    
