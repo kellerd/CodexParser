@@ -47,32 +47,33 @@ module GameState =
         | Sequence([]) -> None
     let replaceUnitModelsInPlayer p u m nm = def (replaceUnitModels u m nm) |> replacePlayerUnits p u
     let replaceUnitModelsInGameState s p u m nm = replaceUnitModelsInPlayer p u m nm |> replaceGameStatePlayers s p 
-    let updateModelInBoard (model:Model) (newModel:Model option -> Model option) gameState =
-         {gameState with Board = {gameState.Board with Models = Map.updateWithOrRemove (Option.bind(fun mi -> Some mi.Model |> newModel |> Option.map(fun m -> {mi with Model = m}))) model.Id gameState.Board.Models}}
+    let updateModelInBoard (model:ModelInfo option) (newModel:ModelInfo option -> ModelInfo option) gameState =
+        match model with 
+        | Some model -> { gameState with Board = { gameState.Board with Models = Map.updateWithOrRemove newModel model.Model.Id gameState.Board.Models } }) model
+        | None -> gameState
     let updatePlayerInGameState unit newUnit gameState = 
-        let foundPlayer = tryFindPlayer gameState unit
-        let newPlayer = foundPlayer |> Option.map (fun p -> replacePlayerUnits p unit newUnit)
+        let foundPlayer = Option.bind (tryFindPlayer gameState) unit
+        let newPlayer = Option.map2 (fun p unit -> replacePlayerUnits p unit newUnit) foundPlayer unit
         match gameState, foundPlayer, newPlayer with
         | (gs, Some p, Some np) -> replaceGameStatePlayers gs p np
         | (gs, _, _) -> gs   
-    let updateUnitInGameState (model:Model) newmodel gameState = 
-        let foundUnit = tryFindUnitByModel gameState model
-        let newUnit = foundUnit |> Option.map (fun p -> replaceUnitModels p model newmodel)
-        match gameState, foundUnit, newUnit with
-        | (gs, Some u, Some nu) -> updatePlayerInGameState u (def nu) gs |> updateModelInBoard model newmodel
-        | (gs, _, _) -> gs   
+    let updateUnitInGameState (model:Model option) newModel gameState = 
+        let foundUnit = Option.bind (tryFindUnitByModel gameState) model
+        let newUnit = Option.map2 (fun p model -> replaceUnitModels p model newModel) foundUnit model
+        let nmFunc = (Option.bind(fun mi -> Some mi.Model |> newModel |> Option.map(fun m -> {mi with Model = m})))
+        let modelInfo = GameState.
+        match newUnit with
+        | (Some nu) -> updatePlayerInGameState foundUnit (def nu) gameState |> updateModelInBoard (model) nmFunc
+        | (_) -> gameState
     let replaceRuleOnGameState  replace (gameState:GameState)  = 
-        printfn "before: %A" gameState.Rules 
         let newGameState = { gameState with Rules = gameState.Rules |> replace }
-        printfn "after: %A" gameState.Rules
         newGameState
     let tryReplaceRuleOnGameState mapf rule gameState = 
         let name = makeRule rule |> fst
-        printfn "%s" name
         replaceRuleOnGameState (Map.updateWithOrRemove (mapf rule) name) gameState
     let replaceRuleOnUnit  (unit : Unit) replace gameState = 
         let newUnit = { unit with Rules = unit.Rules |> replace }
-        updatePlayerInGameState unit (def newUnit) gameState
+        updatePlayerInGameState (Some unit) (def newUnit) gameState
     let tryReplaceRuleOnUnit mapf rule uid gameState = 
         let name = makeRule rule |> fst
         tryFindUnit gameState uid
@@ -81,16 +82,12 @@ module GameState =
         |> Option.get 
     let replaceRuleOnModel  (model : Model) replace gameState = 
         let newmodel = { model with Rules = model.Rules |> replace }
-        updateUnitInGameState model (def newmodel) gameState
+        updateUnitInGameState (Some model) (def newmodel) gameState
     let tryReplaceRuleOnModel mapf rule mId gameState = 
         let name = makeRule rule |> fst
         tryFindModel gameState mId
         |> Option.map (fun m -> replaceRuleOnModel m.Model (Map.updateWithOrRemove (mapf rule) name) gameState)
         |> Option.get 
-        //|> defaultArg <| gameState
-    let forAllModels f newUnit gameState = 
+    let forAllModels f newUnit = 
         [ for m in newUnit.UnitModels do
                 yield f m.Value ]
-        |> List.fold (fun acc m -> match Map.tryFind m.Model.Id acc with
-                                    | Some _ -> Map.updateWithOrRemove (def m) m.Model.Id acc
-                                    | None -> Map.add m.Model.Id m acc) gameState.Board.Models

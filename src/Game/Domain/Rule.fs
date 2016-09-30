@@ -41,6 +41,7 @@
         | InvSaves        of CharacteristicValue
         | CoverSaves      of CharacteristicValue
         | Saves           of CharacteristicValue
+        | SetPosition of Position<px>
         | SetCharacteristic of Rule
         | Unsaved of WeaponProfile
         | RemoveOnZeroCharacteristic 
@@ -69,11 +70,12 @@
         | DiceRolled of DiceRoll
         | PlayerTurn of PlayerTurn
         | GameRound of Round
-        | DeactivateUntil of LogicalExpression * RuleApplication
-        | Revert of RuleApplication
+        | DeactivateUntil of LogicalExpression * RuleListId * Rule
+        | Revert of RuleListId * Rule
         | Remove of RuleListId * Rule
-        | Activate of RuleApplication
+        | Activate of RuleListId * Rule
         | AddOrReplace of RuleListId * Rule
+        | Replace of RuleListId * Rule
         | Repeat of int * string * Rule
         | CollectUserActivated //of Value<Player>
         override this.ToString() = toString this
@@ -111,6 +113,10 @@
         let unoverwrite _ = function
                                 | Overwritten(_,r) -> r |> Some
                                 | r -> r |> Some
+        
+        let activeWhen activateWhen rule =
+            ActiveWhen(activateWhen,rule)
+
         let unoverwriteOrNew  r = Option.either (unoverwrite(r)) (Some(r))                    
         let userActivated rule =
             let rec userActivated' = function
@@ -158,17 +164,17 @@
             match r1 with 
             | ActiveWhen(l1,_) -> Nested(r1,[onlyWhen (Not(l1)) r2])
             | r -> Overwritten(r2,r)
-        let afterIfRemove logical ra =
+        let afterIfRemove logical (r:Rule) =
             let rec findRule = function
                 | GameStateRule(_) -> GameStateList
                 | ModelRule(_,id) -> ModelList(id)
                 | UnitRule(_,id) -> UnitList(id)
                 | Sequence(ra::_) -> findRule ra
                 | Sequence([]) -> GameStateList
-            let ruleList = findRule ra
-            let r = Function(ra)
+            let ruleList = findRule r
+            let r = Function(r)
             r            
-            |> afterRunRemove (findRule ra)
+            |> afterRunRemove (findRule r)
             |> onlyWhen logical
             |> otherwise (Function(GameStateRule(Remove(ruleList, r))))
             
@@ -181,17 +187,16 @@
                 | Sequence(rs) -> textFromRuleApplication (rs |> Seq.head)
                 | UnitRule(impl, _) -> impl.ToString()
 
+        let rec textFromRule = 
+            function 
+            | Function(impl) -> textFromRuleApplication impl
+            | UserActivated(r) -> textFromRule r
+            | ActiveWhen(_, r) -> textFromRule r
+            | Description(d) -> d.Name
+            | Overwritten(_, r) -> textFromRule r
+            | Nested(h,_) -> textFromRule h
         let makeRule r = 
-            let rec makeText = 
-                function 
-                | Function(impl) -> textFromRuleApplication impl
-                | UserActivated(r) -> makeText r
-                | ActiveWhen(_, r) -> makeText r
-                | Description(d) -> d.Name
-                | Overwritten(_, r) -> makeText r
-                | Nested(h,_) -> makeText h
-        
-            makeText r, r
+            textFromRule r, r
 
         let D6 = 6
         

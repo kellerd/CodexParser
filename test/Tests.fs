@@ -13,7 +13,7 @@ type ``Given a Example state with Single Rules`` () =
    let addOrUpdateGameState (rule,gameState) = tryReplaceRuleOnGameState def rule gameState
    let removeFromGameState (rule,gameState) = tryReplaceRuleOnGameState defnot rule gameState
 
-   let ruleToAdd = Activate (GameStateRule(PlayerTurn(Top))) |> GameStateRule |> Function |> Rule.afterRunRemove  
+   let ruleToAdd = Activate (GameStateRule(PlayerTurn(Top))) |> GameStateRule |> Function |> Rule.afterRunRemove GameStateList
    let ruleToModify = Function(GameStateRule(GameRound(Round.Begin))) 
    let containsKey rule gs = gs |> (fun m -> m.Rules) |> Map.tryFind (makeRule rule |> fst)  |> Option.isSome  
    let doesntContainKeyIsFalse ruleToModify = (snd >> containsKey ruleToModify >> not) 
