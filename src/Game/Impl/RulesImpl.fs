@@ -29,16 +29,16 @@ module RulesImpl =
                 None
     let rec (|Active|_|) r gameState = 
         match r with 
-        | ActiveWhen(logic, innerRule) -> contains gameState logic innerRule |> Option.bind (fun _ -> match gameState with Active innerRule rule -> Some rule | _ -> None)
-        | UserActivated (userActivated) ->  match gameState with Active userActivated rule -> Some rule | _ -> None
+        | ActiveWhen(logic, innerRule) -> contains gameState logic innerRule |> Option.bind (fun _ -> match gameState with Active innerRule rule -> Some r | _ -> None)
+        | UserActivated (userActivated) ->  match gameState with Active userActivated rule -> Some r | _ -> None
         | Function _ -> Some r
-        | Description _ -> Some (Function(GameStateRule Noop))
-        | Overwritten (overwrite,_) -> match gameState with Active overwrite rule -> Some rule | _ -> None
+        | Description _ -> Some r
+        | Overwritten (overwrite,_) -> match gameState with Active overwrite rule -> Some r | _ -> None
         | Nested(r, rules) -> 
-            let matchFst = match gameState with Active r rule -> Some rule | _ -> None
+            let matchFst = match gameState with Active r rule -> Some r | _ -> None
             match matchFst with 
             | Some _ -> matchFst
-            | None -> List.tryPick(fun r -> match gameState with Active r rule -> Some rule | _ -> None) rules
+            | None -> List.tryPick(fun r -> match gameState with Active r rule -> Some r | _ -> None) rules
 
     and tryFindInRuleList (gameState:GameState) ruleApplication rl = 
         rl |> Option.bind (Map.tryFindKey (fun k foundRule -> match ruleApplication with 
@@ -131,13 +131,12 @@ module RulesImpl =
                 forAllModels (fun (m:Model) -> 
                     let pos =  
                         m.Rules
-                        |> Map.tryFind (ModelPosition.ToString())
-                        |> Option.bind (fun r -> match gameState with 
+                        |> Map.pick (fun k r -> match gameState with 
                                                     | Active r (Function(ModelRule(ModelPosition(pos),mId))) -> Some pos
                                                     | _ -> None)
 
 
-                    (ModelList(m.Id),(ModelPosition(pos |> Option.get |> newPosition ),m.Id)
+                    (ModelList(m.Id),(ModelPosition(pos |> newPosition ),m.Id)
                     |> ModelRule
                     |> Function)
                     |> AddOrReplace 
@@ -197,16 +196,14 @@ module RulesImpl =
             []
 
     let avgToughness (u:Unit) gameState = 
+
         u.UnitModels
-        |> Map.map (fun _ um -> um.Rules |> Map.filter (fun k _ -> k = Toughness.ToString())) 
+        |> Map.choose (fun _ um -> um.Rules |> Map.tryPick (fun _ r -> match gameState with | Active r (Function(ModelRule(Toughness(CharacteristicValue(ra)),_))) -> Some ra | _ -> None)) 
         |> Map.values
-        |> Seq.collect (Map.values)
-        |> Seq.choose(fun r -> match gameState with | Active r (Function(ModelRule(Toughness(CharacteristicValue(ra)),_))) -> Some ra | _ -> None)
         |> Seq.maxmode 0
     let modelStrength (m:Model) gameState = 
         m.Rules
-        |> Map.tryFind (Strength.ToString())
-        |> Option.bind(fun r -> match gameState with | Active r (Function(ModelRule(Strength(CharacteristicValue(ra)),_))) -> Some ra | _ -> None)
+        |> Map.tryPick(fun _ r -> match gameState with | Active r (Function(ModelRule(Strength(CharacteristicValue(ra)),_))) -> Some ra | _ -> None)
         |> defaultArg <| 0
     let doDice = 
         let rollDice = 
@@ -252,8 +249,7 @@ module RulesImpl =
             
             let newRule =  
                 u.Rules
-                |> Map.tryFind (WoundPool.ToString())
-                |> Option.bind (fun r -> match gameState with 
+                |> Map.tryPick (fun _ r -> match gameState with 
                                             | Active r (Function(UnitRule(WoundPool(wounds,mId),uId))) -> Some(UnitRule(WoundPool((List.append wounds newWounds),mId),uId))
                                             | _ -> None)
                 |> defaultArg <|  UnitRule(WoundPool(newWounds,mId),uId)
@@ -465,6 +461,7 @@ module RulesImpl =
             | SortedWeaponProfiles(_)  
             | GameRound(_)
             | PlayerTurn(_)
+            | Board(_) 
             | Noop            -> gameState |> GameStateResult
         and evalM' mId gameState = function
             | SetCharacteristic(newRule) -> tryReplaceRuleOnModel Rule.overriteOrNone newRule mId gameState  |> GameStateResult

@@ -45,15 +45,15 @@ module ConsoleWarhammer =
 
     let board gameState = 
         gameState.Rules 
-        |> Map.tryFind (Board.ToString()) 
-        |> Option.bind (function 
-            | Function(GameStateRule(Board(dim))) -> Some dim
+        |> Map.pick (fun k r -> 
+            match gameState with  
+            | Active r (Function(GameStateRule(Board(dim)))) -> Some dim
             | _ -> None)
 
     let position (model:Model) = 
         model.Rules 
-        |> Map.tryFind (ModelPosition.ToString()) 
-        |> Option.bind (function 
+        |> Map.tryPick (fun k r ->
+            match r with  
             | Function(ModelRule(ModelPosition(pos),mId)) -> Some pos
             | _ -> None)
 
@@ -62,7 +62,7 @@ module ConsoleWarhammer =
         let x = Console.ReadLine()
         printfn "Give Y coordinates"
         let y = Console.ReadLine()
-        let board' = board gameState |> Option.get
+        let board' = board gameState 
         match x, y, board'.Width,board'.Height with
             | IntPx xp, IntPx yp, maxX, maxY when xp >= 0<px> && yp >= 0<px> && xp <= ftToPx maxX && yp <= ftToPx maxY -> {X=xp; Y=yp}
             | _,_, maxX, maxY-> printfn "Please enter numbers within 0-%i wide and 0-%i tall" (ftToPx maxX) (ftToPx maxY)
@@ -100,14 +100,10 @@ module ConsoleWarhammer =
                                 |> List.collect (fun (_,u) -> 
                                                     u.UnitModels 
                                                     |> Map.toList 
-                                                    |> List.choose (fun (_,m) -> Option.map(fun pos -> { Model = m; Player = p.Player},pos) (position m))))
+                                                    |> List.choose (fun (_,m) -> Option.map(fun pos -> { Model = m; Player = p.Player}, pos) (position m))))
         
-        let board' = board gameState |> Option.get
-        {
-            Models = models
-            Rules = rules
-            Dimensions = board'
-        }
+        let board' = board gameState 
+        {   Models = models; Rules = rules; Dimensions = board' }
     let displayRules gs = 
         // gs.Players |> List.iter (fun p -> p.Units |> Map.map (fun _ u -> u.Rules) |> Map.iter (fun _ -> printfn "%A"))
         // gs.Board.Models |> Map.map(fun _ m ->  m.Model.Rules) |> Map.iter (fun _ -> printfn "%A")
@@ -122,7 +118,7 @@ module ConsoleWarhammer =
             | Player1 -> "1"
             | Player2 -> "2"
         let boardToStr display = 
-            let board' = board gameState |> Option.get
+            let board' = display.Dimensions
             let maxHeight = ftToPx board'.Height |> toCharacterHeight
             let maxWidth = ftToPx  board'.Width |> toCharacterWidth
             let inline initCollection s =
