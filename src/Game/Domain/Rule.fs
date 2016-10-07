@@ -75,9 +75,9 @@
         | DeactivateUntil of LogicalExpression * RuleListId * Rule
         | Revert of RuleListId * Rule
         | Remove of RuleListId * Rule
-        | Activate of RuleListId * Rule
+        | Activate of Rule
         | AddOrReplace of RuleListId * Rule
-        | Replace of RuleListId * Rule
+        | Overwrite of RuleListId * Rule
         | Repeat of int * string * Rule
         | CollectUserActivated //of Value<Player>
         override this.ToString() = toString this
@@ -119,20 +119,9 @@
         let activeWhen activateWhen rule =
             ActiveWhen(activateWhen,rule)
 
-        let unoverwriteOrNew  r = Option.either (unoverwrite(r)) (Some(r))                    
-        let userActivated rule =
-            let rec userActivated' = function
-                    | ActiveWhen(logic,r)               -> ActiveWhen(logic,userActivated' r)
-                    | UserActivated(_) as rule          -> rule
-                    | Description(_) as rule            -> rule
-                    | Function(Sequence(GameStateRule(_) as r1::tail))      -> Function(Sequence(r1::GameStateRule(Revert(GameStateList, Function(r1)))::tail))
-                    | Function(Sequence(ModelRule(_,mId) as r1::tail))      -> Function(Sequence(r1::GameStateRule(Revert(ModelList mId,Function(r1)))::tail))
-                    | Function(Sequence(UnitRule(_,uId) as r1::tail))      -> Function(Sequence(r1::GameStateRule(Revert(UnitList uId,Function(r1)))::tail))
-                    | Function(Sequence([])) as rule    -> rule
-                    | Function(r)                       -> Function(Sequence([r])) |> userActivated'
-                    | Overwritten(newRule,old)          -> Overwritten(userActivated' newRule,old)
-                    | Nested(_) as rule                 -> rule
-            userActivated' rule |> UserActivated
+        let unoverwriteOrNew  r = Option.either (unoverwrite(r)) (Some(r))  
+        let unoverwriteOrNone  r = Option.either (unoverwrite(r)) (None)                    
+
         let rec private after perform = function
             | ActiveWhen(logic,rule)            -> ActiveWhen(logic,after perform rule)
             | UserActivated(rule)               -> after perform  rule |> UserActivated

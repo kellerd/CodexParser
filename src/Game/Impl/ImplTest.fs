@@ -4,7 +4,6 @@ module ImplTest =
     open Domain.WarhammerDomain
     open Domain
     open Domain.Tabletop
-    open System
     let hUnitId = UnitGuid "A4F2493F-08BA-44EA-B813-0F3E5E53110B"  
     let tUnitId = UnitGuid "155143C3-C1FD-46BE-B41C-02A992F16FB2"
           
@@ -28,7 +27,7 @@ module ImplTest =
                                       Description = "Termagant Lurks when outside synapse" }
                   yield Function(ModelRule(Melee(1,DiceRoll 3,hUnitId),id))
                         |> Rule.onlyWhen (isSpecificPhase Assault)
-                        |> Rule.userActivated
+                        |> Rule.UserActivated
                         |> Rule.afterRunDeactivateUntil (Rule(GameStateRule(EndPhase))) (ModelList id) 
                   yield Function(ModelRule(WeaponSkill(CharacteristicValue 3), id))
                   yield Function(ModelRule(BallisticSkill(CharacteristicValue 3), id))
@@ -62,7 +61,7 @@ module ImplTest =
                   yield Function(UnitRule(DeploymentState(Start), tUnitId))
                   yield Function(UnitRule(Deploy, tUnitId))
                          |> Rule.onlyWhen (Rule(GameStateRule(GameRound(Begin))) <&> Rule(UnitRule(DeploymentState(Start), tUnitId))) 
-                         |> Rule.userActivated
+                         |> Rule.UserActivated
                          |> Rule.afterRunDeactivateUntil (Rule(GameStateRule(EndPhase))) (UnitList tUnitId) 
               }
               |> Seq.map makeRule
@@ -113,7 +112,7 @@ module ImplTest =
                   yield Function(UnitRule(DeploymentState(Start), hUnitId))
                   yield Function(UnitRule(Deploy, hUnitId))
                          |> Rule.onlyWhen (Rule(GameStateRule(GameRound(Begin))) <&> Rule(UnitRule(DeploymentState(Start), hUnitId))) 
-                         |> Rule.userActivated
+                         |> Rule.UserActivated
                          |> Rule.afterRunDeactivateUntil (Rule(GameStateRule(EndPhase))) (UnitList hUnitId)
                   yield Description { Name = "Bounding Leap"
                                       Description = "Run(CharacteristicValue 3) extra inches" }
@@ -138,7 +137,7 @@ module ImplTest =
                   Score = Score 0 } ]
           Rules = 
               seq { 
-                  yield Function(GameStateRule(EndPhase)) |> Rule.userActivated
+                  yield Function(GameStateRule(EndPhase)) |> Rule.UserActivated
                   yield Function(GameStateRule(PlayerTurn(Top))) 
                   yield Function(GameStateRule(GameRound(Begin)))
                   yield Function(GameStateRule(CollectUserActivated))
