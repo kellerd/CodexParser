@@ -13,7 +13,7 @@ type ``Given a Example state with Single Rules`` () =
    let addOrUpdateGameState (rule,gameState) = tryReplaceRuleOnGameState def rule gameState
    let removeFromGameState (rule,gameState) = tryReplaceRuleOnGameState defnot rule gameState
 
-   let ruleToAdd = Activate (GameStateList,Function(GameStateRule(PlayerTurn(Top)))) |> GameStateRule |> Function |> Rule.afterRunRemove GameStateList
+   let ruleToAdd = Activate (Function(GameStateRule(PlayerTurn(Top)))) |> GameStateRule |> Function |> Rule.afterRunRemove GameStateList
    let ruleToModify = Function(GameStateRule(GameRound(Round.Begin))) 
    let containsKey rule gs = gs |> (fun m -> m.Rules) |> Map.tryFind (makeRule rule |> fst)  |> Option.isSome  
    let doesntContainKeyIsFalse ruleToModify = (snd >> containsKey ruleToModify >> not) 
@@ -29,7 +29,7 @@ type ``Given a Example state with Single Rules`` () =
                                              Rule(GameStateRule(GameRound(Five(Movement)))) <|>
                                              Rule(GameStateRule(GameRound(Six(Movement)))) <|>
                                              Rule(GameStateRule(GameRound(Seven(Movement)))))
-                         |> Rule.userActivated
+                         |> Rule.UserActivated
                          |> Rule.afterRunDeactivateUntil (Rule(GameStateRule(EndPhase))) (UnitList uId)
 
    
@@ -68,7 +68,6 @@ type ``Given a Example state with Single Rules`` () =
     ``Player should be structurally equal`` ()=
            gameState.Players 
             |> List.filter (fun p -> p.Player = gameState.Players.Head.Player) |> should not' (be Empty)
-
     
    [<Test>] member test.
     ``Player should have units and rules to test`` ()=
