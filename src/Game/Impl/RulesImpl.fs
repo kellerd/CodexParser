@@ -421,7 +421,7 @@ module RulesImpl =
             | GameStateResult gameState, GameStateRule(impl) -> evalG' gameState impl
             | GameStateResult gameState, ModelRule(impl,mId) -> evalM' mId gameState impl 
             | GameStateResult gameState, UnitRule(impl,uId) -> evalU' uId gameState impl 
-            | AskResult _, _ -> failwith "Never should hit here"
+            | AskResult a, ruleApplication -> a.Map(fun a -> eval a ruleApplication) |> AskResult 
         and evalG' gameState = function 
             | AddOrReplace(GameStateList, newRule) -> tryReplaceRuleOnGameState def newRule gameState |> GameStateResult
             | AddOrReplace(ModelList mId, newRule) -> tryReplaceRuleOnModel def newRule mId gameState |> GameStateResult
