@@ -100,6 +100,26 @@
         | Nested of Rule * Rule list
     and WeaponProfile = RuleApplication list
 
+    type TRule = 
+        | TCharacteristicValue of CharacteristicValue
+        | TPosition      of Position<px>
+        | TRule of Rule
+        | TWeaponProfile of WeaponProfile
+        | TUnit 
+        | TArmourPen of ArmourPen
+        | TMelee of  int * DiceRoll * UnitGuid
+        | TMeleeHit of int * UnitGuid
+        | TMeasurement of float<inch>
+        | TDeploymentState of DeploymentType
+        | TWoundPool of  list<int * WeaponProfile> * ModelGuid
+        | TSave of WeaponProfile * ModelGuid
+        | TBoardDimensions of BoardDimensions
+        | TSupplySortedWeaponProfiles of list<int * WeaponProfile>
+        | TSortedWeaponProfiles of int list
+        | TDiceRoll of DiceRoll
+        | TPlayerTurn of PlayerTurn
+        | TRound of Round
+        | TList of TRule list
    
     [<CompilationRepresentation (CompilationRepresentationFlags.ModuleSuffix)>]
     [<AutoOpen>]
@@ -165,7 +185,9 @@
             | Description(_) as rule            -> None 
             | Function(ra)     -> findRuleApplication ra
             | Overwritten(newRule,old)        -> findRuleListId newRule
-            | Nested(rule,rules)              -> Option.either (findRuleListId) (List.choose findRuleListId rules |> List.tryHead) (Some rule)
+            | Nested(rule,rules)              -> findRuleListId rule |> Option.either Some (List.choose findRuleListId rules |> List.tryHead) 
+
+
         and findRuleApplication = function 
             | GameStateRule(_)     -> GameStateList |> Some
             | ModelRule(_,mId)      -> ModelList mId |> Some
