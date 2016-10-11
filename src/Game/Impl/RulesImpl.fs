@@ -8,6 +8,8 @@ module RulesImpl =
     open GameImpl.GameState
     open Microsoft.FSharp.Collections
     open FSharpx.Collections
+    type private Value<'T> = Result of 'T
+
     let rec (|Optional|_|) r = 
         match r with 
         | ActiveWhen(_, Optional rule) -> Some rule
@@ -39,13 +41,71 @@ module RulesImpl =
             match matchFst with 
             | Some _ -> matchFst
             | None -> List.tryPick(fun r -> match gameState with Active r _ -> Some r | _ -> None) rules
-
+    and Eval = function 
+        | GameStateRule impl ->  EvalG impl 
+        | ModelRule (impl, _) -> EvalM impl 
+        | UnitRule(impl, _) ->  EvalU  impl 
+        | Sequence(impls) ->  List.map Eval impls |> TList
+    and EvalR gameState = function
+        | Function (app) -> Eval app
+        | UserActivated _ -> TUnit
+        | ActiveWhen (logic,innerRule) -> contains gameState logic innerRule |> Option.map (EvalR gameState) |> defaultArg <| TUnit
+        | Description _ -> TUnit
+        | Overwritten (r1,_) -> EvalR gameState r1
+        | Nested (head,tail) -> List.map (EvalR gameState) (head::tail) |> TList
+    and EvalG = function
+        | Noop       -> TUnit
+        | EndPhase   -> TUnit
+        | EndTurn    -> TUnit
+        | EndGame    -> TUnit
+        | RollDice   -> TUnit
+        | Board (boardDimensions)-> TBoardDimensions (boardDimensions)
+        | SupplySortedWeaponProfiles (weaponProfiles)-> TSupplySortedWeaponProfiles (weaponProfiles)
+        | SortedWeaponProfiles (weaponProfiles)-> TSortedWeaponProfiles (weaponProfiles)
+        | DiceRolled (diceRoll)-> TDiceRoll (diceRoll)
+        | PlayerTurn (playerTurn)-> TPlayerTurn (playerTurn)
+        | GameRound (round) -> TRound (round)
+        | DeactivateUntil _ -> TUnit
+        | Revert _ -> TUnit
+        | Remove _ -> TUnit
+        | Activate _ -> TUnit
+        | AddOrReplace _-> TUnit
+        | Overwrite _ -> TUnit
+        | Repeat _ -> TUnit
+        | CollectUserActivated -> TUnit
+    and EvalU  = function 
+        | Move (inches)-> TMeasurement (inches)
+        | DeploymentState (deploymentType)-> TDeploymentState (deploymentType)
+        | Deploy -> TUnit
+        | WoundPool ( profiles, mid) -> TWoundPool ( profiles, mid) 
+        | SortedWoundPool( profiles, mid) -> TWoundPool ( profiles, mid) 
+        | Save ( profile, mid) -> TSave ( profile, mid) 
+    and EvalM = function
+        | WeaponSkill     cv 
+        | BallisticSkill  cv 
+        | Strength        cv 
+        | Toughness       cv 
+        | Wounds          cv 
+        | Initiative      cv 
+        | Attacks         cv 
+        | Leadership      cv 
+        | InvSaves        cv 
+        | CoverSaves      cv 
+        | Saves           cv -> TCharacteristicValue cv
+        | ModelPosition   pos -> TPosition pos
+        | SetCharacteristic rule -> TRule rule
+        | Unsaved weaponProfile -> TWeaponProfile weaponProfile
+        | RemoveOnZeroCharacteristic -> TUnit
+        | ArmourPenetration armourPen -> TArmourPen armourPen
+        | Melee (i,r,uid) -> TMelee (i,r,uid)
+        | MeleeHit (i,uid) -> TMeleeHit (i,uid)
+        
     and tryFindInRuleList (gameState:GameState) ruleApplication rl = 
         rl |> Option.bind (Map.tryFindKey (fun k foundRule -> match ruleApplication with 
-                                                                | GameStateRule impl ->  k = impl.ToString() && match gameState with Active foundRule _ -> true | _ -> false
-                                                                | ModelRule (impl, _) ->  k = impl.ToString() && match gameState with Active foundRule _ -> true | _ -> false
-                                                                | UnitRule(impl, _) ->  k = impl.ToString() && match gameState with Active foundRule _ -> true | _ -> false
-                                                                | Sequence(impl::_) -> k = impl.ToString() && match gameState with Active foundRule _ -> true | _ -> false
+                                                                | GameStateRule impl ->  k = impl.ToString() && match gameState with Active foundRule _   -> EvalG impl = EvalR gameState foundRule  | _ -> false
+                                                                | ModelRule (impl, _) ->  k = impl.ToString() && match gameState with Active foundRule _  -> EvalM impl = EvalR gameState foundRule  | _ -> false
+                                                                | UnitRule(impl, _) ->  k = impl.ToString() && match gameState with Active foundRule _    -> EvalU impl = EvalR gameState foundRule  | _ -> false
+                                                                | Sequence(impl::_) -> k = impl.ToString() && match gameState with Active foundRule _     -> Eval  ruleApplication = EvalR gameState foundRule  | _ -> false
                                                                 | Sequence([]) -> false
                                                                 ))
     and contains (gameState:GameState) logic rule = 
@@ -134,15 +194,8 @@ module RulesImpl =
                         |> Map.pick (fun _ r -> match gameState with 
                                                     | Active r (Function(ModelRule(ModelPosition(pos),_))) -> Some pos
                                                     | _ -> None)
-
-
-                    (ModelList(m.Id),(ModelPosition(pos |> newPosition ),m.Id)
-                    |> ModelRule
-                    |> Function)
-                    |> AddOrReplace 
-                    |> GameStateRule
-                    |> Function
-                    |> Rule.afterRunRemove GameStateList) u
+                    (ModelList(m.Id),(ModelPosition(pos |> newPosition ),m.Id) |> ModelRule |> Function)
+                    |> AddOrReplace |> GameStateRule |> Function|> Rule.afterRunRemove GameStateList) u
             | None -> failwith "Couldn't find unit"
         createMove
 
@@ -388,8 +441,10 @@ module RulesImpl =
         let predicate = optionalAndActiveRules gameState
         let currentPlayer = 
             gameState.Rules 
-            |> Map.pick(fun _ r -> match gameState with | Active r (Function(GameStateRule(PlayerTurn(Top)))) -> Some Player1
-                                                           | _ ->  Some Player2)
+            |> Map.tryPick(fun _ r -> match gameState with | Active r (Function(GameStateRule(PlayerTurn(Top)))) -> Some Player1
+                                                           | _ ->  None)
+            |> Option.either id Player2
+
             
         let rules  = 
             gameState
