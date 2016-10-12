@@ -162,4 +162,5 @@ $RECYCLE.BIN/
 .tools/
 *TestResult.xml
 
-Settings.FSharpLinttools/ 
+Settings.FSharpLint
+tools/ 
