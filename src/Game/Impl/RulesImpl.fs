@@ -440,10 +440,9 @@ module RulesImpl =
     let collect gameState = 
         let predicate = optionalAndActiveRules gameState
         let currentPlayer = 
-            gameState.Rules 
-            |> Map.tryPick(fun _ r -> match gameState with | Active r (Function(GameStateRule(PlayerTurn(Top)))) -> Some Player1
-                                                           | _ ->  None)
-            |> Option.either id Player2
+            let r = PlayerTurn(Top)
+            if gameState.Rules |> Map.tryFind (r.ToString()) |> Option.map (EvalR gameState >> (=) (EvalG r)) |> Option.isSome then Player1
+            else Player2
 
             
         let rules  = 
