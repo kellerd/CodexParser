@@ -27,7 +27,7 @@ module ImplTest =
                                       Description = "Termagant Lurks when outside synapse" }
                   yield Function(ModelRule(Melee(1,DiceRoll 3,hUnitId),id))
                         |> Rule.onlyWhen (isSpecificPhase Assault)
-                        |> Rule.UserActivated
+                        |> Rule.userActivated Player1
                         |> Rule.afterRunDeactivateUntil (Rule(GameStateRule(EndPhase))) (ModelList id) 
                   yield Function(ModelRule(WeaponSkill(CharacteristicValue 3), id))
                   yield Function(ModelRule(BallisticSkill(CharacteristicValue 3), id))
@@ -61,7 +61,7 @@ module ImplTest =
                   yield Function(UnitRule(DeploymentState(Start), tUnitId))
                   yield Function(UnitRule(Deploy, tUnitId))
                          |> Rule.onlyWhen (Rule(GameStateRule(GameRound(Begin))) <&> Rule(UnitRule(DeploymentState(Start), tUnitId))) 
-                         |> Rule.UserActivated
+                         |> Rule.userActivated Player1
                          |> Rule.afterRunDeactivateUntil (Rule(GameStateRule(EndPhase))) (UnitList tUnitId) 
               }
               |> Seq.map makeRule
@@ -112,7 +112,7 @@ module ImplTest =
                   yield Function(UnitRule(DeploymentState(Start), hUnitId))
                   yield Function(UnitRule(Deploy, hUnitId))
                          |> Rule.onlyWhen (Rule(GameStateRule(GameRound(Begin))) <&> Rule(UnitRule(DeploymentState(Start), hUnitId))) 
-                         |> Rule.UserActivated
+                         |> Rule.userActivated Player2
                          |> Rule.afterRunDeactivateUntil (Rule(GameStateRule(EndPhase))) (UnitList hUnitId)
                   yield Description { Name = "Bounding Leap"
                                       Description = "Run(CharacteristicValue 3) extra inches" }

@@ -172,6 +172,14 @@
             | Sequence(ras) -> Sequence(ras @  r2')
 
         let onlyWhen l1 r1 = ActiveWhen(l1,r1)
+        let userActivated player r1  = 
+            let turn =
+                match player with
+                | Player1 -> PlayerTurn(Top)
+                | Player2 -> PlayerTurn(Bottom)
+                |> GameStateRule
+                |> LogicalExpression.Rule
+            onlyWhen turn r1 |> UserActivated
 
         let otherwise r1 r2 = 
             match r1 with 

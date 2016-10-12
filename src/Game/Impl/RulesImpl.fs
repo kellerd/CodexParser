@@ -420,10 +420,7 @@ module RulesImpl =
         
         let units = 
             gs.Players
-            |> List.filter (fun p -> p.Player = player)
-            |> List.map (fun p -> p.Units) 
-            |> List.exactlyOne
-            |> Map.toList
+            |> List.collect (fun p -> p.Units |> Map.toList) 
 
         let unitRules = 
             units 
