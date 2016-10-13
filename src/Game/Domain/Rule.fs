@@ -85,7 +85,8 @@
     and LogicalExpression =
         | Logical of LogicalExpression * LogicalOperator * LogicalExpression
         | Not of LogicalExpression
-        | Rule of RuleApplication
+        | Matches of RuleApplication
+        | Exists of RuleApplication
     and RuleApplication = 
         | UnitRule of UnitRuleImpl * UnitGuid
         | ModelRule of ModelRuleImpl * ModelGuid
@@ -178,7 +179,7 @@
                 | Player1 -> PlayerTurn(Top)
                 | Player2 -> PlayerTurn(Bottom)
                 |> GameStateRule
-                |> LogicalExpression.Rule
+                |> LogicalExpression.Matches
             onlyWhen turn r1 |> UserActivated
 
         let otherwise r1 r2 = 
@@ -235,11 +236,11 @@
         let badRolls sides (DiceRoll lessThan) =
             Seq.initInfinite ((+) 1) 
             |> Seq.takeWhile (fun i -> i < lessThan && i <= sides) 
-            |> Seq.map (DiceRoll >> DiceRolled >> GameStateRule >> Rule)
+            |> Seq.map (DiceRoll >> DiceRolled >> GameStateRule >> Matches)
             |> Seq.reduce (<|>)
         let goodRolls sides (DiceRoll equalOrGreaterThan) =
             Seq.initInfinite ((+) equalOrGreaterThan) 
             |> Seq.takeWhile (fun i -> i <= sides) 
-            |> Seq.map (DiceRoll >> DiceRolled >> GameStateRule >> Rule)
+            |> Seq.map (DiceRoll >> DiceRolled >> GameStateRule >> Matches)
             |> Seq.reduce (<|>)
         

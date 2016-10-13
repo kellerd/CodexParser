@@ -10,13 +10,13 @@ module ImplTest =
 
 
     let isSpecificPhase phase = 
-        Rule(GameStateRule(GameRound(One(phase)))) <|>
-            Rule(GameStateRule(GameRound(Two(phase)))) <|>
-            Rule(GameStateRule(GameRound(Three(phase)))) <|>
-            Rule(GameStateRule(GameRound(Four(phase)))) <|>
-            Rule(GameStateRule(GameRound(Five(phase)))) <|>
-            Rule(GameStateRule(GameRound(Six(phase)))) <|>
-            Rule(GameStateRule(GameRound(Seven(phase))))   
+        Matches(GameStateRule(GameRound(One(phase)))) <|>
+            Matches(GameStateRule(GameRound(Two(phase)))) <|>
+            Matches(GameStateRule(GameRound(Three(phase)))) <|>
+            Matches(GameStateRule(GameRound(Four(phase)))) <|>
+            Matches(GameStateRule(GameRound(Five(phase)))) <|>
+            Matches(GameStateRule(GameRound(Six(phase)))) <|>
+            Matches(GameStateRule(GameRound(Seven(phase))))   
     let Termagant id = 
         { Name = "Termagant"
           Id = id
@@ -28,7 +28,7 @@ module ImplTest =
                   yield Function(ModelRule(Melee(1,DiceRoll 3,hUnitId),id))
                         |> Rule.onlyWhen (isSpecificPhase Assault)
                         |> Rule.userActivated Player1
-                        |> Rule.afterRunDeactivateUntil (Rule(GameStateRule(EndPhase))) (ModelList id) 
+                        |> Rule.afterRunDeactivateUntil (Matches(GameStateRule(EndPhase))) (ModelList id) 
                   yield Function(ModelRule(WeaponSkill(CharacteristicValue 3), id))
                   yield Function(ModelRule(BallisticSkill(CharacteristicValue 3), id))
                   yield Function(ModelRule(Strength(CharacteristicValue 3), id))
@@ -60,9 +60,9 @@ module ImplTest =
 //                        |> Rule.afterRunDeactivateUntil (Rule(GameStateRule(EndPhase)))
                   yield Function(UnitRule(DeploymentState(Start), tUnitId))
                   yield Function(UnitRule(Deploy, tUnitId))
-                         |> Rule.onlyWhen (Rule(GameStateRule(GameRound(Begin))) <&> Rule(UnitRule(DeploymentState(Start), tUnitId))) 
+                         |> Rule.onlyWhen (Matches(GameStateRule(GameRound(Begin))) <&> Matches(UnitRule(DeploymentState(Start), tUnitId))) 
                          |> Rule.userActivated Player1
-                         |> Rule.afterRunDeactivateUntil (Rule(GameStateRule(EndPhase))) (UnitList tUnitId) 
+                         |> Rule.afterRunDeactivateUntil (Matches(GameStateRule(EndPhase))) (UnitList tUnitId) 
               }
               |> Seq.map makeRule
               |> Map.ofSeq }
@@ -111,9 +111,9 @@ module ImplTest =
                 //         |> Rule.afterRunDeactivateUntil (Rule(GameStateRule(EndPhase)))
                   yield Function(UnitRule(DeploymentState(Start), hUnitId))
                   yield Function(UnitRule(Deploy, hUnitId))
-                         |> Rule.onlyWhen (Rule(GameStateRule(GameRound(Begin))) <&> Rule(UnitRule(DeploymentState(Start), hUnitId))) 
+                         |> Rule.onlyWhen (Matches(GameStateRule(GameRound(Begin))) <&> Matches(UnitRule(DeploymentState(Start), hUnitId))) 
                          |> Rule.userActivated Player2
-                         |> Rule.afterRunDeactivateUntil (Rule(GameStateRule(EndPhase))) (UnitList hUnitId)
+                         |> Rule.afterRunDeactivateUntil (Matches(GameStateRule(EndPhase))) (UnitList hUnitId)
                   yield Description { Name = "Bounding Leap"
                                       Description = "Run(CharacteristicValue 3) extra inches" }
               }
@@ -140,7 +140,7 @@ module ImplTest =
                   yield Function(GameStateRule(EndPhase)) |> Rule.UserActivated
                   yield Function(GameStateRule(PlayerTurn(Top))) 
                   yield Function(GameStateRule(GameRound(Begin)))
-                  yield Function(GameStateRule(CollectUserActivated))
+                  yield Function(GameStateRule(CollectUserActivated)) |> Rule.onlyWhen(Not(Exists(GameStateRule(Activate(Function(GameStateRule(Noop)))))))
                   yield Function(GameStateRule(Board({ Width = 6<ft>; Height = 4<ft> })))
               }
               |> Seq.map makeRule

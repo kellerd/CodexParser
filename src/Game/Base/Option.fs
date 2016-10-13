@@ -6,3 +6,4 @@ module Option =
     let either f x = function
         | None -> x
         | Some v -> f v
+    let negate newValue = either (fun _ -> None) newValue

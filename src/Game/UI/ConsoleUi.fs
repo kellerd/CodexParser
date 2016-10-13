@@ -89,8 +89,7 @@ module ConsoleWarhammer =
             printfn "Out of %d, %A Ranks: " len (List.item i woundProfiles) 
             System.Console.ReadLine() |> System.Int32.Parse
     let display gameState = 
-        let rules = availableRules (fun (_,r) -> Some r) Player1 gameState @
-                    availableRules (fun (_,r) -> Some r) Player1 gameState
+        let rules = availableRules (fun (_,r) -> Some r) gameState
                     |> List.distinct
         let models = 
             gameState.Players 
@@ -101,45 +100,33 @@ module ConsoleWarhammer =
                                                     u.UnitModels 
                                                     |> Map.toList 
                                                     |> List.choose (fun (_,m) -> Option.map(fun pos -> { Model = m; Player = p.Player}, pos) (position m))))
-        
-        let board' = board gameState 
-        {   Models = models; Rules = rules; Dimensions = board' }
-    let displayRules gs = 
-        // gs.Players |> List.iter (fun p -> p.Units |> Map.map (fun _ u -> u.Rules) |> Map.iter (fun _ -> printfn "%A"))
-        // gs.Board.Models |> Map.map(fun _ m ->  m.Model.Rules) |> Map.iter (fun _ -> printfn "%A")
-        // gs.Rules |> printfn "%A"
-        ()
-    let displayBoard gameState = 
-        
+        {   Models = models; Rules = rules; Dimensions = board gameState  }
+    let displayRules (display:Display) = 
+        display.Rules |> List.iter (sprintf "%A" >> (fun (s:string) -> s.Replace("\r","").Replace("\n","")) >> printfn "%s")
+    let displayBoard display = 
         let toCharacterWidth x =  x / 6<px/WidthChars>
         let toCharacterHeight x =  x / 12<px/HeightChars>
-        
-        let playerToStr  = function
-            | Player1 -> "1"
-            | Player2 -> "2"
-        let boardToStr display = 
-            let board' = display.Dimensions
-            let maxHeight = ftToPx board'.Height |> toCharacterHeight
-            let maxWidth = ftToPx  board'.Width |> toCharacterWidth
-            let inline initCollection s =
-                let coll = new ^t()
-                Seq.iter (fun (k,v) -> (^t : (member Add : 'a * 'b -> unit) coll, k, v)) s
-                coll
+        let playerToStr  = function | Player1 -> "1" | Player2 -> "2"
+        let board' = display.Dimensions
+        let maxHeight = ftToPx board'.Height |> toCharacterHeight
+        let maxWidth = ftToPx  board'.Width |> toCharacterWidth
+        let inline initCollection s =
+            let coll = new ^t()
+            Seq.iter (fun (k,v) -> (^t : (member Add : 'a * 'b -> unit) coll, k, v)) s
+            coll
 
-            let boardDisplay:System.Collections.Generic.Dictionary<int<WidthChars>*int<HeightChars>,string> = 
-                initCollection (seq { for x in 0 .. (int maxWidth) do
-                                        for y in 0 .. (int maxHeight) do
-                                            yield ((x * 1<WidthChars>,y*1<HeightChars>),"█") } )
+        let boardDisplay:System.Collections.Generic.Dictionary<int<WidthChars>*int<HeightChars>,string> = 
+            initCollection (seq { for x in 0 .. (int maxWidth) do
+                                    for y in 0 .. (int maxHeight) do
+                                        yield ((x * 1<WidthChars>,y*1<HeightChars>),"█") } )
                 
             
-            display.Models |> List.iter (fun ({Model=m; Player=p},{X = x; Y = y}) ->  boardDisplay.Item((x |> toCharacterWidth,y |> toCharacterHeight )) <- (playerToStr p))
-            seq { for y in 0 .. (int maxHeight) do
-                    yield seq { for x in 0 .. (int maxWidth) do
-                                    yield  boardDisplay.Item((x * 1<WidthChars>,y*1<HeightChars>))}}
-            |> (Seq.map (Seq.reduce (+)))
-            
-        
-        boardToStr (display gameState) |> Seq.iter (printfn "%s")    // add some space
+        display.Models |> List.iter (fun ({Model=m; Player=p},{X = x; Y = y}) ->  boardDisplay.Item((x |> toCharacterWidth,y |> toCharacterHeight )) <- (playerToStr p))
+        [for y in 0 .. (int maxHeight) do
+                yield [for x in 0 .. (int maxWidth) do
+                                yield  boardDisplay.Item((x * 1<WidthChars>,y*1<HeightChars>))]]
+        |> Seq.map (Seq.reduce (+))
+        |> Seq.iter (printfn "%s")    // add some space
     let processRuleIndex inputStr availableMoves processInputAgain = 
         match Int32.TryParse inputStr with
         // TryParse will output a tuple (parsed?,int)
@@ -203,34 +190,39 @@ module ConsoleWarhammer =
         | ContinuePlay moveResult -> 
             // handle each case of the result
             match moveResult with
-            | GameTied display -> 
+            | GameTied gameState -> 
                 printfn "GAME OVER - Tie"       
                 printfn ""     
+                let display = display gameState
                 display |> displayBoard
                 display |> displayRules        
                 let nextUserAction = askToPlayAgain api 
                 gameLoop api nextUserAction
-            | GameWon (display,player) -> 
+            | GameWon (gameState,player) -> 
                 printfn "GAME WON by %A" player    
                 printfn ""             
+                let display = display gameState
                 display |> displayBoard
                 display |> displayRules
                 let nextUserAction = askToPlayAgain api 
                 gameLoop api nextUserAction
-            | Player1ToMove (display,Ask asker) -> 
+            | Player1ToMove (gameState,Ask asker) -> 
+                let display = display gameState
                 display |> displayBoard
                 display |> displayRules
                 printfn "Player 1 to choose:" 
                 let newResult = asker |> print |> tell |> ContinuePlay
                 gameLoop api newResult 
-            | Player2ToMove (display,Ask asker) ->
+            | Player2ToMove (gameState,Ask asker) ->
+                let display = display gameState
                 display |> displayBoard
                 display |> displayRules
                 printfn "Player 2 to choose:" 
                 let newResult = asker |> print |> tell |> ContinuePlay
                 gameLoop api newResult
-            | Player1ToMove(display, Next moveCapability) 
-            | Player2ToMove(display, Next moveCapability) -> 
+            | Player1ToMove(gameState, Next moveCapability) 
+            | Player2ToMove(gameState, Next moveCapability) -> 
+                let display = display gameState
                 display |> displayBoard
                 display |> displayRules
                 moveCapability() |> ContinuePlay |> gameLoop api  

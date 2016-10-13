@@ -18,8 +18,7 @@ module GameLoop =
     
     let doNextTick gameState playerMove player = 
         let predicate = activeRulesButNotOptional gameState
-        let activeRules = 
-            availableRules predicate player gameState 
+        let activeRules = availableRules predicate gameState 
         let moveCap() = playerMove player activeRules gameState
         moveCap |> Next |> gameResultFor player gameState 
 
@@ -32,17 +31,17 @@ module GameLoop =
     let private (|EndGame|_|) = function 
         | GameStateResult gameState -> 
             match gameState with
-            | Active (ActiveWhen(Rule(GameStateRule(Domain.EndGame)), Function(GameStateRule(Noop)))) _ -> Some gameState
+            | Active (ActiveWhen(Matches(GameStateRule(Domain.EndGame)), Function(GameStateRule(Noop)))) _ -> Some gameState
             | _ -> None 
         | _ -> None   
          
     let rec moveNextPlayer player gameState evalResult  = 
         let newPlayer = 
             match (gameState, evalResult) with
-                | Active (ActiveWhen(Rule(GameStateRule(Domain.PlayerTurn(Top))), Function(GameStateRule(Noop)))) _,
-                  GameStateResult (Active (ActiveWhen(Rule(GameStateRule(Domain.PlayerTurn(Bottom))), Function(GameStateRule(Noop)))) _) 
-                | Active (ActiveWhen(Rule(GameStateRule(Domain.PlayerTurn(Bottom))), Function(GameStateRule(Noop)))) _, 
-                  GameStateResult (Active (ActiveWhen(Rule(GameStateRule(Domain.PlayerTurn(Top))), Function(GameStateRule(Noop)))) _) -> other player
+                | Active (ActiveWhen(Matches(GameStateRule(Domain.PlayerTurn(Top))), Function(GameStateRule(Noop)))) _,
+                  GameStateResult (Active (ActiveWhen(Matches(GameStateRule(Domain.PlayerTurn(Bottom))), Function(GameStateRule(Noop)))) _) 
+                | Active (ActiveWhen(Matches(GameStateRule(Domain.PlayerTurn(Bottom))), Function(GameStateRule(Noop)))) _, 
+                  GameStateResult (Active (ActiveWhen(Matches(GameStateRule(Domain.PlayerTurn(Top))), Function(GameStateRule(Noop)))) _) -> other player
                 | _ -> player
         
         match evalResult with
@@ -57,7 +56,7 @@ module GameLoop =
         let evalResult = 
             match rules with
             | [] -> GameStateResult gameState
-            | rules -> eval rules gameState 
+            | rules -> runRules rules gameState 
         moveNextPlayer player gameState evalResult 
 
     let newGame  () = 

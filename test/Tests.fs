@@ -22,15 +22,15 @@ type ``Given a Example state with Single Rules`` () =
    let uId = UnitGuid "A4F2493F-08BA-44EA-B813-0F3E5E53110B"    
    let ruleToAddUnit =     
       Function(UnitRule(Move 3.<inch>, uId))
-                         |> Rule.onlyWhen (Rule(GameStateRule(GameRound(One(Movement)))) <|>
-                                             Rule(GameStateRule(GameRound(Two(Movement)))) <|>
-                                             Rule(GameStateRule(GameRound(Three(Movement)))) <|>
-                                             Rule(GameStateRule(GameRound(Four(Movement)))) <|>
-                                             Rule(GameStateRule(GameRound(Five(Movement)))) <|>
-                                             Rule(GameStateRule(GameRound(Six(Movement)))) <|>
-                                             Rule(GameStateRule(GameRound(Seven(Movement)))))
+                         |> Rule.onlyWhen (Matches(GameStateRule(GameRound(One(Movement)))) <|>
+                                             Matches(GameStateRule(GameRound(Two(Movement)))) <|>
+                                             Matches(GameStateRule(GameRound(Three(Movement)))) <|>
+                                             Matches(GameStateRule(GameRound(Four(Movement)))) <|>
+                                             Matches(GameStateRule(GameRound(Five(Movement)))) <|>
+                                             Matches(GameStateRule(GameRound(Six(Movement)))) <|>
+                                             Matches(GameStateRule(GameRound(Seven(Movement)))))
                          |> Rule.UserActivated
-                         |> Rule.afterRunDeactivateUntil (Rule(GameStateRule(EndPhase))) (UnitList uId)
+                         |> Rule.afterRunDeactivateUntil (Matches(GameStateRule(EndPhase))) (UnitList uId)
 
    
    let ruleToModifyUnit = Function(UnitRule(DeploymentState(OngoingReserves),uId))  
@@ -85,7 +85,7 @@ type ``Given a Example state with Single Rules`` () =
 
    [<Test>] member test.
     ``Capabilities should not be empty`` ()=
-           availableRules (activeRules gameState) Player1 gameState |> should not' (be Empty)
+           availableRules (activeRules gameState) gameState |> should not' (be Empty)
    
    [<Test>] member test.
     ``Adding a new rule, adds a new rule`` () =

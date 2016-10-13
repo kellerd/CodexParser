@@ -16,7 +16,12 @@ module GameState =
                                                      |> Option.bind (fun _ -> Some p))
     let tryFindModel gameState mId  =
         gameState.Players |> List.choose(fun p -> p.Units |> Map.tryPick (fun _ u  -> u.UnitModels |> Map.tryFind mId)) |> List.tryHead
-
+    let rec tryFindRuleList gameState = function 
+        | GameStateRule _ ->  Some gameState.Rules
+        | ModelRule (_, mId) ->  tryFindModel gameState mId |> Option.map (fun m -> m.Rules)
+        | UnitRule(_, uId) -> tryFindUnit gameState uId |>  Option.map (fun u -> u.Rules)
+        | Sequence(impl::_) -> tryFindRuleList gameState impl
+        | Sequence([]) -> None
     let rec removeFirst pred lst = 
         match lst with
         | h :: t when pred h -> t

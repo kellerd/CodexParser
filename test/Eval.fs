@@ -30,49 +30,49 @@ type ``Given a certain state eval should work``() =
         | _ -> failwith "Not possible"
     [<Test>]
     member test.``Add rule should put it in gameState``() = 
-        eval [ Function(GameStateRule(AddOrReplace(GameStateList, Function(GameStateRule(Noop))))) ] initial
+        runRules [ Function(GameStateRule(AddOrReplace(GameStateList, Function(GameStateRule(Noop))))) ] initial
         |> rulesShouldEqual [ Function(GameStateRule(Noop)) ]
     
     [<Test>]
     member test.``Add/Replace with existing should replace rule in gameState``() = 
         { initial with Rules = make [Function(GameStateRule(GameRound(Round.Begin)))] }
-        |> eval [ Function(GameStateRule(AddOrReplace(GameStateList, Function(GameStateRule(GameRound(Round.End)))))) ] 
+        |> runRules [ Function(GameStateRule(AddOrReplace(GameStateList, Function(GameStateRule(GameRound(Round.End)))))) ] 
         |> rulesShouldEqual [ Function(GameStateRule(GameRound(Round.End))) ]
     
     [<Test>]
     member test.``Replace rule should not add it in gameState``() = 
-        eval [ Function(GameStateRule(Overwrite(GameStateList, Function(GameStateRule(Noop))))) ] initial
+        runRules [ Function(GameStateRule(Overwrite(GameStateList, Function(GameStateRule(Noop))))) ] initial
         |> rulesShouldNotContain [ Function(GameStateRule(Noop)) ]
 
     [<Test>]
     member test.``Replace rule should replace existing in gameState``() = 
         { initial with Rules = make [Function(GameStateRule(GameRound(Round.Begin)))] }
-        |> eval [ Function(GameStateRule(Overwrite(GameStateList, Function(GameStateRule(GameRound(Round.End)))))) ] 
+        |> runRules [ Function(GameStateRule(Overwrite(GameStateList, Function(GameStateRule(GameRound(Round.End)))))) ] 
         |> rulesShouldEqual [ Overwritten(Function(GameStateRule(GameRound(Round.End))),Function(GameStateRule(GameRound(Round.Begin)))) ]
 
     [<Test>]
     member test.``Remove rule should make it disapear in gameState``() = 
         { initial with Rules = make [Function(GameStateRule(GameRound(Round.Begin)))] }
-        |> eval [ Function(GameStateRule(Remove(GameStateList, Function(GameStateRule(GameRound(Round.End)))))) ] 
+        |> runRules [ Function(GameStateRule(Remove(GameStateList, Function(GameStateRule(GameRound(Round.End)))))) ] 
         |> rulesShouldEqual [ ]
 
     [<Test>]
     member test.``Remove rule shouldn't care about  make it disapear in gameState``() = 
         { initial with Rules = make [Function(GameStateRule(GameRound(Round.Begin)))] }
-        |> eval [ Function(GameStateRule(Remove(GameStateList, Function(GameStateRule(GameRound(Round.End)))))) ] 
+        |> runRules [ Function(GameStateRule(Remove(GameStateList, Function(GameStateRule(GameRound(Round.End)))))) ] 
         |> rulesShouldEqual [ ]
 
     [<Test>]
     member test.``Remove should be based on the rule name, not the content``() = 
         { initial with Rules = make [Function(GameStateRule(GameRound(Round.End)))] }
-        |> eval [ Function(GameStateRule(Remove(GameStateList, Function(GameStateRule(GameRound(Round.Begin)))))) ] 
+        |> runRules [ Function(GameStateRule(Remove(GameStateList, Function(GameStateRule(GameRound(Round.Begin)))))) ] 
         |> rulesShouldNotContain [ Function(GameStateRule(GameRound(Round.End))); Function(GameStateRule(GameRound(Round.Begin))) ]
 
     [<Test>]
     member test.``Activate should run the rule and return to normal`` () =
         let r = UserActivated(Function(GameStateRule(AddOrReplace(GameStateList, Function(GameStateRule(GameRound(Round.End))))))) 
         { initial with Rules = make [r] }
-        |> eval [Function(GameStateRule(Activate(r)))]
+        |> runRules [Function(GameStateRule(Activate(r)))]
         |> rulesShouldEqual [r;Function(GameStateRule(GameRound(Round.End)))]
     
     [<Test>]
@@ -80,7 +80,7 @@ type ``Given a certain state eval should work``() =
         let r1 = Function(GameStateRule(GameRound(Round.End)))
         let r2 = Function(GameStateRule(GameRound(Round.Begin)))
         {initial with Rules = make [Overwritten(r2,r1)]}
-        |> eval [Function(GameStateRule(Revert(GameStateList, r2)))]
+        |> runRules [Function(GameStateRule(Revert(GameStateList, r2)))]
         |> rulesShouldEqual[r1]
 
     [<Test>]
@@ -88,5 +88,5 @@ type ``Given a certain state eval should work``() =
         let r1 = Function(GameStateRule(GameRound(Round.End)))
         let r2 = Function(GameStateRule(GameRound(Round.Begin)))
         {initial with Rules = make []}
-        |> eval [Function(GameStateRule(Revert(GameStateList, r2)))]
+        |> runRules [Function(GameStateRule(Revert(GameStateList, r2)))]
         |> rulesShouldEqual [ ]
