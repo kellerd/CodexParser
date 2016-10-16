@@ -140,7 +140,17 @@ module ImplTest =
                   yield Function(GameStateRule(EndPhase)) |> Rule.UserActivated
                   yield Function(GameStateRule(PlayerTurn(Top))) 
                   yield Function(GameStateRule(GameRound(Begin)))
-                  yield Function(GameStateRule(CollectUserActivated)) |> Rule.onlyWhen(Not(Exists(GameStateRule(Activate(Function(GameStateRule(Noop)))))))
+                  yield Function(GameStateRule(CollectUserActivated)) 
+                        |> Rule.onlyWhen(Not(Exists(GameStateRule(Activate(Function(GameStateRule(Noop))))) <|> 
+                                                Exists(GameStateRule(DeactivateUntil (Exists(GameStateRule(Noop)),GameStateList,Function(GameStateRule(Noop)))))  <|>
+                                                Exists(GameStateRule(Revert (GameStateList,Function(GameStateRule(Noop)))))  <|>
+                                                Exists(GameStateRule(Remove (GameStateList,Function(GameStateRule(Noop)))))  <|>
+                                                Exists(GameStateRule(AddOrReplace (GameStateList,Function(GameStateRule(Noop)))))  <|>
+                                                Exists(GameStateRule(Overwrite (GameStateList,Function(GameStateRule(Noop)))))  <|>
+                                                Exists(GameStateRule(Repeat (0,"",Function(GameStateRule(Noop))))) ))
+
+
+                                                    
                   yield Function(GameStateRule(Board({ Width = 6<ft>; Height = 4<ft> })))
               }
               |> Seq.map makeRule
