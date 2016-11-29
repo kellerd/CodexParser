@@ -73,6 +73,8 @@ module RulesImpl =
         | Overwrite _ -> TUnit
         | Repeat _ -> TUnit
         | CollectUserActivated -> TUnit
+        | Applications(map) -> TApplicationMap(map)
+        | Supply (_,trule) -> trule
     and evalU  = function 
         | Move (inches)-> TMeasurement (inches)
         | DeploymentState (deploymentType)-> TDeploymentState (deploymentType)
@@ -149,6 +151,17 @@ module RulesImpl =
         | Sequence([]) -> None
         | Sequence((MR r)::_) -> Some r
         | Sequence(_::tail) -> List.tryPick (function MR r -> Some r | _ -> None) tail
+
+    let (|Apply|_|) gameState f (x:Apply<'a>) = //gs x : Option<('a,GameState)> = 
+        match x with 
+        | Applied _ -> None
+        | NotApplied ->
+            gameState.Rules.TryFind(GameRuleImpl.Applications(Map.empty<string,Rule>).ToString())
+            |> Option.bind (evalR gameState >> function 
+                | TApplicationMap(map) -> 
+                    let value = map |> Map.tryFind (typeof<'a>.Name)  |> Option.map (evalR gameState) |> Option.bind (f) |> Option.map (fun v -> v,map)
+                    value 
+                | _ -> None)
 
     let deploy uId gameState  = 
         let foundUnit = tryFindUnit gameState uId
@@ -281,9 +294,9 @@ module RulesImpl =
     let toWound m u gameState = woundTable (modelStrength m gameState) (avgToughness u gameState)
 
     //let assault = .... //May have to change this to adding a Targetted rule to target, which adds a Melee to model 
-    let melee attacks toHit target mId gameState = 
-        let newRule = Function(ModelRule(MeleeHit(1,target),mId))
-        newRule::multipleFromDiceRoll newRule (fun _ -> toHit) attacks gameState
+    let melee attacks roll target mId gameState = 
+//        let newRule = Function(ModelRule(MeleeHit(1,target),mId))
+//        newRule::multipleFromDiceRoll newRule (fun _ -> toHit) attacks gameState
 
     let meleeHits hits uId mId gameState =
         let foundModel = tryFindModel gameState mId
@@ -495,10 +508,13 @@ module RulesImpl =
             | GameRound(_)
             | PlayerTurn(_)
             | Board(_) 
+            | Applications(_)
+            | Supply(_)
             | Noop            -> gameState |> GameStateResult
         and runModelImpl mId gameState = function
             | SetCharacteristic(newRule) -> tryReplaceRuleOnModel Rule.overriteOrNone newRule mId gameState  |> GameStateResult
-            | Melee(attacks,toHit,target) -> melee attacks toHit target mId gameState |> List.fold runRule (GameStateResult gameState) 
+//            | Melee(attacks,(Apply (gameState,(function | TDiceRoll d -> Some d | _ -> None),toHit)),target) -> melee attacks toHit target mId gameState |> List.fold runRule (GameStateResult gameState) 
+            | Melee(attacks,Applied d,Applied target) -> melee attacks d target mId gameState |> List.fold runRule (GameStateResult gameState) 
             | MeleeHit(hits,uId) -> meleeHits hits uId mId gameState  |> List.fold runRule (GameStateResult gameState) 
             | Unsaved(profile) -> unsavedWound profile mId gameState |> List.fold runRule (GameStateResult gameState) 
             | RemoveOnZeroCharacteristic -> removeIfZeroCharacteristic mId gameState |> GameStateResult

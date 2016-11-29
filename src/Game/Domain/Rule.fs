@@ -1,9 +1,12 @@
 ﻿namespace Domain
     open WarhammerDomain
     
+    type Apply<'a> =
+        | NotApplied  
+        | Applied of 'a
     type Base =
-     | BaseDiameter of int<mm>
-     | ModelDimentions of Dimentions<mm>
+        | BaseDiameter of int<mm>
+        | ModelDimentions of Dimentions<mm>
     type Phase = Begin | Movement | Psychic | Shooting | Assault | End
     type Round = 
         | Begin
@@ -47,7 +50,7 @@
         | Unsaved of WeaponProfile
         | RemoveOnZeroCharacteristic 
         | ArmourPenetration of ArmourPen
-        | Melee of int * DiceRoll * UnitGuid
+        | Melee of int * DiceRoll Apply * UnitGuid Apply
         | MeleeHit of int * UnitGuid
         override this.ToString() = toString this
         static member FromString s = fromString<ModelRuleImpl> s
@@ -55,9 +58,9 @@
         | Move of float<inch>
         | DeploymentState of DeploymentType
         | Deploy
-        | WoundPool of  list<int * WeaponProfile> * ModelGuid
-        | SortedWoundPool of  list<int * WeaponProfile> * ModelGuid
-        | Save of WeaponProfile * ModelGuid
+        | WoundPool of  list<int * WeaponProfile> *  ModelGuid
+        | SortedWoundPool of  list<int * WeaponProfile> * DiceRoll Apply * ModelGuid
+        | Save of WeaponProfile * DiceRoll Apply * ModelGuid
         override  this.ToString() = toString this
         static member FromString s = fromString<UnitRuleImpl> s
     and GameRuleImpl = 
@@ -79,7 +82,9 @@
         | AddOrReplace of RuleListId * Rule
         | Overwrite of RuleListId * Rule
         | Repeat of int * string * Rule
-        | CollectUserActivated //of Value<Player>
+        | CollectUserActivated 
+        | Applications of Map<string,Rule>
+        | Supply of string * TRule
         override this.ToString() = toString this
         static member FromString s = fromString<GameRuleImpl> s
     and LogicalExpression =
@@ -101,10 +106,9 @@
         | Nested of Rule * Rule list
     and WeaponProfile = RuleApplication list
 
-    type TRule = 
+    and TRule = 
         | TCharacteristicValue of CharacteristicValue
         | TPosition      of Position<px>
-        | TRule of Rule
         | TWeaponProfile of WeaponProfile
         | TUnit 
         | TArmourPen of ArmourPen
@@ -121,7 +125,10 @@
         | TPlayerTurn of PlayerTurn
         | TRound of Round
         | TList of TRule list
-   
+        | TRule of Rule
+        | TApplicationMap of  Map<string,Rule>
+
+    
     [<CompilationRepresentation (CompilationRepresentationFlags.ModuleSuffix)>]
     [<AutoOpen>]
     module Rule =
@@ -243,4 +250,3 @@
             |> Seq.takeWhile (fun i -> i <= sides) 
             |> Seq.map (DiceRoll >> DiceRolled >> GameStateRule >> Matches)
             |> Seq.reduce (<|>)
-        
