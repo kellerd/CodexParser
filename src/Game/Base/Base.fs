@@ -59,6 +59,7 @@ module WarhammerDomain =
     type UnitGuid = Guid
 
     type LogicalOperator = And | Or
+    type PrimaryOperator = Eq | Ne | Gt | Lt
     let roundToPixels x = inch.ToPixels characterResolution x / 1.<px> |> fRoundToInt |> (*) 1<px>
     let pixelsInCircle (diameter:float<inch>) position =  
         let radius' = roundToPixels (diameter / 2.) |> max 1<px>

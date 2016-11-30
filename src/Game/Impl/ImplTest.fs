@@ -25,7 +25,7 @@ module ImplTest =
               seq { 
                   yield Description { Name = "Lurker"
                                       Description = "Termagant Lurks when outside synapse" }
-                  yield Function(ModelRule(Melee(1,DiceRoll 3,hUnitId),id))
+                  yield Function(ModelRule(Melee(1,Applied hUnitId),id))
                         |> Rule.onlyWhen (isSpecificPhase Assault)
                         |> Rule.userActivated Player1
                         |> Rule.afterRunDeactivateUntil (Matches(GameStateRule(EndPhase))) (ModelList id) 

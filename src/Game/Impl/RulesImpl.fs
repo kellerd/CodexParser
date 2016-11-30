@@ -29,9 +29,11 @@ module RulesImpl =
                 (r,(newRules |> List.map fst))|> Nested |> Some
             else
                 None
+    
+
     let rec (|Active|_|) r gameState = 
         match r with 
-        | ActiveWhen(logic, innerRule) -> contains gameState logic innerRule |> Option.bind (fun _ -> match gameState with Active innerRule _ -> Some r | _ -> None)
+        | ActiveWhen(logic, innerRule) -> compareLogic gameState logic innerRule |> Option.bind (fun _ -> match gameState with Active innerRule _ -> Some r | _ -> None)
         | UserActivated (userActivated) ->  match gameState with Active userActivated _ -> Some r | _ -> None
         | Function _ -> Some r
         | Description _ -> Some r
@@ -41,6 +43,14 @@ module RulesImpl =
             match matchFst with 
             | Some _ -> matchFst
             | None -> List.tryPick(fun r -> match gameState with Active r _ -> Some r | _ -> None) rules
+    and (|Apply|_|) gameState (x:Apply<'a>) =  
+        match x with 
+        | Applied _ -> None
+        | NotApplied ->
+            gameState.Rules.TryFind(GameRuleImpl.Applications(Map.empty<string,Rule>).ToString())
+            |> Option.bind (evalR gameState >> function 
+                | TApplicationMap(map) -> map |> Map.tryFind (typeof<'a>.Name)  |> Option.map (evalR gameState)
+                | _ -> None)
     and eval = function 
         | GameStateRule impl ->  evalG impl 
         | ModelRule (impl, _) -> evalM impl 
@@ -49,7 +59,7 @@ module RulesImpl =
     and evalR gameState = function
         | Function (app) -> eval app
         | UserActivated _ -> TUnit
-        | ActiveWhen (logic,innerRule) -> contains gameState logic innerRule |> Option.map (evalR gameState) |> defaultArg <| TUnit
+        | ActiveWhen (logic,innerRule) -> compareLogic gameState logic innerRule |> Option.map (evalR gameState) |> defaultArg <| TUnit
         | Description _ -> TUnit
         | Overwritten (r1,_) -> evalR gameState r1
         | Nested (head,tail) -> List.map (evalR gameState) (head::tail) |> TList
@@ -58,10 +68,8 @@ module RulesImpl =
         | EndPhase   -> TUnit
         | EndTurn    -> TUnit
         | EndGame    -> TUnit
-        | RollDice   -> TUnit
         | Board (boardDimensions)-> TBoardDimensions (boardDimensions)
-        | SupplySortedWeaponProfiles (weaponProfiles)-> TSupplySortedWeaponProfiles (weaponProfiles)
-        | SortedWeaponProfiles (weaponProfiles)-> TSortedWeaponProfiles (weaponProfiles)
+        | SortedWeaponProfiles (weaponProfiles)-> TUnit
         | DiceRolled (diceRoll)-> TDiceRoll (diceRoll)
         | PlayerTurn (playerTurn)-> TPlayerTurn (playerTurn)
         | GameRound (round) -> TRound (round)
@@ -79,9 +87,9 @@ module RulesImpl =
         | Move (inches)-> TMeasurement (inches)
         | DeploymentState (deploymentType)-> TDeploymentState (deploymentType)
         | Deploy -> TUnit
-        | WoundPool ( profiles, mid) -> TWoundPool ( profiles, mid) 
-        | SortedWoundPool( profiles, mid) -> TWoundPool ( profiles, mid) 
-        | Save ( profile, mid) -> TSave ( profile, mid) 
+        | WoundPool ( profiles, mid) -> TList [ (profiles |> List.collect (fun (count,profile) -> [TCount count; TWeaponProfile profile]) |> TList);TSpecialTarget(mid)]
+        | SortedWoundPool( profiles, mid) -> TList [ (profiles |> List.collect (fun (count,profile) -> [TCount count; TWeaponProfile profile]) |> TList);TSpecialTarget(mid)]
+        | Save (profile, mid) -> TList [TWeaponProfile(profile); TSpecialTarget(mid)]
     and evalM = function
         | WeaponSkill     cv 
         | BallisticSkill  cv 
@@ -95,17 +103,15 @@ module RulesImpl =
         | CoverSaves      cv 
         | Saves           cv -> TCharacteristicValue cv
         | ModelPosition   pos -> TPosition pos
-        | SetCharacteristic rule -> TRule rule
+        | SetCharacteristic rule -> TRule(rule)
         | Unsaved weaponProfile -> TWeaponProfile weaponProfile
         | RemoveOnZeroCharacteristic -> TUnit
         | ArmourPenetration armourPen -> TArmourPen armourPen
-        | Melee (i,r,uid) -> TMelee (i,r,uid)
-        | MeleeHit (i,uid) -> TMeleeHit (i,uid)
-        
+        | Melee (i,Applied uid) -> TList [TCharacteristicValue(CharacteristicValue(i));TTarget(uid)]
+        | Melee (i,NotApplied) -> TUnit
+        | MeleeHit (i,uid) -> TList [TCharacteristicValue(CharacteristicValue(i));TTarget(uid)]
     and tryFindInRuleList tryFindKeyPredicate = Option.bind (Map.tryFindKey tryFindKeyPredicate)
-    
-        
-    and contains (gameState:GameState) logic rule = 
+    and compareLogic (gameState:GameState) logic rule = 
         let matches ruleApplication _ foundRule = 
             match ruleApplication with 
             | GameStateRule impl  -> evalG impl = evalR gameState foundRule
@@ -123,14 +129,21 @@ module RulesImpl =
         match logic with 
         | Exists ruleApplication -> tryFindRuleList gameState ruleApplication |> tryFindInRuleList (exists ruleApplication) |> Option.map (fun _ -> rule)
         | Matches ruleApplication -> tryFindRuleList gameState ruleApplication |> tryFindInRuleList (exists ruleApplication &&>> matches ruleApplication) |> Option.map (fun _ -> rule)
-        | Not expr -> contains gameState expr rule |> Option.negate (Some rule)
+        | Not expr -> compareLogic gameState expr rule |> Option.negate (Some rule)
         | Logical (expr,op,expr2) ->  
-            match op, contains gameState expr rule, contains gameState expr2 rule with
+            match op, compareLogic gameState expr rule, compareLogic gameState expr2 rule with
             | And, Some _, Some _ -> Some rule
             | And, _, _ -> None
             | Or, Some _, _ -> Some rule
             | Or, _, Some _ -> Some rule
             | Or, None _, None _ -> None
+        | Literal(Applied x, op, Applied y)
+        | Literal(Apply gameState x, op, Apply gameState y)
+        | Literal(Apply gameState x, op, Applied y)
+        | Literal(Applied x, op,Apply gameState y)  -> if TRule.Compare (x,op,y) then Some rule else None
+        | Literal(NotApplied,_,_)
+        | Literal(_,_,NotApplied) -> None
+
     let optionalAndActiveRules gs (_,r) = 
         match r,gs with 
         | Optional _, Active r ra -> Some ra
@@ -152,16 +165,6 @@ module RulesImpl =
         | Sequence((MR r)::_) -> Some r
         | Sequence(_::tail) -> List.tryPick (function MR r -> Some r | _ -> None) tail
 
-    let (|Apply|_|) gameState f (x:Apply<'a>) = //gs x : Option<('a,GameState)> = 
-        match x with 
-        | Applied _ -> None
-        | NotApplied ->
-            gameState.Rules.TryFind(GameRuleImpl.Applications(Map.empty<string,Rule>).ToString())
-            |> Option.bind (evalR gameState >> function 
-                | TApplicationMap(map) -> 
-                    let value = map |> Map.tryFind (typeof<'a>.Name)  |> Option.map (evalR gameState) |> Option.bind (f) |> Option.map (fun v -> v,map)
-                    value 
-                | _ -> None)
 
     let deploy uId gameState  = 
         let foundUnit = tryFindUnit gameState uId
@@ -273,7 +276,7 @@ module RulesImpl =
         |> defaultArg <| 0
     let doDice = 
         let rollDice = 
-            Function(GameStateRule(RollDice)) 
+            Function(GameStateRule(Supply("DiceRoll", TDiceRoll(DiceRoll 6)))) 
             |> Rule.afterRunRemove GameStateList
         GameStateRule(AddOrReplace(GameStateList,rollDice))
                     |> Function
@@ -290,14 +293,18 @@ module RulesImpl =
         [doDice; GameStateRule(AddOrReplace(GameStateList, newRule))
                     |> Function
                     |> Rule.afterRunRemove GameStateList ]
-        
+    
+    let toHit m u gameState = woundTable (modelStrength m gameState) (avgToughness u gameState)    
     let toWound m u gameState = woundTable (modelStrength m gameState) (avgToughness u gameState)
 
     //let assault = .... //May have to change this to adding a Targetted rule to target, which adds a Melee to model 
-    let melee attacks roll target mId gameState = 
-//        let newRule = Function(ModelRule(MeleeHit(1,target),mId))
-//        newRule::multipleFromDiceRoll newRule (fun _ -> toHit) attacks gameState
-
+    let x = 
+        let melee attacks roll target mId (gameState:GameState) = 
+                let newRule = Function(ModelRule(MeleeHit(1,target),mId))
+                newRule::multipleFromDiceRoll newRule (fun _ -> roll) attacks gameState
+        <@ 
+            
+            melee 3 @>
     let meleeHits hits uId mId gameState =
         let foundModel = tryFindModel gameState mId
         let foundTarget = tryFindUnit gameState uId
@@ -326,8 +333,8 @@ module RulesImpl =
             |> List.groupBy (snd) 
             |> List.map (fun (profile,woundProfiles) -> woundProfiles |> Seq.sumBy fst, profile)
         let dosortedIndexes = 
-            profiles'
-            |> SupplySortedWeaponProfiles 
+            (SortedWeaponProfiles([]).ToString(), (profiles' |> List.collect(fun (count,profile) -> [TCount count;TWeaponProfile profile]) |> TList))
+            |> Supply 
             |> GameStateRule 
             |> Function 
             |> Rule.afterRunRemove GameStateList
@@ -464,7 +471,7 @@ module RulesImpl =
         // Modify rest, prepend to reset, append to rest
         let rec runRule gameState rule =
             match gameState,rule with 
-            | GameStateResult gameState', ActiveWhen(logic, innerRule) -> contains gameState' logic innerRule |> Option.map (fun _ -> runRule gameState innerRule) |> defaultArg <| gameState
+            | GameStateResult gameState', ActiveWhen(logic, innerRule) -> compareLogic gameState' logic innerRule |> Option.map (fun _ -> runRule gameState innerRule) |> defaultArg <| gameState
             | GameStateResult _, UserActivated (_) -> gameState
             | GameStateResult _, Function app -> runApplication gameState app
             | GameStateResult _, Description _ -> gameState
@@ -499,8 +506,8 @@ module RulesImpl =
             | Repeat(times,name,rule) -> repeat times name rule |> List.fold runRule (GameStateResult gameState) 
             | EndPhase -> advancePhase gameState |> List.fold runRule (GameStateResult gameState) 
             | EndGame -> runGameImpl gameState (Remove(GameStateList,Function(GameStateRule(PlayerTurn(Bottom)))))
-            | SupplySortedWeaponProfiles(profiles) -> supplySortedWeapons profiles >> List.fold runRule (GameStateResult gameState) |> Asker |> SortedWoundPoolAsker |> AskResult
-            | RollDice -> rollDice >> List.fold runRule (GameStateResult gameState)  |> Asker |> DiceRollAsker |> AskResult
+//            | SupplySortedWeaponProfiles(profiles) -> supplySortedWeapons profiles >> List.fold runRule (GameStateResult gameState) |> Asker |> SortedWoundPoolAsker |> AskResult
+//            | RollDice -> rollDice >> List.fold runRule (GameStateResult gameState)  |> Asker |> DiceRollAsker |> AskResult
             | CollectUserActivated -> collect gameState >> List.fold runRule (GameStateResult gameState)  |> Asker  |> PerformAsker |> AskResult
             | EndTurn // Maybe Split EndPhase and End Turn
             | DiceRolled(_)  
@@ -514,7 +521,7 @@ module RulesImpl =
         and runModelImpl mId gameState = function
             | SetCharacteristic(newRule) -> tryReplaceRuleOnModel Rule.overriteOrNone newRule mId gameState  |> GameStateResult
 //            | Melee(attacks,(Apply (gameState,(function | TDiceRoll d -> Some d | _ -> None),toHit)),target) -> melee attacks toHit target mId gameState |> List.fold runRule (GameStateResult gameState) 
-            | Melee(attacks,Applied d,Applied target) -> melee attacks d target mId gameState |> List.fold runRule (GameStateResult gameState) 
+//            | Melee(attacks,Applied d,Applied target) -> melee attacks d target mId gameState |> List.fold runRule (GameStateResult gameState) 
             | MeleeHit(hits,uId) -> meleeHits hits uId mId gameState  |> List.fold runRule (GameStateResult gameState) 
             | Unsaved(profile) -> unsavedWound profile mId gameState |> List.fold runRule (GameStateResult gameState) 
             | RemoveOnZeroCharacteristic -> removeIfZeroCharacteristic mId gameState |> GameStateResult
