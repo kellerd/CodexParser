@@ -70,7 +70,6 @@
         | EndGame
         | Board of BoardDimensions
         | SortedWeaponProfiles of int list
-        | DiceRolled of DiceRoll
         | PlayerTurn of PlayerTurn
         | GameRound of Round
         | DeactivateUntil of LogicalExpression * RuleListId * Rule
@@ -82,7 +81,7 @@
         | Repeat of int * string * Rule
         | CollectUserActivated 
         | Applications of Map<string,Rule>
-        | Supply of string * TRule
+        | Supply of TRule list
         override this.ToString() = toString this
         static member FromString s = fromString<GameRuleImpl> s
     and LogicalExpression =
@@ -295,15 +294,3 @@
         let makeRule r = 
             textFromRule r, r
 
-        let D6 = 6
-        
-        let badRolls sides (DiceRoll lessThan) =
-            Seq.initInfinite ((+) 1) 
-            |> Seq.takeWhile (fun i -> i < lessThan && i <= sides) 
-            |> Seq.map (DiceRoll >> DiceRolled >> GameStateRule >> Matches)
-            |> Seq.reduce (<|>)
-        let goodRolls sides (DiceRoll equalOrGreaterThan) =
-            Seq.initInfinite ((+) equalOrGreaterThan) 
-            |> Seq.takeWhile (fun i -> i <= sides) 
-            |> Seq.map (DiceRoll >> DiceRolled >> GameStateRule >> Matches)
-            |> Seq.reduce (<|>)

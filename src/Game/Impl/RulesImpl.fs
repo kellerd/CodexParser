@@ -69,8 +69,7 @@ module RulesImpl =
         | EndTurn    -> TUnit
         | EndGame    -> TUnit
         | Board (boardDimensions)-> TBoardDimensions (boardDimensions)
-        | SortedWeaponProfiles (weaponProfiles)-> TUnit
-        | DiceRolled (diceRoll)-> TDiceRoll (diceRoll)
+        | SortedWeaponProfiles (_)-> TUnit
         | PlayerTurn (playerTurn)-> TPlayerTurn (playerTurn)
         | GameRound (round) -> TRound (round)
         | DeactivateUntil _ -> TUnit
@@ -82,7 +81,7 @@ module RulesImpl =
         | Repeat _ -> TUnit
         | CollectUserActivated -> TUnit
         | Applications(map) -> TApplicationMap(map)
-        | Supply (_,trule) -> trule
+        | Supply (trule) -> TList trule
     and evalU  = function 
         | Move (inches)-> TMeasurement (inches)
         | DeploymentState (deploymentType)-> TDeploymentState (deploymentType)
@@ -108,7 +107,7 @@ module RulesImpl =
         | RemoveOnZeroCharacteristic -> TUnit
         | ArmourPenetration armourPen -> TArmourPen armourPen
         | Melee (i,Applied uid) -> TList [TCharacteristicValue(CharacteristicValue(i));TTarget(uid)]
-        | Melee (i,NotApplied) -> TUnit
+        | Melee (_,NotApplied) -> TUnit
         | MeleeHit (i,uid) -> TList [TCharacteristicValue(CharacteristicValue(i));TTarget(uid)]
     and tryFindInRuleList tryFindKeyPredicate = Option.bind (Map.tryFindKey tryFindKeyPredicate)
     and compareLogic (gameState:GameState) logic rule = 
@@ -265,26 +264,30 @@ module RulesImpl =
             []
 
     let avgToughness (u:Unit) gameState = 
-
         u.UnitModels
         |> Map.choose (fun _ um -> um.Rules |> Map.tryPick (fun _ r -> match gameState with | Active r (Function(ModelRule(Toughness(CharacteristicValue(ra)),_))) -> Some ra | _ -> None)) 
         |> Map.values
         |> Seq.maxmode 0
+    let avgWS (u:Unit) gameState = 
+        u.UnitModels
+        |> Map.choose (fun _ um -> um.Rules |> Map.tryPick (fun _ r -> match gameState with | Active r (Function(ModelRule(WeaponSkill(CharacteristicValue(ra)),_))) -> Some ra | _ -> None)) 
+        |> Map.values
+        |> Seq.maxmode 0
+    let modelWS (m:Model) gameState = 
+        m.Rules
+        |> Map.tryPick(fun _ r -> match gameState with | Active r (Function(ModelRule(WeaponSkill(CharacteristicValue(ra)),_))) -> Some ra | _ -> None)
+        |> defaultArg <| 0
     let modelStrength (m:Model) gameState = 
         m.Rules
         |> Map.tryPick(fun _ r -> match gameState with | Active r (Function(ModelRule(Strength(CharacteristicValue(ra)),_))) -> Some ra | _ -> None)
         |> defaultArg <| 0
     let doDice = 
         let rollDice = 
-            Function(GameStateRule(Supply("DiceRoll", TDiceRoll(DiceRoll 6)))) 
+            Function(GameStateRule(Supply[TDiceRoll(DiceRoll 6)]))
             |> Rule.afterRunRemove GameStateList
         GameStateRule(AddOrReplace(GameStateList,rollDice))
-                    |> Function
-                    |> Rule.afterRunRemove GameStateList
-        
-    let diceRoll rule f gameState =
-        rule
-        |> Rule.afterIfRemove (goodRolls D6 (f gameState))
+        |> Function
+        |> Rule.afterRunRemove GameStateList
     let multipleFromDiceRoll rule f times gameState  = 
         let text = rule |> Rule.textFromRule
         let newRule = 
@@ -294,17 +297,18 @@ module RulesImpl =
                     |> Function
                     |> Rule.afterRunRemove GameStateList ]
     
-    let toHit m u gameState = woundTable (modelStrength m gameState) (avgToughness u gameState)    
+    let toHit m u gameState = woundTable (modelWS m gameState) (avgWS u gameState)    
     let toWound m u gameState = woundTable (modelStrength m gameState) (avgToughness u gameState)
 
     //let assault = .... //May have to change this to adding a Targetted rule to target, which adds a Melee to model 
-    let x = 
-        let melee attacks roll target mId (gameState:GameState) = 
-                let newRule = Function(ModelRule(MeleeHit(1,target),mId))
-                newRule::multipleFromDiceRoll newRule (fun _ -> roll) attacks gameState
-        <@ 
-            
-            melee 3 @>
+    let melee attacks target mId (gameState:GameState) = 
+        let foundModel = tryFindModel gameState mId
+        let foundTarget = tryFindUnit gameState target
+        match foundModel,foundTarget with
+        | Some m, Some u -> 
+            let newRule = Function(ModelRule(MeleeHit(1,target),mId))
+            newRule::multipleFromDiceRoll newRule (toHit m u) attacks gameState
+        | _ -> failwith <| sprintf "Not found %A or %A" target mId
     let meleeHits hits uId mId gameState =
         let foundModel = tryFindModel gameState mId
         let foundTarget = tryFindUnit gameState uId
@@ -319,7 +323,6 @@ module RulesImpl =
                                             | _ -> None)
                 |> defaultArg <|  UnitRule(WoundPool(newWounds,mId),uId)
                 |> Function
-
             (GameStateRule(Remove((ModelList mId),(Function(GameStateRule(DiceRolled(DiceRoll(1)))))))
             |> Function |> Rule.afterRunRemove (ModelList mId))
             ::
@@ -327,7 +330,6 @@ module RulesImpl =
         | _ -> failwith <| sprintf "Not found %A or %A" uId mId
         
     let woundPool profiles attackingModelId uId =
-
         let profiles' = 
             profiles 
             |> List.groupBy (snd) 
