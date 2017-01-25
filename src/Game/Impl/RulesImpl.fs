@@ -308,7 +308,9 @@ module RulesImpl =
         let foundTarget = tryFindUnit gameState target
         match foundModel,foundTarget with
         | Some m, Some u -> 
-            let rule = Function(ModelRule(MeleeHit(1,Applied target),mId))
+            let rule = 
+                Function(ModelRule(MeleeHit(1,Applied target),mId))
+                |> Rule.after (fun _ -> Unapply "TDiceRoll")
             let meleehits = toHit m u gameState |> rollDice rule
             Function(Sequence[GameStateRule(Supply "TDiceRoll");GameStateRule(AddOrReplace(ModelList mId, meleehits))])
             |> Rule.many (ModelList mId) attacks
@@ -472,6 +474,11 @@ module RulesImpl =
         let application applicationSupplier =
             applicationSupplier () |> GameStateRule  |> Function |> afterRunRemove GameStateList |> List.singleton
         application
+    let unapply key gameState = 
+        gameState.Rules
+        |> Map.tryPick(fun _ r -> match gameState with | Active r (Function(GameStateRule(Applications(map)))) -> Some map | _ -> None)
+        |> Option.map(fun map -> [AddOrReplace(GameStateList, Function(GameStateRule(Applications(map |> Map.remove key)))) |> GameStateRule |> Function |> Rule.afterRunRemove GameStateList])
+        |> defaultArg <| []
     let apply key trule gameState = 
         gameState.Rules
         |> Map.tryPick(fun _ r -> match gameState with | Active r (Function(GameStateRule(Applications(map)))) -> Some map | _ -> None)
@@ -522,6 +529,7 @@ module RulesImpl =
 //            | RollDice -> rollDice 
             | CollectUserActivated -> collect gameState >> List.fold runRule (GameStateResult gameState)  |> Asker  |> PerformAsker |> AskResult
             | Supply "TDiceRoll" -> supply >> List.fold runRule (GameStateResult gameState)  |> Asker |> DiceRollAsker |> AskResult
+            | Unapply s -> unapply s gameState |> List.fold runRule (GameStateResult gameState)
             | Application (s,trule) -> apply s trule gameState |> List.fold runRule (GameStateResult gameState)
             | EndTurn // Maybe Split EndPhase and End Turn
             | SortedWeaponProfiles(_)  

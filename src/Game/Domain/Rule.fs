@@ -90,6 +90,7 @@
         | CollectUserActivated 
         | Applications of Map<string,TRule>
         | Supply of string
+        | Unapply of string
         | Application of string * TRule
         override this.ToString() = toString this
         static member FromString s = fromString<GameRuleImpl> s
@@ -242,7 +243,7 @@
         let unoverwriteOrNew  r = Option.either (unoverwrite(r)) (Some(r))  
         let unoverwriteOrNone  r = Option.either (unoverwrite(r)) (None)                    
 
-        let rec private after perform = function
+        let rec after perform = function
             | ActiveWhen(logic,rule)            -> ActiveWhen(logic,after perform rule)
             | UserActivated(rule)               -> after perform  rule |> UserActivated
             | Description(_) as rule            -> rule
