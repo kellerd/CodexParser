@@ -2,8 +2,16 @@
     open WarhammerDomain
     
     type Apply<'a> =
-        | NotApplied  
+        | NotApplied of string 
         | Applied of 'a
+        override this.ToString() = 
+            match this with
+            | NotApplied s -> s
+            | Applied a -> toString a
+    module Apply =
+        let toOption = function
+            | NotApplied _ -> None
+            | Applied a -> Some a
     type Base =
         | BaseDiameter of int<mm>
         | ModelDimentions of Dimentions<mm>
@@ -51,7 +59,7 @@
         | RemoveOnZeroCharacteristic 
         | ArmourPenetration of ArmourPen
         | Melee of int * UnitGuid Apply
-        | MeleeHit of int * UnitGuid
+        | MeleeHit of int * UnitGuid Apply
         override this.ToString() = toString this
         static member FromString s = fromString<ModelRuleImpl> s
     and UnitRuleImpl = 
@@ -80,8 +88,9 @@
         | Overwrite of RuleListId * Rule
         | Repeat of int * string * Rule
         | CollectUserActivated 
-        | Applications of Map<string,Rule>
-        | Supply of TRule list
+        | Applications of Map<string,TRule>
+        | Supply of string
+        | Application of string * TRule
         override this.ToString() = toString this
         static member FromString s = fromString<GameRuleImpl> s
     and LogicalExpression =
@@ -122,66 +131,96 @@
         | TPlayerTurn of PlayerTurn
         | TRound of Round
         | TList of TRule list
-        | TApplicationMap of  Map<string,Rule>
+        | TApplicationMap of  Map<string,TRule>
+        override this.ToString() = toString this
+        static member FromString s = fromString<TRule> s
         static member Compare = function 
-        | TCharacteristicValue          x, Eq,   TCharacteristicValue         y -> x = y
-        | TPosition                     x, Eq,   TPosition                    y -> x = y
-        | TWeaponProfile                x, Eq,   TWeaponProfile               y -> x = y
-        | TUnit                          , Eq,   TUnit                          -> true
-        | TArmourPen                    x, Eq,   TArmourPen                   y -> x = y
-        | TMeasurement                  x, Eq,   TMeasurement                 y -> x = y
-        | TDeploymentState              x, Eq,   TDeploymentState             y -> x = y
-        | TBoardDimensions              x, Eq,   TBoardDimensions             y -> x = y
-        | TDiceRoll                     x, Eq,   TDiceRoll                    y -> x = y
-        | TPlayerTurn                   x, Eq,   TPlayerTurn                  y -> x = y
-        | TRound                        x, Eq,   TRound                       y -> x = y
-        | TList                         x, Eq,   TList                        y -> x = y
-        | TRule                         x, Eq,   TRule                        y -> x = y
-        | TApplicationMap               x, Eq,   TApplicationMap              y -> x = y
-        | TCharacteristicValue          x, Ne,   TCharacteristicValue         y -> x <> y
-        | TPosition                     x, Ne,   TPosition                    y -> x <> y
-        | TWeaponProfile                x, Ne,   TWeaponProfile               y -> x <> y
-        | TUnit                          , Ne,   TUnit                          -> false
-        | TArmourPen                    x, Ne,   TArmourPen                   y -> x <> y
-        | TMeasurement                  x, Ne,   TMeasurement                 y -> x <> y
-        | TDeploymentState              x, Ne,   TDeploymentState             y -> x <> y
-        | TBoardDimensions              x, Ne,   TBoardDimensions             y -> x <> y
-        | TDiceRoll                     x, Ne,   TDiceRoll                    y -> x <> y
-        | TPlayerTurn                   x, Ne,   TPlayerTurn                  y -> x <> y
-        | TRound                        x, Ne,   TRound                       y -> x <> y
-        | TList                         x, Ne,   TList                        y -> x <> y
-        | TRule                         x, Ne,   TRule                        y -> x <> y
-        | TApplicationMap               x, Ne,   TApplicationMap              y -> x <> y
-        | TCharacteristicValue          x, Gt,   TCharacteristicValue         y -> x > y
-        | TPosition                     x, Gt,   TPosition                    y -> x > y
-        | TWeaponProfile                x, Gt,   TWeaponProfile               y -> x > y
-        | TUnit                          , Gt,   TUnit                          -> false
-        | TArmourPen                    x, Gt,   TArmourPen                   y -> x > y
-        | TMeasurement                  x, Gt,   TMeasurement                 y -> x > y
-        | TDeploymentState              x, Gt,   TDeploymentState             y -> x > y
-        | TBoardDimensions              x, Gt,   TBoardDimensions             y -> x > y
-        | TDiceRoll                     x, Gt,   TDiceRoll                    y -> x > y
-        | TPlayerTurn                   x, Gt,   TPlayerTurn                  y -> x > y
-        | TRound                        x, Gt,   TRound                       y -> x > y
-        | TList                         x, Gt,   TList                        y -> x > y
-        | TRule                         x, Gt,   TRule                        y -> x > y
-        | TApplicationMap               x, Gt,   TApplicationMap              y -> x > y
-        | TCharacteristicValue          x, Lt,   TCharacteristicValue         y -> x < y
-        | TPosition                     x, Lt,   TPosition                    y -> x < y
-        | TWeaponProfile                x, Lt,   TWeaponProfile               y -> x < y
-        | TUnit                          , Lt,   TUnit                          -> false
-        | TArmourPen                    x, Lt,   TArmourPen                   y -> x < y
-        | TMeasurement                  x, Lt,   TMeasurement                 y -> x < y
-        | TDeploymentState              x, Lt,   TDeploymentState             y -> x < y
-        | TBoardDimensions              x, Lt,   TBoardDimensions             y -> x < y
-        | TDiceRoll                     x, Lt,   TDiceRoll                    y -> x < y
-        | TPlayerTurn                   x, Lt,   TPlayerTurn                  y -> x < y
-        | TRound                        x, Lt,   TRound                       y -> x < y
-        | TList                         x, Lt,   TList                        y -> x < y
-        | TRule                         x, Lt,   TRule                        y -> x < y
-        | TApplicationMap               x, Lt,   TApplicationMap              y -> x < y
-        | _, _, _ -> failwith "Unexpected compare"
-    
+            | TCharacteristicValue          x, Eq,   TCharacteristicValue         y -> x = y
+            | TPosition                     x, Eq,   TPosition                    y -> x = y
+            | TWeaponProfile                x, Eq,   TWeaponProfile               y -> x = y
+            | TUnit                          , Eq,   TUnit                          -> true
+            | TArmourPen                    x, Eq,   TArmourPen                   y -> x = y
+            | TMeasurement                  x, Eq,   TMeasurement                 y -> x = y
+            | TDeploymentState              x, Eq,   TDeploymentState             y -> x = y
+            | TBoardDimensions              x, Eq,   TBoardDimensions             y -> x = y
+            | TDiceRoll                     x, Eq,   TDiceRoll                    y -> x = y
+            | TPlayerTurn                   x, Eq,   TPlayerTurn                  y -> x = y
+            | TRound                        x, Eq,   TRound                       y -> x = y
+            | TList                         x, Eq,   TList                        y -> x = y
+            | TRule                         x, Eq,   TRule                        y -> x = y
+            | TApplicationMap               x, Eq,   TApplicationMap              y -> x = y
+            | TCharacteristicValue          x, Ne,   TCharacteristicValue         y -> x <> y
+            | TPosition                     x, Ne,   TPosition                    y -> x <> y
+            | TWeaponProfile                x, Ne,   TWeaponProfile               y -> x <> y
+            | TUnit                          , Ne,   TUnit                          -> false
+            | TArmourPen                    x, Ne,   TArmourPen                   y -> x <> y
+            | TMeasurement                  x, Ne,   TMeasurement                 y -> x <> y
+            | TDeploymentState              x, Ne,   TDeploymentState             y -> x <> y
+            | TBoardDimensions              x, Ne,   TBoardDimensions             y -> x <> y
+            | TDiceRoll                     x, Ne,   TDiceRoll                    y -> x <> y
+            | TPlayerTurn                   x, Ne,   TPlayerTurn                  y -> x <> y
+            | TRound                        x, Ne,   TRound                       y -> x <> y
+            | TList                         x, Ne,   TList                        y -> x <> y
+            | TRule                         x, Ne,   TRule                        y -> x <> y
+            | TApplicationMap               x, Ne,   TApplicationMap              y -> x <> y
+            | TCharacteristicValue          x, Gt,   TCharacteristicValue         y -> x > y
+            | TPosition                     x, Gt,   TPosition                    y -> x > y
+            | TWeaponProfile                x, Gt,   TWeaponProfile               y -> x > y
+            | TUnit                          , Gt,   TUnit                          -> false
+            | TArmourPen                    x, Gt,   TArmourPen                   y -> x > y
+            | TMeasurement                  x, Gt,   TMeasurement                 y -> x > y
+            | TDeploymentState              x, Gt,   TDeploymentState             y -> x > y
+            | TBoardDimensions              x, Gt,   TBoardDimensions             y -> x > y
+            | TDiceRoll                     x, Gt,   TDiceRoll                    y -> x > y
+            | TPlayerTurn                   x, Gt,   TPlayerTurn                  y -> x > y
+            | TRound                        x, Gt,   TRound                       y -> x > y
+            | TList                         x, Gt,   TList                        y -> x > y
+            | TRule                         x, Gt,   TRule                        y -> x > y
+            | TApplicationMap               x, Gt,   TApplicationMap              y -> x > y
+            | TCharacteristicValue          x, Lt,   TCharacteristicValue         y -> x < y
+            | TPosition                     x, Lt,   TPosition                    y -> x < y
+            | TWeaponProfile                x, Lt,   TWeaponProfile               y -> x < y
+            | TUnit                          , Lt,   TUnit                          -> false
+            | TArmourPen                    x, Lt,   TArmourPen                   y -> x < y
+            | TMeasurement                  x, Lt,   TMeasurement                 y -> x < y
+            | TDeploymentState              x, Lt,   TDeploymentState             y -> x < y
+            | TBoardDimensions              x, Lt,   TBoardDimensions             y -> x < y
+            | TDiceRoll                     x, Lt,   TDiceRoll                    y -> x < y
+            | TPlayerTurn                   x, Lt,   TPlayerTurn                  y -> x < y
+            | TRound                        x, Lt,   TRound                       y -> x < y
+            | TList                         x, Lt,   TList                        y -> x < y
+            | TRule                         x, Lt,   TRule                        y -> x < y
+            | TApplicationMap               x, Lt,   TApplicationMap              y -> x < y
+            | _, _, _ -> failwith "Unexpected compare"
+
+    [<CompilationRepresentation (CompilationRepresentationFlags.ModuleSuffix)>]
+    module TRule =
+        let get<'T> o = 
+            match o with
+            | TCharacteristicValue v -> box v
+            | TPosition      v -> box v
+            | TWeaponProfile v -> box v
+            | TCount v -> box v
+            | TRule v -> box v
+            | TArmourPen v -> box v
+            | TTarget v -> box v
+            | TSpecialTarget v -> box v
+            | TMeasurement v -> box v
+            | TDeploymentState v -> box v
+            | TBoardDimensions v -> box v
+            | TDiceRoll v -> box v
+            | TPlayerTurn v -> box v
+            | TRound v -> box v
+            | TList v -> box v
+            | TApplicationMap v -> box v
+            | TUnit -> box null
+            |> function
+            | :? 'T as res -> Some res
+            | _ -> None
+        let getOfApplied<'T> a = 
+            match a with
+            | Applied v -> get<'T> v
+            | NotApplied _ -> None
     [<CompilationRepresentation (CompilationRepresentationFlags.ModuleSuffix)>]
     [<AutoOpen>]
     module Rule =
@@ -248,7 +287,6 @@
             | r -> Overwritten(r2,r)
         
         let either l r1 r2 = ActiveWhen(l,r1) |> otherwise r2
-
         let rec findRuleListId rule = 
             match rule with 
             | ActiveWhen(logic,r)               -> findRuleListId r
@@ -294,3 +332,7 @@
         let makeRule r = 
             textFromRule r, r
 
+        let many list times r = 
+            let text = r |> textFromRule
+            [r |> afterRunRemove list |> afterRunRepeat (times - 1) text]
+        

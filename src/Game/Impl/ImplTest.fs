@@ -137,6 +137,7 @@ module ImplTest =
                   Score = Score 0 } ]
           Rules = 
               seq { 
+                  yield Function(GameStateRule(Applications(Map.empty)))
                   yield Function(GameStateRule(EndPhase)) |> Rule.UserActivated
                   yield Function(GameStateRule(PlayerTurn(Top))) 
                   yield Function(GameStateRule(GameRound(Begin)))

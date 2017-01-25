@@ -57,6 +57,7 @@
     <Compile Include="UI/Display.fs" />
     <Compile Include="UI/Logging.fs" />
     <Compile Include="UI/ConsoleUi.fs" />
+    <Compile Include="Program.fs" />
     <None Include="Script.fsx" />
   </ItemGroup>
   <Import Project="$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props" Condition="Exists('$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props')" />

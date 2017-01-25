@@ -80,7 +80,9 @@ module ConsoleWarhammer =
         | false, _ -> moveAsker positions
     let diceRollAsker = 
         let rnd = System.Random()
-        fun () -> DiceRoll (rnd.Next(1,7))
+        fun () -> 
+            let tDiceRoll = rnd.Next(1,7) |> DiceRoll |> TDiceRoll 
+            Application(tDiceRoll.ToString(), tDiceRoll)
     let sortWoundPools woundProfiles =
         printfn "Wound profiles: \r\n%A" woundProfiles
         let len = (woundProfiles |> Seq.length)

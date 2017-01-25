@@ -7,7 +7,7 @@ type GenAsker<'a,'b> = Asker of ('a -> 'b)
 type Asker<'a> = 
     | PositionAsker of GenAsker<GameState -> Position<px>, 'a>
     | MoveAsker of GenAsker<Position<px>[] -> Position<px>, 'a>
-    | DiceRollAsker of GenAsker<unit -> DiceRoll, 'a>
+    | DiceRollAsker of GenAsker<unit -> GameRuleImpl, 'a>
     | SortedWoundPoolAsker of GenAsker<(int * WeaponProfile) list -> int list, 'a>
     | PerformAsker of GenAsker<(Rule) list->int, 'a>
     with member this.Map(f) = 
