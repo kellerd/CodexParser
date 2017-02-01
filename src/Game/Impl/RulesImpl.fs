@@ -8,6 +8,7 @@ module RulesImpl =
     open GameImpl.GameState
     open Microsoft.FSharp.Collections
     open FSharpx.Collections
+
     let (&&>>) f g x y=
             f x y && g x y 
     let rec (|Optional|_|) r = 
@@ -29,11 +30,46 @@ module RulesImpl =
                 (r,(newRules |> List.map fst))|> Nested |> Some
             else
                 None
-    let log x = printfn "%A" x; x
+    
+    let nextGameRound = function
+        | Begin -> One Phase.Begin
+        | One _ -> Two Phase.Begin
+        | Two _ -> Three Phase.Begin
+        | Three _ -> Four Phase.Begin
+        | Four _ -> Five Phase.Begin
+        | Five _ -> Six Phase.Begin
+        | Six _ -> Seven Phase.Begin
+        | Seven _ -> End
+        | End -> End
+    let splitRound = 
+        function 
+        | Begin -> (fun _ -> Begin), None
+        | One x -> One, Some x
+        | Two x -> Two, Some x
+        | Three x -> Three, Some x
+        | Four x -> Four, Some x
+        | Five x -> Five, Some x
+        | Six x -> Six, Some x
+        | Seven x -> Seven, Some x
+        | End -> (fun _ -> End), None         
+    let otherPlayerTurn = function
+        | Top,x -> Bottom, Phase.Begin |> (splitRound x|> fst) 
+        | Bottom,x -> Top,nextGameRound x
+    let calculateNextPhase (turn,round) =
+        let (gtMaker, phase) = splitRound round
+        match phase with
+        | Some Phase.Begin -> turn, gtMaker Phase.Movement
+        | Some Phase.Movement ->  turn, gtMaker Phase.Psychic
+        | Some Phase.Psychic ->  turn, gtMaker Phase.Shooting
+        | Some Phase.Shooting ->  turn, gtMaker Phase.Assault
+        | Some Phase.Assault ->  turn, gtMaker Phase.End
+        | Some Phase.End 
+        | None -> otherPlayerTurn (turn,round)
 
     let rec (|Active|_|) r gameState = 
         match r with 
-        | ActiveWhen(logic, innerRule) -> compareLogic gameState logic innerRule |> Option.bind (fun _ -> match gameState with Active innerRule _ -> Some r | _ -> None)
+        | ActiveWhen(logic, innerRule) -> match compareLogic gameState logic, gameState with 
+                                          | TBool true, Active innerRule _ -> Some r | _ -> None
         | UserActivated (userActivated) ->  match gameState with Active userActivated _ -> Some r | _ -> None
         | Function _ -> Some r
         | Description _ -> Some r
@@ -43,7 +79,7 @@ module RulesImpl =
             match matchFst with 
             | Some _ -> matchFst
             | None -> List.tryPick(fun r -> match gameState with Active r _ -> Some r | _ -> None) rules
-    and (|Apply|_|) gameState (x:Apply<'a>) =  
+    and (|ApplyTo|_|) gameState (x:Apply<'a>) =  
         match x with 
         | Applied a -> Some a
         | NotApplied s ->
@@ -59,22 +95,41 @@ module RulesImpl =
             |> Option.bind (evalR gameState >> function 
                 | TApplicationMap(map) -> map |> Map.tryFind s
                 | _ -> None)
-    and eval = function 
-        | GameStateRule impl ->  evalG impl 
+    and (|ApplyToLogical|) gameState logicalRule =
+        let rec applyPrimary primary = 
+            match primary with
+            | Equation (pe,op,pe2) -> Equation(applyPrimary pe,op,applyPrimary pe2)
+            | Apply(ApplicationTrule gameState trule) -> Apply(Applied trule)
+            | primary -> primary
+        match logicalRule with
+        | Logical(ApplyToLogical gameState logic, op, ApplyToLogical gameState logic2) -> Logical(logic,op,logic2)
+        | Not(ApplyToLogical gameState logic) -> Not logic
+        | Literal primary -> Literal (applyPrimary primary)
+        | logical -> logical 
+
+    and eval gameState = function 
+        | GameStateRule impl ->  evalG gameState impl 
         | ModelRule (impl, _) -> evalM impl 
         | UnitRule(impl, _) ->  evalU  impl 
-        | Sequence(impls) ->  List.map eval impls |> TList
+        | Sequence(impls) ->  List.map (eval gameState) impls |> TList
     and evalR gameState = function
-        | Function (app) -> eval app
+        | Function (app) -> eval gameState app
         | UserActivated _ -> TUnit
-        | ActiveWhen (logic,innerRule) -> compareLogic gameState logic innerRule |> Option.map (evalR gameState) |> defaultArg <| TUnit
+        | ActiveWhen (logic,innerRule) -> if compareLogic gameState logic = TBool true  then evalR gameState innerRule
+                                          else TUnit 
         | Description _ -> TUnit
         | Overwritten (r1,_) -> evalR gameState r1
         | Nested (head,tail) -> List.map (evalR gameState) (head::tail) |> TList
-    and evalG = function
+    and evalG gameState = function
         | Noop       -> TUnit
-        | EndPhase   -> TUnit
-        | EndTurn    -> TUnit
+        | EndPhase   -> 
+            match Map.tryFind (GameRound(Begin).ToString()) gameState.Rules,Map.tryFind (PlayerTurn(Top).ToString()) gameState.Rules with
+            | Some(Function(GameStateRule(GameRound(round)))), Some(Function(GameStateRule(PlayerTurn(turn)))) -> calculateNextPhase (turn,round) |> snd |> TRound
+            | _ -> TUnit
+        | EndTurn    -> 
+            match Map.tryFind (GameRound(Begin).ToString()) gameState.Rules,Map.tryFind (PlayerTurn(Top).ToString()) gameState.Rules with
+            | Some(Function(GameStateRule(GameRound(round)))), Some(Function(GameStateRule(PlayerTurn(turn)))) -> otherPlayerTurn (turn,round) |> fst |> TPlayerTurn
+            | _ -> TUnit
         | EndGame    -> TUnit
         | Board (boardDimensions)-> TBoardDimensions (boardDimensions)
         | SortedWeaponProfiles (_)-> TUnit
@@ -91,6 +146,7 @@ module RulesImpl =
         | Applications(map) -> TApplicationMap(map)
         | Supply _ -> TUnit
         | Application (_,t) -> t
+        | Unapply _ -> TUnit
     and evalU  = function 
         | Move (inches)-> TMeasurement (inches)
         | DeploymentState (deploymentType)-> TDeploymentState (deploymentType)
@@ -120,17 +176,17 @@ module RulesImpl =
         | MeleeHit (i,Applied uid) -> TList [TCharacteristicValue(CharacteristicValue(i));TTarget(uid)]
         | MeleeHit (_,NotApplied _) -> TUnit
     and tryFindInRuleList tryFindKeyPredicate = Option.bind (Map.tryFindKey tryFindKeyPredicate)
-    and compareLogic (gameState:GameState) logic rule = 
-        let matches ruleApplication _ foundRule = 
-            match ruleApplication with 
-            | GameStateRule impl  -> evalG impl, evalR gameState foundRule
-            | ModelRule (impl, _) -> evalM impl, evalR gameState foundRule 
-            | UnitRule(impl, _)   -> evalU impl, evalR gameState foundRule
-            | Sequence(impl::_)   ->  eval impl, evalR gameState foundRule 
-            | Sequence([])        -> TUnit, TUnit
-            |> fun (x,y) ->
-                if x = TUnit || y = TUnit then false
-                else x = y
+    and compareLogic (gameState:GameState) logic : TRule = 
+        let rec (|EvalLit|_|) gameState primaryExpression = 
+            match primaryExpression with 
+            | Equation(EvalLit gameState x,op,EvalLit gameState y) -> 
+                TRule.Compare(x,op,y)
+                |> TBool
+                |> Some
+            | Apply (ApplicationTrule gameState x) -> Some x
+            | Evaluation ruleApplication -> eval gameState ruleApplication |> Some
+            | Equation _ -> None
+            | Apply _ -> None
         let exists ruleApplication k _ = 
             match ruleApplication with 
             | GameStateRule impl ->  k = impl.ToString() 
@@ -139,23 +195,26 @@ module RulesImpl =
             | Sequence(impl::_)  -> k = impl.ToString() 
             | _ -> false
         match logic with 
-        | Exists ruleApplication -> tryFindRuleList gameState ruleApplication |> tryFindInRuleList (exists ruleApplication) |> Option.map (fun _ -> rule)
-        | Matches ruleApplication -> tryFindRuleList gameState ruleApplication |> tryFindInRuleList (exists ruleApplication &&>> matches ruleApplication) |> Option.map (fun _ -> rule)
-        | Not expr -> compareLogic gameState expr rule |> Option.negate (Some rule)
+        | Exists ruleApplication -> tryFindRuleList gameState ruleApplication |> tryFindInRuleList (exists ruleApplication) |> Option.map (fun _ -> TBool true) |> defaultArg <| TBool false
+//        | Matches ruleApplication -> tryFindRuleList gameState ruleApplication |> tryFindInRuleList (exists ruleApplication &&>> matches ruleApplication) |> Option.map (fun _ -> rule)
+        | Not expr -> compareLogic gameState expr |> TRule.not'
         | Logical (expr,op,expr2) ->  
-            match op, compareLogic gameState expr rule, compareLogic gameState expr2 rule |> log with
-            | And, Some _, Some _ -> Some rule
-            | And, _, _ -> None
-            | Or, Some _, _ -> Some rule
-            | Or, _, Some _ -> Some rule
-            | Or, None _, None _ -> None
-        | Literal(Applied x, op, Applied y)
-        | Literal(ApplicationTrule gameState x, op, ApplicationTrule gameState y)
-        | Literal(ApplicationTrule gameState x, op, Applied y)
-        | Literal(Applied x, op,ApplicationTrule gameState y)  -> if (x,op,y) |> log |> TRule.Compare then Some rule else None
-        | Literal(NotApplied _,_,_)
-        | Literal(_,_,NotApplied _) -> None
+            match op, compareLogic gameState expr, compareLogic gameState expr2 with
+            | And, TBool true, TBool true ->  TBool true
+            | And, _, _ -> TBool false
+            | Or, TBool true, _ | Or, _,  TBool true ->  TBool true
+            | Or, TBool false, TBool false -> TBool false
+            | _ -> TBool false
+        | Literal(EvalLit gameState result) -> result
+        | Literal(_) -> failwith "Could not compare logic" 
 
+//        | Literal()
+//        | Literal(Applied x, op, Applied y)
+//        | Literal(ApplicationTrule gameState x, op, ApplicationTrule gameState y)
+//        | Literal(ApplicationTrule gameState x, op, Applied y)
+//        | Literal(Applied x, op,ApplicationTrule gameState y)  -> if (x,op,y) |> TRule.Compare then Some rule else None
+//        | Literal(NotApplied _,_,_)
+//        | Literal(_,_,NotApplied _) -> None
     let optionalAndActiveRules gs (_,r) = 
         match r,gs with 
         | Optional _, Active r ra -> Some ra
@@ -227,45 +286,14 @@ module RulesImpl =
             | None -> failwith "Couldn't find unit"
         createMove
 
-    let advancePhase gs = 
 
-        let nextGameTurn = function
-            | Begin -> One Phase.Begin
-            | One _ -> Two Phase.Begin
-            | Two _ -> Three Phase.Begin
-            | Three _ -> Four Phase.Begin
-            | Four _ -> Five Phase.Begin
-            | Five _ -> Six Phase.Begin
-            | Six _ -> Seven Phase.Begin
-            | Seven _ -> End
-            | End -> End
-        let splitRound = 
-            function 
-            | Begin -> (fun _ -> Begin), None
-            | One x -> One, Some x
-            | Two x -> Two, Some x
-            | Three x -> Three, Some x
-            | Four x -> Four, Some x
-            | Five x -> Five, Some x
-            | Six x -> Six, Some x
-            | Seven x -> Seven, Some x
-            | End -> (fun _ -> End), None     
-        let otherPlayerTurn = function
-            | Top,x -> Bottom, Phase.Begin |> (splitRound x|> fst) 
-            | Bottom,x -> Top,nextGameTurn x
-        let changeRound (round,turn) = 
-            let (gtMaker, phase) = splitRound round
-            match phase with
-            | Some Phase.Begin -> turn, gtMaker Phase.Movement
-            | Some Phase.Movement ->  turn, gtMaker Phase.Psychic
-            | Some Phase.Psychic ->  turn, gtMaker Phase.Shooting
-            | Some Phase.Shooting ->  turn, gtMaker Phase.Assault
-            | Some Phase.Assault ->  turn, gtMaker Phase.End
-            | Some Phase.End | None -> otherPlayerTurn (turn,round)
+    let advancePhase gs = 
+        let advance turn round =
+            calculateNextPhase (turn,round)
             |> (fun (turn,round) -> [PlayerTurn(turn); GameRound(round)])
             |> List.map (fun r -> GameStateRule(AddOrReplace(GameStateList,Function(GameStateRule(r))))  |> Function |> afterRunRemove GameStateList)
         match Map.tryFind (GameRound(Begin).ToString()) gs.Rules,Map.tryFind (PlayerTurn(Top).ToString()) gs.Rules with
-        | Some(Function(GameStateRule(GameRound(round)))), Some(Function(GameStateRule(PlayerTurn(turn)))) -> changeRound(round,turn) 
+        | Some(Function(GameStateRule(GameRound(round)))), Some(Function(GameStateRule(PlayerTurn(turn)))) -> advance turn round
         | _ -> failwith <| sprintf "Couldn't find game round or playerturn %A" gs.Rules
 
     let repeat times name rule = 
@@ -295,8 +323,11 @@ module RulesImpl =
         |> Map.tryPick(fun _ r -> match gameState with | Active r (Function(ModelRule(Strength(CharacteristicValue(ra)),_))) -> Some ra | _ -> None)
         |> defaultArg <| 0
     let rollDice rule dPlus = 
-            let dieRollNeeded = dPlus |> TDiceRoll |> Applied
-            let logic = (Literal(NotApplied (dieRollNeeded.ToString()) , Gt, dieRollNeeded), Or, Literal(NotApplied  (dieRollNeeded.ToString()), Eq, dieRollNeeded)) |> Logical
+            let dieRollNeeded = dPlus |> TDiceRoll |> Applied |> Apply
+            let notApplied = dieRollNeeded.ToString() |> NotApplied |> Apply
+            let gt = Equation(notApplied, Gt, dieRollNeeded)
+            let eq = Equation(notApplied, Eq, dieRollNeeded)
+            let logic = Logical(Literal(gt), Or, Literal(eq))
             Rule.activeWhen logic rule
     
     let toHit m u gameState = hitAssaultTable (modelWS m gameState) (avgWS u gameState)    
@@ -490,7 +521,9 @@ module RulesImpl =
         // Modify rest, prepend to reset, append to rest
         let rec runRule gameState rule =
             match gameState,rule with 
-            | GameStateResult gameState', ActiveWhen(logic, innerRule) -> compareLogic gameState' logic innerRule |> Option.map (fun _ -> runRule gameState innerRule) |> defaultArg <| gameState
+            | GameStateResult gameState', ActiveWhen(logic, innerRule) -> 
+                if compareLogic gameState' logic = TBool true then runRule gameState innerRule 
+                else gameState
             | GameStateResult _, UserActivated (_) -> gameState
             | GameStateResult _, Function app -> runApplication gameState app
             | GameStateResult _, Description _ -> gameState
@@ -519,9 +552,9 @@ module RulesImpl =
             | Revert(UnitList uId, rule) -> tryReplaceRuleOnUnit Rule.unoverwriteOrNone rule uId gameState |> GameStateResult
             | Activate(UserActivated (rule)) -> runRule (GameStateResult gameState) rule 
             | Activate(_) -> failwith "Dont know how to run this."
-            | DeactivateUntil(activateWhen, UnitList uId, rule) -> tryReplaceRuleOnUnit (Rule.activeWhen activateWhen >> overriteOrNone) (Function(GameStateRule(Revert(UnitList uId, rule)))) uId gameState |> GameStateResult
-            | DeactivateUntil(activateWhen, ModelList mId, rule) -> tryReplaceRuleOnModel (Rule.activeWhen activateWhen >> overriteOrNone) (Function(GameStateRule(Revert(ModelList mId, rule)))) mId gameState |> GameStateResult
-            | DeactivateUntil(activateWhen, GameStateList, rule)-> tryReplaceRuleOnGameState (Rule.activeWhen activateWhen >> overriteOrNone) (Function(GameStateRule(Revert(GameStateList, rule)))) gameState  |> GameStateResult
+            | DeactivateUntil(ApplyToLogical gameState activateWhen, UnitList uId, rule) -> tryReplaceRuleOnUnit (Rule.activeWhen activateWhen >> overriteOrNone) (Function(GameStateRule(Revert(UnitList uId, rule)))) uId gameState |> GameStateResult
+            | DeactivateUntil(ApplyToLogical gameState activateWhen, ModelList mId, rule) -> tryReplaceRuleOnModel (Rule.activeWhen activateWhen >> overriteOrNone) (Function(GameStateRule(Revert(ModelList mId, rule)))) mId gameState |> GameStateResult
+            | DeactivateUntil(ApplyToLogical gameState activateWhen, GameStateList, rule)-> tryReplaceRuleOnGameState (Rule.activeWhen activateWhen >> overriteOrNone) (Function(GameStateRule(Revert(GameStateList, rule)))) gameState  |> GameStateResult
             | Repeat(times,name,rule) -> repeat times name rule |> List.fold runRule (GameStateResult gameState) 
             | EndPhase -> advancePhase gameState |> List.fold runRule (GameStateResult gameState) 
             | EndGame -> runGameImpl gameState (Remove(GameStateList,Function(GameStateRule(PlayerTurn(Bottom)))))
@@ -540,8 +573,8 @@ module RulesImpl =
             | Noop            -> gameState |> GameStateResult
         and runModelImpl mId gameState = function
             | SetCharacteristic(newRule) -> tryReplaceRuleOnModel Rule.overriteOrNone newRule mId gameState  |> GameStateResult
-            | Melee(attacks,(Apply gameState target)) -> melee attacks target mId gameState |> List.fold runRule (GameStateResult gameState) 
-            | MeleeHit(hits,(Apply gameState target)) -> meleeHits hits target mId gameState  |> List.fold runRule (GameStateResult gameState) 
+            | Melee(attacks,(ApplyTo gameState target)) -> melee attacks target mId gameState |> List.fold runRule (GameStateResult gameState) 
+            | MeleeHit(hits,(ApplyTo gameState target)) -> meleeHits hits target mId gameState  |> List.fold runRule (GameStateResult gameState) 
 //            | Unsaved(profile) -> unsavedWound profile mId gameState |> List.fold runRule (GameStateResult gameState) 
 //            | RemoveOnZeroCharacteristic -> removeIfZeroCharacteristic mId gameState |> GameStateResult
             | WeaponSkill   (_)

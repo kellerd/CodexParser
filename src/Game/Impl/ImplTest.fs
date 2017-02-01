@@ -8,15 +8,17 @@ module ImplTest =
     let tUnitId = UnitGuid "155143C3-C1FD-46BE-B41C-02A992F16FB2"
           
 
-
+    
+    let private is turn = (Literal(Equation(Apply(NotApplied "TRound"),Eq,Evaluation(GameStateRule(GameRound(turn))))))
+    let private endPhase = (Literal(Equation(Apply(NotApplied "TRound"),Eq,Evaluation(GameStateRule(EndPhase)))))
     let isSpecificPhase phase = 
-        Matches(GameStateRule(GameRound(One(phase)))) <|>
-            Matches(GameStateRule(GameRound(Two(phase)))) <|>
-            Matches(GameStateRule(GameRound(Three(phase)))) <|>
-            Matches(GameStateRule(GameRound(Four(phase)))) <|>
-            Matches(GameStateRule(GameRound(Five(phase)))) <|>
-            Matches(GameStateRule(GameRound(Six(phase)))) <|>
-            Matches(GameStateRule(GameRound(Seven(phase))))   
+        is (One(phase)) <|>
+        is (Two(phase)) <|>
+        is (Three(phase)) <|>
+        is (Four(phase)) <|>
+        is (Five(phase)) <|>
+        is (Six(phase)) <|>
+        is (Seven(phase))   
     let Termagant id = 
         { Name = "Termagant"
           Id = id
@@ -28,7 +30,7 @@ module ImplTest =
                   yield Function(ModelRule(Melee(1,Applied hUnitId),id))
                         |> Rule.onlyWhen (isSpecificPhase Assault)
                         |> Rule.userActivated Player1
-                        |> Rule.afterRunDeactivateUntil (Matches(GameStateRule(EndPhase))) (ModelList id) 
+                        |> Rule.afterRunDeactivateUntil endPhase (ModelList id) 
                   yield Function(ModelRule(WeaponSkill(CharacteristicValue 3), id))
                   yield Function(ModelRule(BallisticSkill(CharacteristicValue 3), id))
                   yield Function(ModelRule(Strength(CharacteristicValue 3), id))
@@ -60,9 +62,9 @@ module ImplTest =
 //                        |> Rule.afterRunDeactivateUntil (Rule(GameStateRule(EndPhase)))
                   yield Function(UnitRule(DeploymentState(Start), tUnitId))
                   yield Function(UnitRule(Deploy, tUnitId))
-                         |> Rule.onlyWhen (Matches(GameStateRule(GameRound(Begin))) <&> Matches(UnitRule(DeploymentState(Start), tUnitId))) 
+                         |> Rule.onlyWhen (is (Begin) <&>  (Literal(Equation(Apply(NotApplied ("TRound", UnitList tUnitId)),Eq,(Evaluation(UnitRule(DeploymentState(Start), tUnitId)))))))
                          |> Rule.userActivated Player1
-                         |> Rule.afterRunDeactivateUntil (Matches(GameStateRule(EndPhase))) (UnitList tUnitId) 
+                         |> Rule.afterRunDeactivateUntil endPhase (UnitList tUnitId) 
               }
               |> Seq.map makeRule
               |> Map.ofSeq }
@@ -111,9 +113,9 @@ module ImplTest =
                 //         |> Rule.afterRunDeactivateUntil (Rule(GameStateRule(EndPhase)))
                   yield Function(UnitRule(DeploymentState(Start), hUnitId))
                   yield Function(UnitRule(Deploy, hUnitId))
-                         |> Rule.onlyWhen (Matches(GameStateRule(GameRound(Begin))) <&> Matches(UnitRule(DeploymentState(Start), hUnitId))) 
+                         |> Rule.onlyWhen (is (Begin) <&>  (Literal(Equation(Apply(NotApplied ("TRound", UnitList tUnitId)),Eq,(Evaluation(UnitRule(DeploymentState(Start), tUnitId)))))))
                          |> Rule.userActivated Player2
-                         |> Rule.afterRunDeactivateUntil (Matches(GameStateRule(EndPhase))) (UnitList hUnitId)
+                         |> Rule.afterRunDeactivateUntil endPhase (UnitList hUnitId)
                   yield Description { Name = "Bounding Leap"
                                       Description = "Run(CharacteristicValue 3) extra inches" }
               }
